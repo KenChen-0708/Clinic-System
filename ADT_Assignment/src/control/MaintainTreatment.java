@@ -1,24 +1,22 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package control;
 
 import adt.DoublyLinkedList;
+import dao.TreatmentDAO;
 import entity.Treatment;
-import java.io.*;
 
 public class MaintainTreatment {
-    private DoublyLinkedList<Treatment> treatmentList = new DoublyLinkedList<>();
+    private DoublyLinkedList<Treatment> treatmentList;
+    private TreatmentDAO treatmentDAO;
 
     public MaintainTreatment() {
-        loadFromFile();
+        treatmentDAO = new TreatmentDAO();
+        treatmentList = treatmentDAO.loadAll();
     }
 
     public void addTreatment(Treatment treatment) {
         if (!treatmentList.contains(treatment)) {
             treatmentList.add(treatment);
-            saveToFile();
+            treatmentDAO.saveAll(treatmentList);
         } else {
             System.out.println("Treatment ID already exists.");
         }
@@ -28,7 +26,7 @@ public class MaintainTreatment {
         for (int i = 0; i < treatmentList.size(); i++) {
             if (treatmentList.get(i).getTreatmentId().equals(treatmentId)) {
                 treatmentList.remove(treatmentList.get(i));
-                saveToFile();
+                treatmentDAO.saveAll(treatmentList);
                 return true;
             }
         }
@@ -66,28 +64,6 @@ public class MaintainTreatment {
         System.out.println("\n--- Total Treatments per Patient ---");
         for (int i = 0; i < patientIds.size(); i++) {
             System.out.println("Patient ID: " + patientIds.get(i) + " | Treatments: " + counts.get(i));
-        }
-    }
-
-    private void loadFromFile() {
-        try (BufferedReader br = new BufferedReader(new FileReader("treatments.txt"))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                treatmentList.add(Treatment.fromString(line));
-            }
-        } catch (IOException e) {
-            System.out.println("No file found. Starting fresh.");
-        }
-    }
-
-    private void saveToFile() {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter("treatments.txt"))) {
-            for (int i = 0; i < treatmentList.size(); i++) {
-                bw.write(treatmentList.get(i).toString());
-                bw.newLine();
-            }
-        } catch (IOException e) {
-            System.out.println("Error saving data.");
         }
     }
 }

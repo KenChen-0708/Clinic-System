@@ -1,18 +1,16 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package control;
 
 import adt.DoublyLinkedList;
+import dao.MedicineDAO;
 import entity.Medicine;
-import java.io.*;
 
 public class MaintainPharmacy {
-    private DoublyLinkedList<Medicine> medicineList = new DoublyLinkedList<>();
+    private DoublyLinkedList<Medicine> medicineList;
+    private MedicineDAO medicineDAO;
 
     public MaintainPharmacy() {
-        loadFromFile();
+        medicineDAO = new MedicineDAO();
+        medicineList = medicineDAO.loadAll();
     }
 
     public void addMedicine(Medicine med) {
@@ -23,7 +21,7 @@ public class MaintainPharmacy {
             }
         }
         medicineList.add(med);
-        saveToFile();
+        medicineDAO.saveAll(medicineList);
     }
 
     public void dispenseMedicine(String medId, int qty) {
@@ -32,7 +30,7 @@ public class MaintainPharmacy {
             if (m.getMedId().equals(medId)) {
                 if (m.getStock() >= qty) {
                     m.setStock(m.getStock() - qty);
-                    saveToFile();
+                    medicineDAO.saveAll(medicineList);
                     System.out.println("Dispensed " + qty + " units.");
                     return;
                 } else {
@@ -61,27 +59,5 @@ public class MaintainPharmacy {
             }
         }
         if (!found) System.out.println("All medicines have sufficient stock.");
-    }
-
-    private void loadFromFile() {
-        try (BufferedReader br = new BufferedReader(new FileReader("medicines.txt"))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                medicineList.add(Medicine.fromString(line));
-            }
-        } catch (IOException e) {
-            System.out.println("No file found. Starting fresh.");
-        }
-    }
-
-    private void saveToFile() {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter("medicines.txt"))) {
-            for (int i = 0; i < medicineList.size(); i++) {
-                bw.write(medicineList.get(i).toString());
-                bw.newLine();
-            }
-        } catch (IOException e) {
-            System.out.println("Error saving data.");
-        }
     }
 }
