@@ -1,39 +1,56 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package entity;
 
-public class Medicine {
+import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+public class Medicine implements Serializable{
+
     private String medId;
     private String name;
     private int stock;
+    private double price;
+    private LocalDate expiryDate;
 
-    public Medicine(String medId, String name, int stock) {
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+
+    public Medicine(String medId, String name, int stock, double price, LocalDate expiryDate) {
         this.medId = medId;
         this.name = name;
         this.stock = stock;
+        this.price = price;
+        this.expiryDate = expiryDate;
     }
 
-    public String getMedId() { return medId; }
-    public String getName() { return name; }
-    public int getStock() { return stock; }
+    public String getMedId() {
+        return medId;
+    }
 
-    public void setStock(int stock) { this.stock = stock; }
+    public String getName() {
+        return name;
+    }
 
+    public int getStock() {
+        return stock;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public LocalDate getExpiryDate() {
+        return expiryDate;
+    }
+
+    public void setStock(int stock) {
+        this.stock = stock;
+    }
+
+    @Override
     public String toString() {
-        return medId + "," + name + "," + stock;
-    }
-
-    public static Medicine fromString(String line) {
-        String[] parts = line.split(",");
-        return new Medicine(parts[0], parts[1], Integer.parseInt(parts[2]));
-    }
-
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Medicine)) return false;
-        Medicine m = (Medicine) o;
-        return medId.equals(m.medId);
+        return String.format(
+                "Medicine ID  : %-5s\nName         : %s\nQuantity     : %d\nPrice/unit   : RM %.2f\nExpiry Date  : %s\n",
+                medId, name, stock, price, expiryDate.format(formatter)
+        );
     }
 }

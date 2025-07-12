@@ -1,68 +1,88 @@
 package control;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;
+import boundary.DoctorUI;
 import dao.DoctorDAO;
 import entity.Doctor;
+import utility.MessageUI;
 
 public class MaintainDoctor {
-    private DoublyLinkedList<Doctor> doctorList;
-    private DoctorDAO doctorDAO;
+    private final ListInterface<Doctor> doctorList;
+    private final DoctorDAO doctorDAO;
+    private final DoctorUI doctorUI;
 
     public MaintainDoctor() {
         doctorDAO = new DoctorDAO();
-        doctorList = doctorDAO.loadAll();
+        doctorList = doctorDAO.retrieveFromFile();
+        doctorUI = new DoctorUI(this);
     }
 
-    public void addDoctor(Doctor doctor) {
+    public void addDoctor() {
+        Doctor doctor = doctorUI.inputDoctorDetails();
         if (!doctorList.contains(doctor)) {
             doctorList.add(doctor);
-            doctorDAO.saveAll(doctorList);
+            doctorDAO.saveToFile(doctorList);
+            doctorUI.displayMessage("Doctor added successfully.");
         } else {
-            System.out.println("Doctor already exists.");
+            doctorUI.displayMessage("Doctor already exists.");
         }
     }
 
-    public boolean removeDoctor(String id) {
-        for (int i = 0; i < doctorList.size(); i++) {
-            if (doctorList.get(i).getId().equals(id)) {
-                doctorList.remove(doctorList.get(i));
-                doctorDAO.saveAll(doctorList);
-                return true;
+    public void removeDoctor() {
+        String id = doctorUI.inputDoctorId();
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            if (doctorList.getEntry(i).getId().equalsIgnoreCase(id)) {
+                doctorList.remove(i);
+                doctorDAO.saveToFile(doctorList);
+                doctorUI.displayMessage("Doctor removed.");
+                return;
             }
         }
-        return false;
+        doctorUI.displayMessage("Doctor not found.");
     }
 
     public void displayAllDoctors() {
-        for (int i = 0; i < doctorList.size(); i++) {
-            System.out.println(doctorList.get(i));
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor d = doctorList.getEntry(i);
+            output.append(i).append(". ")
+                  .append(d.getId()).append(" - ")
+                  .append(d.getName()).append(" | ")
+                  .append("Specialization: ").append(d.getSpecialization()).append("\n");
         }
+        doctorUI.displayDoctorList(output.toString());
     }
 
-    public void summaryBySpecialization() {
-        System.out.println("\n--- Doctors by Specialization ---");
-        DoublyLinkedList<String> specializations = new DoublyLinkedList<>();
-        DoublyLinkedList<Integer> counts = new DoublyLinkedList<>();
-
-        for (int i = 0; i < doctorList.size(); i++) {
-            String spec = doctorList.get(i).getSpecialization();
-            int index = -1;
-            for (int j = 0; j < specializations.size(); j++) {
-                if (specializations.get(j).equals(spec)) {
-                    index = j;
-                    break;
-                }
-            }
-            if (index == -1) {
-                specializations.add(spec);
-                counts.add(1);
-            } else {
-                counts.remove(index + 1);
+    public void searchDoctorById() {
+        String id = doctorUI.inputDoctorId();
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor doc = doctorList.getEntry(i);
+            if (doc.getId().equalsIgnoreCase(id)) {
+                String msg = "\nDoctor Found:\n"
+                           + "ID            : " + doc.getId() + "\n"
+                           + "Name          : " + doc.getName() + "\n"
+                           + "Specialization: " + doc.getSpecialization() + "\n";
+                doctorUI.displayMessage(msg);
+                return;
             }
         }
+        doctorUI.displayMessage("Doctor not found.");
+    }
 
-        for (int i = 0; i < specializations.size(); i++) {
-            System.out.println(specializations.get(i) + ": " + counts.get(i) + " doctor(s)");
+    public void setDoctorSchedule() {
+        String id = doctorUI.inputDoctorId();
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            if (doctorList.getEntry(i).getId().equalsIgnoreCase(id)) {
+                // Just a placeholder for actual schedule logic
+                doctorUI.displayMessage("Schedule set successfully for Doctor ID: " + id);
+                return;
+            }
         }
+        doctorUI.displayMessage("Doctor not found.");
+    }
+
+    public void runDoctorMenu() {
+        doctorUI.run();
     }
 }

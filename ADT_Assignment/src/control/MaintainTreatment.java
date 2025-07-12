@@ -1,69 +1,92 @@
 package control;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;
+import boundary.TreatmentUI;
 import dao.TreatmentDAO;
 import entity.Treatment;
+import utility.MessageUI;
 
 public class MaintainTreatment {
-    private DoublyLinkedList<Treatment> treatmentList;
-    private TreatmentDAO treatmentDAO;
+    private final ListInterface<Treatment> treatmentList;
+    private final TreatmentDAO treatmentDAO;
+    private final TreatmentUI treatmentUI;
 
     public MaintainTreatment() {
         treatmentDAO = new TreatmentDAO();
-        treatmentList = treatmentDAO.loadAll();
+        treatmentList = treatmentDAO.retrieveFromFile();
+        treatmentUI = new TreatmentUI(this);
     }
 
-    public void addTreatment(Treatment treatment) {
-        if (!treatmentList.contains(treatment)) {
-            treatmentList.add(treatment);
-            treatmentDAO.saveAll(treatmentList);
+    public void addTreatment() {
+        Treatment t = treatmentUI.inputTreatmentDetails();
+        if (!treatmentList.contains(t)) {
+            treatmentList.add(t);
+            treatmentDAO.saveToFile(treatmentList);
+            treatmentUI.displayMessage("✅ Treatment recorded successfully.");
         } else {
-            System.out.println("Treatment ID already exists.");
+            treatmentUI.displayMessage("❌ Treatment ID already exists.");
         }
     }
 
-    public boolean removeTreatment(String treatmentId) {
-        for (int i = 0; i < treatmentList.size(); i++) {
-            if (treatmentList.get(i).getTreatmentId().equals(treatmentId)) {
-                treatmentList.remove(treatmentList.get(i));
-                treatmentDAO.saveAll(treatmentList);
-                return true;
+    public void removeTreatment() {
+        String id = treatmentUI.inputTreatmentId();
+        for (int i = 1; i <= treatmentList.getNumberOfEntries(); i++) {
+            Treatment t = treatmentList.getEntry(i);
+            if (t.getTreatmentId().equalsIgnoreCase(id)) {
+                treatmentList.remove(i);
+                treatmentDAO.saveToFile(treatmentList);
+                treatmentUI.displayMessage("✅ Treatment removed successfully.");
+                return;
             }
         }
-        return false;
+        treatmentUI.displayMessage("❌ Treatment ID not found.");
     }
 
     public void displayAllTreatments() {
-        for (int i = 0; i < treatmentList.size(); i++) {
-            System.out.println(treatmentList.get(i));
+        if (treatmentList.isEmpty()) {
+            treatmentUI.displayMessage("No treatment records found.");
+            return;
+        }
+
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= treatmentList.getNumberOfEntries(); i++) {
+            Treatment t = treatmentList.getEntry(i);
+            output.append(i).append(". ")
+                  .append("Treatment ID: ").append(t.getTreatmentId()).append("\n")
+                  .append("Patient ID  : ").append(t.getPatientId()).append("\n")
+                  .append("Diagnosis   : ").append(t.getDiagnosis()).append("\n")
+                  .append("Prescription: ").append(t.getPrescription()).append("\n")
+                  .append("------------------------------\n");
+        }
+
+        treatmentUI.displayTreatmentList(output.toString());
+    }
+
+    public void searchTreatmentByPatientId() {
+        String pid = treatmentUI.inputPatientId();
+        boolean found = false;
+        StringBuilder output = new StringBuilder();
+
+        for (int i = 1; i <= treatmentList.getNumberOfEntries(); i++) {
+            Treatment t = treatmentList.getEntry(i);
+            if (t.getPatientId().equalsIgnoreCase(pid)) {
+                found = true;
+                output.append("Treatment ID: ").append(t.getTreatmentId()).append("\n")
+                      .append("Diagnosis   : ").append(t.getDiagnosis()).append("\n")
+                      .append("Prescription: ").append(t.getPrescription()).append("\n")
+                      .append("------------------------------\n");
+            }
+        }
+
+        if (found) {
+            treatmentUI.displayTreatmentList(output.toString());
+        } else {
+            treatmentUI.displayMessage("No treatment history found for patient ID: " + pid);
         }
     }
 
-    public void summaryTreatmentsPerPatient() {
-        DoublyLinkedList<String> patientIds = new DoublyLinkedList<>();
-        DoublyLinkedList<Integer> counts = new DoublyLinkedList<>();
-
-        for (int i = 0; i < treatmentList.size(); i++) {
-            String pid = treatmentList.get(i).getPatientId();
-            int index = -1;
-            for (int j = 0; j < patientIds.size(); j++) {
-                if (patientIds.get(j).equals(pid)) {
-                    index = j;
-                    break;
-                }
-            }
-            if (index == -1) {
-                patientIds.add(pid);
-                counts.add(1);
-            } else {
-                counts.add(index, counts.get(index) + 1);
-                counts.remove(index + 1);
-            }
-        }
-
-        System.out.println("\n--- Total Treatments per Patient ---");
-        for (int i = 0; i < patientIds.size(); i++) {
-            System.out.println("Patient ID: " + patientIds.get(i) + " | Treatments: " + counts.get(i));
-        }
+    public void runTreatmentMenu() {
+        treatmentUI.run();
     }
 }

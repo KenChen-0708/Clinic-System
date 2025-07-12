@@ -1,65 +1,103 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package boundary;
 
-import control.MaintainPharmacy;
 import entity.Medicine;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 
 public class PharmacyUI {
-    private MaintainPharmacy maintainPharmacy = new MaintainPharmacy();
-    private Scanner scanner = new Scanner(System.in);
 
-    public void run() {
-        int choice;
-        do {
-            System.out.println("\n--- Pharmacy Management ---");
-            System.out.println("1. Add Medicine");
-            System.out.println("2. Dispense Medicine");
-            System.out.println("3. View All Medicines");
-            System.out.println("4. Summary - Low Stock Medicines");
-            System.out.println("0. Exit");
-            System.out.print("Choose: ");
-            choice = scanner.nextInt(); scanner.nextLine();
+    Scanner scanner = new Scanner(System.in);
 
-            switch (choice) {
-                case 1: addMedicine(); break;
-                case 2: dispenseMedicine(); break;
-                case 3: maintainPharmacy.viewAllMedicines(); break;
-                case 4: summaryLowStock(); break;
-                case 0: System.out.println("Back to Main Menu"); break;
-                default: System.out.println("Invalid.");
-            }
-        } while (choice != 0);
+    public int getMenuChoice() {
+        System.out.println("================================");
+        System.out.println("   PHARMACY MANAGEMENT MENU");
+        System.out.println("================================");
+        System.out.println("1. View Medicine Inventory");
+        System.out.println("2. Add New Medicine Stock");
+        System.out.println("3. Dispense Medicine to Patient");
+        System.out.println("4. Generate Inventory Report");
+        System.out.println("5. Generate Dispensed Medicines Report");
+        System.out.println("6. Back to Main Menu");
+        System.out.println("--------------------------------");
+        System.out.print("Enter your choice: ");
+
+        int choice = scanner.nextInt();
+        scanner.nextLine();  // consume newline
+        System.out.println();
+        return choice;
     }
 
-    private void addMedicine() {
-        System.out.print("Enter Medicine ID: ");
-        String id = scanner.nextLine();
-        System.out.print("Enter Medicine Name: ");
+    public Medicine inputMedicineDetails(String generatedId) {
+        System.out.println("\n--- Add New Medicine ---");
+        System.out.print("Enter medicine name               : ");
         String name = scanner.nextLine();
-        System.out.print("Enter Stock Quantity: ");
-        int stock = scanner.nextInt(); scanner.nextLine();
-        maintainPharmacy.addMedicine(new Medicine(id, name, stock));
+        System.out.print("Enter quantity                    : ");
+        int quantity = Integer.parseInt(scanner.nextLine());
+        System.out.print("Enter price per unit (RM)         : ");
+        double price = Double.parseDouble(scanner.nextLine());
+        System.out.print("Enter expiry date (DD-MM-YYYY)    : ");
+        String expiryStr = scanner.nextLine();
+
+        LocalDate expiry = LocalDate.parse(expiryStr, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+
+        return new Medicine(generatedId, name, quantity, price, expiry);
     }
 
-    private void dispenseMedicine() {
+    public void displayAddConfirmation(Medicine med) {
+        System.out.println("\nMedicine successfully added!\n");
+        System.out.println(med.toString());
+        System.out.println("--------------------------------------------");
+    }
+
+    public void displayMedicineInventory(String allMedicines) {
+        System.out.println("\n--- Current Medicine Inventory ---\n");
+        System.out.println(allMedicines);
+        System.out.println("--------------------------------------------");
+    }
+
+    public String inputMedicineID() {
         System.out.print("Enter Medicine ID: ");
-        String id = scanner.nextLine();
+        return scanner.nextLine();
+    }
+
+    public String inputMedicineName() {
+        System.out.print("Enter Medicine Name: ");
+        return scanner.nextLine();
+    }
+
+    public int inputMedicineQuantity() {
+        System.out.print("Enter Stock Quantity: ");
+        int qty = scanner.nextInt();
+        scanner.nextLine();  // consume newline
+        return qty;
+    }
+
+    public int inputDispenseQuantity() {
         System.out.print("Enter quantity to dispense: ");
-        int qty = scanner.nextInt(); scanner.nextLine();
-        maintainPharmacy.dispenseMedicine(id, qty);
+        int qty = scanner.nextInt();
+        scanner.nextLine();  // consume newline
+        return qty;
     }
 
-    private void summaryLowStock() {
+    public int inputStockThreshold() {
         System.out.print("Enter stock threshold: ");
-        int threshold = scanner.nextInt(); scanner.nextLine();
-        maintainPharmacy.summaryLowStock(threshold);
+        int threshold = scanner.nextInt();
+        scanner.nextLine();  // consume newline
+        return threshold;
     }
 
-    public static void main(String[] args) {
-        new PharmacyUI().run();
+    public void displayMedicineList(String formattedList) {
+        System.out.println("Medicine Inventory:\n" + formattedList);
     }
+
+    public void displayMessage(String msg) {
+        System.out.println(msg);
+    }
+
+    public int inputPatientSelection() {
+        System.out.print("Enter patient number to dispense: ");
+        return scanner.nextInt();
+    }
+
 }

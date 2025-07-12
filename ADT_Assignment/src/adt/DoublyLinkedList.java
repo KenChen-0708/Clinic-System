@@ -1,13 +1,10 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package adt;
 
-public class DoublyLinkedList<T> implements ListInterface<T> {
+import java.io.Serializable;
 
-    private class Node {
+public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
 
+    private class Node implements Serializable {
         T data;
         Node next, prev;
 
@@ -17,92 +14,103 @@ public class DoublyLinkedList<T> implements ListInterface<T> {
     }
 
     private Node head, tail;
-    private int size;
+    private int numberOfEntries;
 
-    public void add(T data) {
-        Node node = new Node(data);
-        if (isEmpty()) {
-            head = tail = node;
-        } else {
-            tail.next = node;
-            node.prev = tail;
-            tail = node;
-        }
-        size++;
+    public DoublyLinkedList() {
+        head = tail = null;
+        numberOfEntries = 0;
     }
 
-    public void add(int index, T data) {
-        if (index < 0 || index > size) {
-            throw new IndexOutOfBoundsException();
+    @Override
+    public boolean add(T newEntry) {
+        return add(numberOfEntries + 1, newEntry);
+    }
+
+    @Override
+    public boolean add(int newPosition, T newEntry) {
+        if (newPosition < 1 || newPosition > numberOfEntries + 1) {
+            return false;
         }
 
-        Node newNode = new Node(data);
+        Node newNode = new Node(newEntry);
 
-        if (index == 0) {
-            if (head == null) {
-                head = tail = newNode;
-            } else {
-                newNode.next = head;
-                head.prev = newNode;
-                head = newNode;
-            }
-        } else if (index == size) {
+        if (isEmpty()) {
+            head = tail = newNode;
+        } else if (newPosition == 1) {
+            newNode.next = head;
+            head.prev = newNode;
+            head = newNode;
+        } else if (newPosition == numberOfEntries + 1) {
             tail.next = newNode;
             newNode.prev = tail;
             tail = newNode;
         } else {
-            Node current = head;
-            for (int i = 0; i < index; i++) {
-                current = current.next;
-            }
-
-            newNode.next = current;
+            Node current = getNodeAt(newPosition);
             newNode.prev = current.prev;
+            newNode.next = current;
             current.prev.next = newNode;
             current.prev = newNode;
         }
-        size++;
+
+        numberOfEntries++;
+        return true;
     }
 
-    public boolean remove(T data) {
-        Node current = head;
-        while (current != null) {
-            if (current.data.equals(data)) {
-                if (current == head) {
-                    head = head.next;
-                } else {
-                    current.prev.next = current.next;
-                }
-
-                if (current == tail) {
-                    tail = tail.prev;
-                } else {
-                    current.next.prev = current.prev;
-                }
-
-                size--;
-                return true;
-            }
-            current = current.next;
-        }
-        return false;
-    }
-
-    public T get(int index) {
-        if (index < 0 || index >= size) {
+    @Override
+    public T remove(int givenPosition) {
+        if (givenPosition < 1 || givenPosition > numberOfEntries) {
             return null;
         }
-        Node current = head;
-        for (int i = 0; i < index; i++) {
-            current = current.next;
+
+        Node toRemove = getNodeAt(givenPosition);
+        T result = toRemove.data;
+
+        if (toRemove == head) {
+            head = head.next;
+            if (head != null) head.prev = null;
+        } else {
+            toRemove.prev.next = toRemove.next;
         }
-        return current.data;
+
+        if (toRemove == tail) {
+            tail = tail.prev;
+            if (tail != null) tail.next = null;
+        } else {
+            toRemove.next.prev = toRemove.prev;
+        }
+
+        numberOfEntries--;
+        if (numberOfEntries == 0) head = tail = null;
+        return result;
     }
 
-    public boolean contains(T data) {
+    @Override
+    public void clear() {
+        head = tail = null;
+        numberOfEntries = 0;
+    }
+
+    @Override
+    public boolean replace(int givenPosition, T newEntry) {
+        Node current = getNodeAt(givenPosition);
+        if (current != null) {
+            current.data = newEntry;
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public T getEntry(int givenPosition) {
+        Node current = getNodeAt(givenPosition);
+        return (current != null) ? current.data : null;
+    }
+
+    @Override
+    public boolean contains(T anEntry) {
         Node current = head;
         while (current != null) {
-            if (current.data.equals(data)) {
+            if (current.data.equals(anEntry)) {
                 return true;
             }
             current = current.next;
@@ -110,16 +118,39 @@ public class DoublyLinkedList<T> implements ListInterface<T> {
         return false;
     }
 
+    @Override
+    public int getNumberOfEntries() {
+        return numberOfEntries;
+    }
+
+    @Override
     public boolean isEmpty() {
-        return size == 0;
+        return numberOfEntries == 0;
     }
 
-    public int size() {
-        return size;
+    @Override
+    public boolean isFull() {
+        return false; // Linked list is dynamic
     }
 
-    public void clear() {
-        head = tail = null;
-        size = 0;
+    private Node getNodeAt(int position) {
+        if (position < 1 || position > numberOfEntries) return null;
+
+        Node current = head;
+        for (int i = 1; i < position; i++) {
+            current = current.next;
+        }
+        return current;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        Node current = head;
+        while (current != null) {
+            sb.append(current.data).append("\n");
+            current = current.next;
+        }
+        return sb.toString();
     }
 }

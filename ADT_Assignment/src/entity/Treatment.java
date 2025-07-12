@@ -1,10 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package entity;
 
-public class Treatment {
+import java.io.Serializable;
+
+public class Treatment implements Serializable {
     private String treatmentId;
     private String patientId;
     private String diagnosis;
@@ -22,15 +20,15 @@ public class Treatment {
     public String getDiagnosis() { return diagnosis; }
     public String getPrescription() { return prescription; }
 
+    @Override
     public String toString() {
-        return treatmentId + "," + patientId + "," + diagnosis + "," + prescription;
+        return String.format(
+            "Treatment ID : %s\nPatient ID   : %s\nDiagnosis     : %s\nPrescription  : %s",
+            treatmentId, patientId, diagnosis, prescription
+        );
     }
 
-    public static Treatment fromString(String line) {
-        String[] parts = line.split(",");
-        return new Treatment(parts[0], parts[1], parts[2], parts[3]);
-    }
-
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Treatment)) return false;

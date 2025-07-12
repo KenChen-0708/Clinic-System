@@ -1,124 +1,111 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package control;
 
-import adt.DoublyLinkedList;
-import java.io.*;
+import adt.ListInterface;
+import dao.PatientDAO;
+import dao.DoctorDAO;
+import dao.TreatmentDAO;
+import dao.MedicineDAO;
+import entity.Patient;
+import entity.Doctor;
+import entity.Treatment;
+import entity.Medicine;
 
 public class SummaryReport {
 
+    private final PatientDAO patientDAO = new PatientDAO();
+    private final DoctorDAO doctorDAO = new DoctorDAO();
+    private final TreatmentDAO treatmentDAO = new TreatmentDAO();
+    private final MedicineDAO medicineDAO = new MedicineDAO();
+
     public void generate() {
-        System.out.println("\n====== Clinic Summary Report ======");
+        System.out.println("\n====== Clinic Summary Report ======\n");
 
         totalPatients();
         doctorsBySpecialization();
         treatmentsPerPatient();
         medicineStockReport();
 
-        System.out.println("===================================");
+        System.out.println("\n===================================");
     }
 
     private void totalPatients() {
-        int count = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader("patients.txt"))) {
-            while (br.readLine() != null) count++;
-        } catch (IOException e) {
-            System.out.println("Error reading patients.txt");
-        }
-        System.out.println("Total Registered Patients: " + count);
+        ListInterface<Patient> patients = patientDAO.retrieveFromFile();
+        System.out.println("Total Registered Patients: " + patients.getNumberOfEntries());
     }
 
     private void doctorsBySpecialization() {
-        DoublyLinkedList<String> specs = new DoublyLinkedList<>();
-        DoublyLinkedList<Integer> counts = new DoublyLinkedList<>();
+        ListInterface<Doctor> doctors = doctorDAO.retrieveFromFile();
+        ListInterface<String> specs = new adt.DoublyLinkedList<>();
+        ListInterface<Integer> counts = new adt.DoublyLinkedList<>();
 
-        try (BufferedReader br = new BufferedReader(new FileReader("doctors.txt"))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String spec = line.split(",")[2];
-                int index = -1;
-                for (int i = 0; i < specs.size(); i++) {
-                    if (specs.get(i).equals(spec)) {
-                        index = i;
-                        break;
-                    }
-                }
-                if (index == -1) {
-                    specs.add(spec);
-                    counts.add(1);
-                } else {
-                    counts.add(index, counts.get(index) + 1);
-                    counts.remove(index + 1);
+        for (int i = 1; i <= doctors.getNumberOfEntries(); i++) {
+            String spec = doctors.getEntry(i).getSpecialization();
+            boolean found = false;
+            for (int j = 1; j <= specs.getNumberOfEntries(); j++) {
+                if (specs.getEntry(j).equals(spec)) {
+                    counts.replace(j, counts.getEntry(j) + 1);
+                    found = true;
+                    break;
                 }
             }
-        } catch (IOException e) {
-            System.out.println("Error reading doctors.txt");
+            if (!found) {
+                specs.add(spec);
+                counts.add(1);
+            }
         }
 
         System.out.println("\nDoctors by Specialization:");
-        for (int i = 0; i < specs.size(); i++) {
-            System.out.println("- " + specs.get(i) + ": " + counts.get(i));
+        for (int i = 1; i <= specs.getNumberOfEntries(); i++) {
+            System.out.println("- " + specs.getEntry(i) + ": " + counts.getEntry(i) + " doctor(s)");
         }
     }
 
     private void treatmentsPerPatient() {
-        DoublyLinkedList<String> patientIds = new DoublyLinkedList<>();
-        DoublyLinkedList<Integer> counts = new DoublyLinkedList<>();
+        ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
+        ListInterface<String> patientIds = new adt.DoublyLinkedList<>();
+        ListInterface<Integer> counts = new adt.DoublyLinkedList<>();
 
-        try (BufferedReader br = new BufferedReader(new FileReader("treatments.txt"))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String patientId = line.split(",")[1];
-                int index = -1;
-                for (int i = 0; i < patientIds.size(); i++) {
-                    if (patientIds.get(i).equals(patientId)) {
-                        index = i;
-                        break;
-                    }
-                }
-                if (index == -1) {
-                    patientIds.add(patientId);
-                    counts.add(1);
-                } else {
-                    counts.add(index, counts.get(index) + 1);
-                    counts.remove(index + 1);
+        for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
+            String pid = treatments.getEntry(i).getPatientId();
+            boolean found = false;
+            for (int j = 1; j <= patientIds.getNumberOfEntries(); j++) {
+                if (patientIds.getEntry(j).equals(pid)) {
+                    counts.replace(j, counts.getEntry(j) + 1);
+                    found = true;
+                    break;
                 }
             }
-        } catch (IOException e) {
-            System.out.println("Error reading treatments.txt");
+            if (!found) {
+                patientIds.add(pid);
+                counts.add(1);
+            }
         }
 
         System.out.println("\nTreatments per Patient:");
-        for (int i = 0; i < patientIds.size(); i++) {
-            System.out.println("- Patient ID: " + patientIds.get(i) + " | Treatments: " + counts.get(i));
+        for (int i = 1; i <= patientIds.getNumberOfEntries(); i++) {
+            System.out.println("- Patient ID: " + patientIds.getEntry(i) +
+                    " | Treatments: " + counts.getEntry(i));
         }
     }
 
     private void medicineStockReport() {
-        int total = 0;
-        int lowStockCount = 0;
+        ListInterface<Medicine> medicines = medicineDAO.retrieveFromFile();
         final int LOW_THRESHOLD = 10;
+        int totalStock = 0;
+        int lowStockCount = 0;
 
-        try (BufferedReader br = new BufferedReader(new FileReader("medicines.txt"))) {
-            String line;
-            System.out.println("\nMedicine Stock Summary:");
-            while ((line = br.readLine()) != null) {
-                String[] parts = line.split(",");
-                String name = parts[1];
-                int stock = Integer.parseInt(parts[2]);
-                total += stock;
-                if (stock < LOW_THRESHOLD) {
-                    lowStockCount++;
-                    System.out.println("- LOW STOCK: " + name + " (" + stock + " units)");
-                }
+        System.out.println("\nMedicine Stock Summary:");
+        for (int i = 1; i <= medicines.getNumberOfEntries(); i++) {
+            Medicine m = medicines.getEntry(i);
+            int stock = m.getStock();
+            totalStock += stock;
+            if (stock < LOW_THRESHOLD) {
+                lowStockCount++;
+                System.out.println("- LOW STOCK: " + m.getName() + " (" + stock + " units)");
             }
-        } catch (IOException e) {
-            System.out.println("Error reading medicines.txt");
         }
 
-        System.out.println("\nTotal Units of Medicines in Stock: " + total);
+        System.out.println("\nTotal Units of Medicines in Stock: " + totalStock);
         System.out.println("Number of Medicines Below Threshold (" + LOW_THRESHOLD + "): " + lowStockCount);
     }
 }

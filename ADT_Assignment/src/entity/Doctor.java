@@ -1,10 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package entity;
 
-public class Doctor {
+import java.io.Serializable;
+
+public class Doctor implements Serializable {
     private String id;
     private String name;
     private String specialization;
@@ -19,15 +17,12 @@ public class Doctor {
     public String getName() { return name; }
     public String getSpecialization() { return specialization; }
 
+    @Override
     public String toString() {
-        return id + "," + name + "," + specialization;
+        return String.format("ID            : %s\nName          : %s\nSpecialization: %s\n", id, name, specialization);
     }
 
-    public static Doctor fromString(String line) {
-        String[] parts = line.split(",");
-        return new Doctor(parts[0], parts[1], parts[2]);
-    }
-
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Doctor)) return false;
@@ -35,4 +30,3 @@ public class Doctor {
         return id.equals(d.id);
     }
 }
-

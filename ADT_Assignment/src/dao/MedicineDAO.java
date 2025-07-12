@@ -1,33 +1,42 @@
 package dao;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;
 import entity.Medicine;
 import java.io.*;
 
 public class MedicineDAO {
-    private final String FILE_NAME = "medicines.txt";
+    private final String FILE_NAME = "medicines.dat";
 
-    public DoublyLinkedList<Medicine> loadAll() {
-        DoublyLinkedList<Medicine> list = new DoublyLinkedList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(FILE_NAME))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                list.add(Medicine.fromString(line));
-            }
-        } catch (IOException e) {
-            System.out.println("No existing medicine file found. Starting with an empty list.");
+    public void saveToFile(ListInterface<Medicine> medicineList) {
+        File file = new File(FILE_NAME);
+        try {
+            ObjectOutputStream ooStream = new ObjectOutputStream(new FileOutputStream(file));
+            ooStream.writeObject(medicineList);
+            ooStream.close();
+        } catch (FileNotFoundException ex) {
+            System.out.println("\nFile not found.");
+        } catch (IOException ex) {
+            System.out.println("\nCannot save to file.");
         }
-        return list;
     }
 
-    public void saveAll(DoublyLinkedList<Medicine> medicineList) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(FILE_NAME))) {
-            for (int i = 0; i < medicineList.size(); i++) {
-                bw.write(medicineList.get(i).toString());
-                bw.newLine();
-            }
-        } catch (IOException e) {
-            System.out.println("Error saving medicine data.");
+    public ListInterface<Medicine> retrieveFromFile() {
+        File file = new File(FILE_NAME);
+        ListInterface<Medicine> medicineList = new DoublyLinkedList<>();
+
+        try {
+            ObjectInputStream oiStream = new ObjectInputStream(new FileInputStream(file));
+            medicineList = (DoublyLinkedList<Medicine>) oiStream.readObject();
+            oiStream.close();
+        } catch (FileNotFoundException ex) {
+            System.out.println("\nNo existing file found. Starting with an empty list.");
+        } catch (IOException ex) {
+            System.out.println("\nCannot read from file.");
+        } catch (ClassNotFoundException ex) {
+            System.out.println("\nClass not found.");
+        } finally {
+            return medicineList;
         }
     }
 }

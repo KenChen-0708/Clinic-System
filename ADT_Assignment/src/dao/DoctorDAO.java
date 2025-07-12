@@ -1,33 +1,30 @@
 package dao;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;
 import entity.Doctor;
 import java.io.*;
 
 public class DoctorDAO {
-    private final String FILE_NAME = "doctors.txt";
+    private final String FILE_NAME = "doctors.dat";
 
-    public DoublyLinkedList<Doctor> loadAll() {
-        DoublyLinkedList<Doctor> list = new DoublyLinkedList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(FILE_NAME))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                list.add(Doctor.fromString(line));
-            }
+    public void saveToFile(ListInterface<Doctor> doctorList) {
+        try (ObjectOutputStream oo = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oo.writeObject(doctorList);
         } catch (IOException e) {
-            System.out.println("No doctor file found. Starting with an empty list.");
+            System.out.println("Error saving doctors.");
         }
-        return list;
     }
 
-    public void saveAll(DoublyLinkedList<Doctor> doctorList) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(FILE_NAME))) {
-            for (int i = 0; i < doctorList.size(); i++) {
-                bw.write(doctorList.get(i).toString());
-                bw.newLine();
-            }
-        } catch (IOException e) {
-            System.out.println("Error saving doctor data.");
+    public ListInterface<Doctor> retrieveFromFile() {
+        ListInterface<Doctor> list = new DoublyLinkedList<>();
+        try (ObjectInputStream oi = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            list = (DoublyLinkedList<Doctor>) oi.readObject();
+        } catch (FileNotFoundException e) {
+            System.out.println("Doctor file not found. Starting fresh.");
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error loading doctors.");
         }
+        return list;
     }
 }

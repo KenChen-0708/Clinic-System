@@ -1,10 +1,12 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package boundary;
 
+import control.MaintainPatient;
+import control.MaintainDoctor;
+import control.MaintainTreatment;
+import control.MaintainPharmacy;
 import control.SummaryReport;
+import utility.MessageUI;
+
 import java.util.Scanner;
 
 public class MainUI {
@@ -22,36 +24,35 @@ public class MainUI {
             System.out.println("5. Generate Summary Report");
             System.out.println("0. Exit");
             System.out.print("Enter your choice: ");
+            while (!scanner.hasNextInt()) {
+                System.out.println("Please enter a valid number.");
+                scanner.next(); // discard invalid input
+                System.out.print("Enter your choice: ");
+            }
             choice = scanner.nextInt();
             scanner.nextLine(); // flush newline
 
             switch (choice) {
                 case 1:
-                    PatientUI patientUI = new PatientUI();
-                    patientUI.run();
+                    new MaintainPatient().runPatientMenu();
                     break;
                 case 2:
-                    DoctorUI doctorUI = new DoctorUI();
-                    doctorUI.run();
+                    new MaintainDoctor().runDoctorMenu();
                     break;
                 case 3:
-                    TreatmentUI treatmentUI = new TreatmentUI();
-                    treatmentUI.run();
+                    new MaintainTreatment().runTreatmentMenu();
                     break;
                 case 4:
-                    PharmacyUI pharmacyUI = new PharmacyUI();
-                    pharmacyUI.run();
+                    new MaintainPharmacy().runPharmacyMenu();
                     break;
                 case 5:
-                    SummaryReport report = new SummaryReport();
-                    report.generate();
+                    new SummaryReport().generate();
                     break;
-
                 case 0:
-                    System.out.println("Exiting system. Goodbye!");
+                    MessageUI.displayExitMessage();
                     break;
                 default:
-                    System.out.println("Invalid choice. Please select again.");
+                    MessageUI.displayInvalidChoiceMessage();
             }
 
         } while (choice != 0);
