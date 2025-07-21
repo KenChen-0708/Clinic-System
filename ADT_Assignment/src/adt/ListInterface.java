@@ -23,24 +23,12 @@ public interface ListInterface<T> {
     public boolean isEmpty();
 
     public boolean isFull();
-
-    public void bubbleSort();
-
-    public void selectionSort();
-
-    public void insertionSort();
-
-    public void sort(Comparator<T> comparator);
+    
+    public void mergeSort(Comparator<T> comparator);
 
     public int linearSearch(T target);
 
-    public int binarySearch(T target);
-
     public int binarySearch(T target, Comparator<T> comparator);
-
-    public int[] searchAll(T target);
-
-    public boolean isSorted();
 
     public boolean isSorted(Comparator<T> comparator);
 

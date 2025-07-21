@@ -134,100 +134,92 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
     }
     
     // SORTING METHODS
-    @SuppressWarnings("unchecked")
-    public void bubbleSort() {
+    @Override
+    public void mergeSort(Comparator<T> comparator) {
         if (numberOfEntries <= 1) return;
         
-        boolean swapped;
-        do {
-            swapped = false;
-            Node current = head;
-            while (current != null && current.next != null) {
-                if (((Comparable<T>) current.data).compareTo(current.next.data) > 0) {
-                    swapData(current, current.next);
-                    swapped = true;
-                }
-                current = current.next;
-            }
-        } while (swapped);
-    }
-    
-
-    @SuppressWarnings("unchecked")
-    public void selectionSort() {
-        if (numberOfEntries <= 1) return;
-        
+        // Convert to array for efficient merge sort
+        Object[] array = new Object[numberOfEntries];
         Node current = head;
-        while (current != null) {
-            Node min = current;
-            Node temp = current.next;
-            
-            while (temp != null) {
-                if (((Comparable<T>) temp.data).compareTo(min.data) < 0) {
-                    min = temp;
-                }
-                temp = temp.next;
-            }
-            
-            if (min != current) {
-                swapData(current, min);
-            }
+        for (int i = 0; i < numberOfEntries; i++) {
+            array[i] = current.data;
+            current = current.next;
+        }
+        
+        // Perform merge sort on array
+        mergeSortArray(array, 0, numberOfEntries - 1, comparator);
+        
+        // Copy sorted data back to linked list
+        current = head;
+        for (int i = 0; i < numberOfEntries; i++) {
+            current.data = (T) array[i];
             current = current.next;
         }
     }
-    
     
     @SuppressWarnings("unchecked")
-    public void insertionSort() {
-        if (numberOfEntries <= 1) return;
-        
-        Node current = head.next;
-        while (current != null) {
-            T key = current.data;
-            Node prev = current.prev;
+    private void mergeSortArray(Object[] array, int left, int right, Comparator<T> comparator) {
+        if (left < right) {
+            int mid = left + (right - left) / 2;
             
-            // Find the correct position for the key
-            while (prev != null && ((Comparable<T>) prev.data).compareTo(key) > 0) {
-                prev.next.data = prev.data;
-                prev = prev.prev;
-            }
+            // Sort first and second halves
+            mergeSortArray(array, left, mid, comparator);
+            mergeSortArray(array, mid + 1, right, comparator);
             
-            // Insert the key at the correct position
-            if (prev == null) {
-                head.data = key;
-            } else {
-                prev.next.data = key;
-            }
-            
-            current = current.next;
+            // Merge the sorted halves
+            merge(array, left, mid, right, comparator);
         }
     }
     
-
-    public void sort(Comparator<T> comparator) {
-        if (numberOfEntries <= 1) return;
+    @SuppressWarnings("unchecked")
+    private void merge(Object[] array, int left, int mid, int right, Comparator<T> comparator) {
+        // Create temporary arrays
+        int n1 = mid - left + 1;
+        int n2 = right - mid;
         
-        boolean swapped;
-        do {
-            swapped = false;
-            Node current = head;
-            while (current != null && current.next != null) {
-                if (comparator.compare(current.data, current.next.data) > 0) {
-                    swapData(current, current.next);
-                    swapped = true;
-                }
-                current = current.next;
+        Object[] leftArray = new Object[n1];
+        Object[] rightArray = new Object[n2];
+        
+        // Copy data to temporary arrays
+        for (int i = 0; i < n1; i++) {
+            leftArray[i] = array[left + i];
+        }
+        for (int j = 0; j < n2; j++) {
+            rightArray[j] = array[mid + 1 + j];
+        }
+        
+        // Merge the temporary arrays back into array[left..right]
+        int i = 0, j = 0;
+        int k = left;
+        
+        while (i < n1 && j < n2) {
+            if (comparator.compare((T) leftArray[i], (T) rightArray[j]) <= 0) {
+                array[k] = leftArray[i];
+                i++;
+            } else {
+                array[k] = rightArray[j];
+                j++;
             }
-        } while (swapped);
-    }
-    
-    private void swapData(Node node1, Node node2) {
-        T temp = node1.data;
-        node1.data = node2.data;
-        node2.data = temp;
+            k++;
+        }
+        
+        // Copy remaining elements of leftArray[], if any
+        while (i < n1) {
+            array[k] = leftArray[i];
+            i++;
+            k++;
+        }
+        
+        // Copy remaining elements of rightArray[], if any
+        while (j < n2) {
+            array[k] = rightArray[j];
+            j++;
+            k++;
+        }
     }
     
     // SEARCHING METHODS
+    @Override
     public int linearSearch(T target) {
         if (!contains(target)) {
             return -1; // Not found
@@ -246,34 +238,7 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
     }
     
 
-    @SuppressWarnings("unchecked")
-    public int binarySearch(T target) {
-        if (isEmpty()) return -1;
-        
-        int left = 1;
-        int right = numberOfEntries;
-        
-        while (left <= right) {
-            int mid = left + (right - left) / 2;
-            Node midNode = getNodeAt(mid);
-            
-            if (midNode == null) return -1;
-            
-            int comparison = ((Comparable<T>) midNode.data).compareTo(target);
-            
-            if (comparison == 0) {
-                return mid; // Found
-            } else if (comparison < 0) {
-                left = mid + 1;
-            } else {
-                right = mid - 1;
-            }
-        }
-        
-        return -1; // Not found
-    }
-    
-
+    @Override
     public int binarySearch(T target, Comparator<T> comparator) {
         if (isEmpty()) return -1;
         
@@ -299,56 +264,8 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         
         return -1; // Not found
     }
-    
 
-    public int[] searchAll(T target) {
-        if (!contains(target)) {
-            return new int[0]; // Empty array if not found
-        }
-        
-        // First pass: count occurrences
-        int count = 0;
-        Node current = head;
-        while (current != null) {
-            if (current.data.equals(target)) {
-                count++;
-            }
-            current = current.next;
-        }
-        
-        // Second pass: collect positions
-        int[] positions = new int[count];
-        current = head;
-        int position = 1;
-        int index = 0;
-        
-        while (current != null) {
-            if (current.data.equals(target)) {
-                positions[index++] = position;
-            }
-            current = current.next;
-            position++;
-        }
-        
-        return positions;
-    }
-    
-
-    @SuppressWarnings("unchecked")
-    public boolean isSorted() {
-        if (numberOfEntries <= 1) return true;
-        
-        Node current = head;
-        while (current != null && current.next != null) {
-            if (((Comparable<T>) current.data).compareTo(current.next.data) > 0) {
-                return false;
-            }
-            current = current.next;
-        }
-        return true;
-    }
-    
-
+    @Override
     public boolean isSorted(Comparator<T> comparator) {
         if (numberOfEntries <= 1) return true;
         
