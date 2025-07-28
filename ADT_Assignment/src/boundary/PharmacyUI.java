@@ -18,7 +18,7 @@ public class PharmacyUI {
         System.out.println("3. Dispense Medicine to Patient");
         System.out.println("4. Generate Inventory Report");
         System.out.println("5. Generate Dispensed Medicines Report");
-        System.out.println("6. Back to Main Menu");
+        System.out.println("0. Back to Main Menu");
         System.out.println("--------------------------------");
         System.out.print("Enter your choice: ");
 

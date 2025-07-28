@@ -44,7 +44,7 @@ public class MaintainPharmacy {
                 case 5:
                     generateDispensedReport();
                     break;
-                case 6:
+                case 0:
                     MessageUI.displayExitMessage();
                     break;
                 default:
