@@ -1,0 +1,182 @@
+package adt;
+
+public class LinkedQueue<T> implements QueueInterface<T> {
+
+    // Node class inside the ADT
+    private static class Node<T> {
+        T data;
+        String queueNumber;
+        Node<T> next;
+
+        Node(T data) {
+            this.data = data;
+            this.queueNumber = null;
+            this.next = null;
+        }
+
+        Node(T data, String queueNumber) {
+            this.data = data;
+            this.queueNumber = queueNumber;
+            this.next = null;
+        }
+    }
+
+    private Node<T> front; // first patient
+    private Node<T> rear;  // last patient
+    private int size;
+    private int nextQueueNumber; // Counter for queue numbers
+
+    public LinkedQueue() {
+        front = null;
+        rear = null;
+        size = 0;
+        nextQueueNumber = 1; // Start queue numbers from 0001
+    }
+
+    @Override
+    public void enqueue(T data) {
+        Node<T> newNode = new Node<>(data);
+        if (isEmpty()) {
+            front = newNode;
+        } else {
+            rear.next = newNode;
+        }
+        rear = newNode;
+        size++;
+    }
+
+    @Override
+    public void enqueueWithNumber(T data) {
+        String queueNum = String.format("%04d", nextQueueNumber++);
+        Node<T> newNode = new Node<>(data, queueNum);
+        if (isEmpty()) {
+            front = newNode;
+        } else {
+            rear.next = newNode;
+        }
+        rear = newNode;
+        size++;
+    }
+
+    @Override
+    public T dequeue() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Queue is empty, no patient to serve.");
+        }
+        T removedData = front.data;
+        front = front.next;
+        if (front == null) { // queue became empty
+            rear = null;
+        }
+        size--;
+        return removedData;
+    }
+
+    @Override
+    public T peek() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Queue is empty, no patient to view.");
+        }
+        return front.data;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    @Override
+    public int size() {
+        return size;
+    }
+
+    @Override
+    public void clear() {
+        front = null;
+        rear = null;
+        size = 0;
+    }
+
+    @Override
+    public boolean contains(T data) {
+        Node<T> current = front;
+        while (current != null) {
+            if (current.data.equals(data)) {
+                return true;
+            }
+            current = current.next;
+        }
+        return false;
+    }
+
+    @Override
+    public String getQueueNumber(T data) {
+        Node<T> current = front;
+        while (current != null) {
+            if (current.data.equals(data)) {
+                return current.queueNumber;
+            }
+            current = current.next;
+        }
+        return null; // Data not found
+    }
+
+    @Override
+    public int getPosition(T data) {
+        Node<T> current = front;
+        int position = 1;
+        while (current != null) {
+            if (current.data.equals(data)) {
+                return position;
+            }
+            current = current.next;
+            position++;
+        }
+        return -1; // Data not found
+    }
+
+    @Override
+    public String displayWithNumbers() {
+        if (isEmpty()) {
+            return "Queue is empty";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        Node<T> current = front;
+        int position = 1;
+
+        while (current != null) {
+            if (current.queueNumber != null) {
+                sb.append("Queue #").append(current.queueNumber)
+                  .append(" (Position ").append(position).append("): ")
+                  .append(current.data);
+            } else {
+                sb.append("Position ").append(position).append(": ")
+                  .append(current.data);
+            }
+
+            if (current.next != null) {
+                sb.append("\n");
+            }
+            current = current.next;
+            position++;
+        }
+
+        return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("[");
+        Node<T> current = front;
+        while (current != null) {
+            sb.append(current.data);
+            if (current.next != null) {
+                sb.append(" -> ");
+            }
+            current = current.next;
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+}
