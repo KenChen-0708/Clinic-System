@@ -3,7 +3,6 @@ package dao;
 import adt.DoublyLinkedList;
 import adt.ListInterface;
 import entity.Treatment;
-
 import java.io.*;
 
 public class TreatmentDAO {
@@ -12,20 +11,25 @@ public class TreatmentDAO {
     public void saveToFile(ListInterface<Treatment> treatmentList) {
         try (ObjectOutputStream oo = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
             oo.writeObject(treatmentList);
+            System.out.println("Treatment data saved successfully.");
         } catch (IOException e) {
-            System.out.println("Error saving treatment data.");
+            System.out.println("Error saving treatment data: " + e.getMessage());
         }
     }
 
     public ListInterface<Treatment> retrieveFromFile() {
-        ListInterface<Treatment> list = new DoublyLinkedList<>();
-        try (ObjectInputStream oi = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
-            list = (DoublyLinkedList<Treatment>) oi.readObject();
-        } catch (FileNotFoundException e) {
-            System.out.println("No treatment file found. Starting with an empty list.");
-        } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Error reading treatment data.");
+        File file = new File(FILE_NAME);
+        
+        // If file doesn't exist, return empty list without error message
+        if (!file.exists()) {
+            return new DoublyLinkedList<>();
         }
-        return list;
+        
+        try (ObjectInputStream oi = new ObjectInputStream(new FileInputStream(file))) {
+            return (DoublyLinkedList<Treatment>) oi.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error reading treatment data: " + e.getMessage());
+            return new DoublyLinkedList<>();
+        }
     }
 }
