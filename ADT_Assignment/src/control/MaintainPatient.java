@@ -11,6 +11,7 @@ import boundary.PatientUI;
 import dao.PatientDAO;
 import entity.Patient;
 import utility.MessageUI;
+import utility.FormatUtil;
 
 public class MaintainPatient {
 
@@ -822,25 +823,16 @@ public class MaintainPatient {
     }
 
     private void simulatePatientQueue() {
-        // Use custom LinkedQueue from ADT folder
+        // Use custom LinkedQueue from ADT folder - business logic
         QueueInterface<Patient> simulationQueue = new LinkedQueue<>();
 
-        // Add all patients to simulation queue
+        // Add all patients to simulation queue - business logic
         for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
             simulationQueue.enqueue(patientList.getEntry(i));
         }
 
-        System.out.println("\n--- Simulating Patient Queue ---");
-        System.out.println("Total patients to serve: " + simulationQueue.size());
-
-        int servedCount = 0;
-        while (!simulationQueue.isEmpty()) {
-            Patient current = simulationQueue.dequeue();
-            servedCount++;
-            System.out.println(servedCount + ". Now serving: " + current.getName() + " (ID: " + current.getId() + ")");
-        }
-
-        System.out.println("All " + servedCount + " patients have been served.");
+        // Delegate to UI for display and simulation
+        patientUI.displaySimulationResult(simulationQueue);
     }
 
     public ListInterface<Patient> getPatientList() {
@@ -867,18 +859,16 @@ public class MaintainPatient {
         int icMapSize = icMap.size();
 
         if (listSize != idMapSize || listSize != icMapSize) {
-            System.out.println("WARNING: Data inconsistency detected!");
-            System.out.println("List size: " + listSize + ", ID Map size: " + idMapSize + ", IC Map size: " + icMapSize);
+            String warningMessage = "WARNING: Data inconsistency detected!\n" +
+                                  "List size: " + listSize + ", ID Map size: " + idMapSize + ", IC Map size: " + icMapSize + "\n" +
+                                  "Maps have been refreshed from the list.";
             populateMaps(); // Auto-fix by repopulating maps
-            System.out.println("Maps have been refreshed from the list.");
+            patientUI.displayMessage(warningMessage);
         }
     }
 
     private void generateAgeDemographicsReport() {
-        System.out.println("\n=== AGE DEMOGRAPHICS REPORT ===");
-        System.out.println("Total Registered Patients: " + patientList.getNumberOfEntries());
-
-        // Analyze age demographics based on IC birth year
+        // Calculate age demographics (business logic)
         int under18 = 0;
         int age18to30 = 0;
         int age31to50 = 0;
@@ -902,61 +892,52 @@ public class MaintainPatient {
             }
         }
 
-        System.out.println("Under 18: " + under18 + " patients");
-        System.out.println("18-30 years: " + age18to30 + " patients");
-        System.out.println("31-50 years: " + age31to50 + " patients");
-        System.out.println("51-65 years: " + age51to65 + " patients");
-        System.out.println("Over 65: " + over65 + " patients");
-        System.out.println("===============================\n");
-
-        // Ask user whether to return or exit
-        askToReturnOrExit();
+        // Delegate to UI for display and user interaction
+        patientUI.displayAgeDemographicsReport(patientList.getNumberOfEntries(), under18, age18to30, age31to50, age51to65, over65);
     }
 
-    private int calculateAgeFromIC(String icNumber) {
-        if (icNumber.length() != 12) return 0;
 
-        // Extract birth year from IC (first 2 digits)
-        int birthYear = Integer.parseInt(icNumber.substring(0, 2));
-
-        // Determine century (Malaysian IC format)
-        if (birthYear >= 0 && birthYear <= 25) {
-            birthYear += 2000; // 00-25 = 2000-2025
-        } else {
-            birthYear += 1900; // 26-99 = 1926-1999
-        }
-
-        // Calculate age (simplified - using current year 2025)
-        return 2025 - birthYear;
-    }
 
     private void generateRegistrationTimelineReport() {
-        System.out.println("\n================================================================================");
-        System.out.println("                    REGISTRATION TIMELINE REPORT");
-        System.out.println("================================================================================");
-
         if (patientList.getNumberOfEntries() == 0) {
-            System.out.println("No patients registered yet.");
-            System.out.println("================================================================================\n");
+            patientUI.displayMessage("\nNo patients registered yet.");
+            patientUI.askToReturnToMainMenu();
             return;
         }
 
-        // Sort patients by registration date (oldest first)
+        // Sort patients by registration date (oldest first) - business logic
         ListInterface<Patient> sortedList = sortPatientsByDate();
 
-        // Generate comprehensive statistics
-        generateRegistrationStatistics(sortedList);
+        // Calculate statistics - business logic
+        Patient firstPatient = sortedList.getEntry(1);
+        Patient lastPatient = sortedList.getEntry(sortedList.getNumberOfEntries());
 
-        // Display detailed timeline
-        displayDetailedTimeline(sortedList);
+        int maleCount = 0, femaleCount = 0;
+        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
+            if (sortedList.getEntry(i).getGender().equalsIgnoreCase("Male")) {
+                maleCount++;
+            } else {
+                femaleCount++;
+            }
+        }
 
-        // Generate monthly breakdown
-        generateMonthlyBreakdown(sortedList);
+        // Calculate monthly breakdown - business logic
+        MapInterface<String, Integer> monthlyCount = new HashMap<>();
+        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
+            Patient p = sortedList.getEntry(i);
+            String monthYear = p.getRegistrationDate().format(
+                java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
 
-        System.out.println("\n================================================================================\n");
+            Integer count = monthlyCount.get(monthYear);
+            if (count == null) {
+                monthlyCount.put(monthYear, 1);
+            } else {
+                monthlyCount.put(monthYear, count + 1);
+            }
+        }
 
-        // Ask user whether to return or exit
-        askToReturnOrExit();
+        // Delegate to UI for display
+        patientUI.displayRegistrationTimelineReport(sortedList, firstPatient, lastPatient, maleCount, femaleCount, monthlyCount);
     }
 
     private ListInterface<Patient> sortPatientsByDate() {
@@ -979,101 +960,162 @@ public class MaintainPatient {
         return sortedList;
     }
 
-    private void generateRegistrationStatistics(ListInterface<Patient> sortedList) {
-        System.out.println("\nREGISTRATION STATISTICS:");
-        System.out.println("--------------------------------------------------");
 
-        // Basic statistics
-        int totalPatients = sortedList.getNumberOfEntries();
-        Patient firstPatient = sortedList.getEntry(1);
-        Patient lastPatient = sortedList.getEntry(totalPatients);
 
-        System.out.println("Total Registered Patients: " + totalPatients);
-        System.out.println("First Registration: " + firstPatient.getRegistrationDate().format(
-            java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) +
-            " (" + firstPatient.getName() + ")");
-        System.out.println("Latest Registration: " + lastPatient.getRegistrationDate().format(
-            java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) +
-            " (" + lastPatient.getName() + ")");
 
-        // Gender breakdown
-        int maleCount = 0, femaleCount = 0;
-        for (int i = 1; i <= totalPatients; i++) {
-            if (sortedList.getEntry(i).getGender().equalsIgnoreCase("Male")) {
-                maleCount++;
-            } else {
-                femaleCount++;
+
+
+
+    // Business logic methods moved from PatientUI
+    public boolean isValidMalaysianIC(String ic) {
+        if (ic.length() != 12) return false;
+        if (!ic.matches("\\d{12}")) return false;
+
+        // Extract birth date components
+        String year = ic.substring(0, 2);
+        String month = ic.substring(2, 4);
+        String day = ic.substring(4, 6);
+
+        int monthInt = Integer.parseInt(month);
+        int dayInt = Integer.parseInt(day);
+
+        // Basic validation for month and day
+        if (monthInt < 1 || monthInt > 12) return false;
+        if (dayInt < 1 || dayInt > 31) return false;
+
+        // Check place of birth (7th and 8th digits) - should be valid state codes
+        String placeCode = ic.substring(6, 8);
+        int placeInt = Integer.parseInt(placeCode);
+
+        // Valid Malaysian state codes: 01-16, 21-59, 82-83
+        if ((placeInt >= 1 && placeInt <= 16) ||
+            (placeInt >= 21 && placeInt <= 59) ||
+            (placeInt >= 82 && placeInt <= 83)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public Patient createPatient(String name, String icNumber, String phone, String gender) {
+        return new Patient(name, icNumber, phone, gender);
+    }
+
+    public Patient createPatientWithId(String id, String name, String icNumber, String phone, String gender, java.time.LocalDate regDate) {
+        return new Patient(id, name, icNumber, phone, gender, regDate);
+    }
+
+    // Validation methods moved from PatientUI
+    public boolean isValidName(String name) {
+        return name != null && name.matches("[a-zA-Z\\s]+") && name.length() >= 2;
+    }
+
+    public boolean isValidPhone(String phone) {
+        if (phone == null) return false;
+        String cleanPhone = phone.replaceAll("[\\s-]", "");
+        return cleanPhone.matches("\\d{10,11}") &&
+               (cleanPhone.startsWith("01") || cleanPhone.startsWith("03") ||
+                cleanPhone.startsWith("04") || cleanPhone.startsWith("05") ||
+                cleanPhone.startsWith("06") || cleanPhone.startsWith("07") ||
+                cleanPhone.startsWith("08") || cleanPhone.startsWith("09"));
+    }
+
+    public String normalizeGender(String gender) {
+        if (gender == null) return null;
+        String normalized = gender.trim().toLowerCase();
+        if (normalized.equals("m") || normalized.equals("male")) {
+            return "Male";
+        } else if (normalized.equals("f") || normalized.equals("female")) {
+            return "Female";
+        }
+        return null; // Invalid gender
+    }
+
+    public String formatPhoneForStorage(String phone) {
+        if (phone == null) return phone;
+        String cleanPhone = phone.replaceAll("[\\s-]", "");
+        if (cleanPhone.length() == 10) {
+            return cleanPhone.substring(0, 3) + "-" + cleanPhone.substring(3, 7) + "-" + cleanPhone.substring(7);
+        } else if (cleanPhone.length() == 11) {
+            return cleanPhone.substring(0, 3) + "-" + cleanPhone.substring(3, 7) + "-" + cleanPhone.substring(7);
+        }
+        return phone;
+    }
+
+    public int calculateAgeFromIC(String icNumber) {
+        if (icNumber.length() != 12) return 0;
+
+        // Extract birth year from IC (first 2 digits)
+        int birthYear = Integer.parseInt(icNumber.substring(0, 2));
+
+        // Determine century (Malaysian IC format)
+        if (birthYear >= 0 && birthYear <= 25) {
+            birthYear += 2000; // 00-25 = 2000-2025
+        } else {
+            birthYear += 1900; // 26-99 = 1926-1999
+        }
+
+        // Calculate age (simplified - using current year 2025)
+        return 2025 - birthYear;
+    }
+
+    public String getQueueTableData(QueueInterface<Patient> queue) {
+        StringBuilder tableData = new StringBuilder();
+        tableData.append("\n--- QUEUE TABLE ---\n");
+
+        // Table header
+        tableData.append(String.format("%-8s %-8s %-20s %-8s %-16s %-16s%n",
+                         "Queue#", "ID", "Name", "Gender", "IC Number", "Phone Number"));
+        tableData.append("================================================================================\n");
+
+        // Create temporary queue to traverse without modifying original
+        QueueInterface<Patient> tempQueue = new LinkedQueue<>();
+        int position = 1;
+
+        // Move patients to temp queue while building data
+        while (!queue.isEmpty()) {
+            Patient p = queue.dequeue();
+            String queueNum = queue.getQueueNumber(p);
+            if (queueNum == null) {
+                queueNum = String.format("%04d", position);
             }
+
+            tableData.append(String.format("%-8s %-8s %-20s %-8s %-16s %-16s%n",
+                             queueNum,
+                             p.getId(),
+                             FormatUtil.truncateString(p.getName(), 20),
+                             p.getGender(),
+                             FormatUtil.formatICForDisplay(p.getIcNumber()),
+                             p.getPhone()));
+
+            tempQueue.enqueue(p);
+            position++;
         }
-        System.out.println("Gender Distribution: " + maleCount + " Male, " + femaleCount + " Female");
+
+        // Restore original queue
+        while (!tempQueue.isEmpty()) {
+            queue.enqueue(tempQueue.dequeue());
+        }
+
+        tableData.append("================================================================================");
+        return tableData.toString();
     }
 
-    private void displayDetailedTimeline(ListInterface<Patient> sortedList) {
-        System.out.println("\nDETAILED REGISTRATION TIMELINE:");
-        System.out.println("--------------------------------------------------------------------------------");
-        System.out.printf("%-6s %-10s %-20s %-8s %-3s %-16s %-12s%n",
-                         "#", "Patient ID", "Name", "Gender", "Age", "IC Number", "Reg Date");
-        System.out.println("--------------------------------------------------------------------------------");
+    public String getSimulationData(QueueInterface<Patient> simulationQueue) {
+        StringBuilder simulationData = new StringBuilder();
+        simulationData.append("\n--- Simulating Patient Queue ---\n");
+        simulationData.append("Total patients to serve: ").append(simulationQueue.size()).append("\n");
 
-        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
-            Patient p = sortedList.getEntry(i);
-            int age = calculateAgeFromIC(p.getIcNumber());
-            String formattedIC = formatICForDisplay(p.getIcNumber());
-            String regDate = p.getRegistrationDate().format(
-                java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-
-            System.out.printf("%-6d %-10s %-20s %-8s %-3d %-16s %-12s%n",
-                             i, p.getId(), truncateString(p.getName(), 20),
-                             p.getGender(), age, formattedIC, regDate);
-        }
-    }
-
-    private void generateMonthlyBreakdown(ListInterface<Patient> sortedList) {
-        System.out.println("\nMONTHLY REGISTRATION BREAKDOWN:");
-        System.out.println("--------------------------------------------------");
-
-        // Use custom HashMap ADT to count by month-year
-        MapInterface<String, Integer> monthlyCount = new HashMap<>();
-
-        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
-            Patient p = sortedList.getEntry(i);
-            String monthYear = p.getRegistrationDate().format(
-                java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
-
-            Integer count = monthlyCount.get(monthYear);
-            if (count == null) {
-                monthlyCount.put(monthYear, 1);
-            } else {
-                monthlyCount.put(monthYear, count + 1);
-            }
+        int servedCount = 0;
+        while (!simulationQueue.isEmpty()) {
+            Patient current = simulationQueue.dequeue();
+            servedCount++;
+            simulationData.append(servedCount).append(". Now serving: ")
+                          .append(current.getName()).append(" (ID: ")
+                          .append(current.getId()).append(")\n");
         }
 
-        // Display monthly breakdown using custom ADT
-        ListInterface<String> months = monthlyCount.getKeys();
-        for (int i = 1; i <= months.getNumberOfEntries(); i++) {
-            String month = months.getEntry(i);
-            Integer count = monthlyCount.get(month);
-            System.out.printf("%-15s: %3d patients%n", month, count);
-        }
-    }
-
-
-
-    private String formatICForDisplay(String icNumber) {
-        if (icNumber.length() == 12) {
-            return icNumber.substring(0, 6) + "-" + icNumber.substring(6, 8) + "-" + icNumber.substring(8);
-        }
-        return icNumber;
-    }
-
-    private String truncateString(String str, int maxLength) {
-        if (str.length() <= maxLength) {
-            return str;
-        }
-        return str.substring(0, maxLength - 3) + "...";
-    }
-
-    private void askToReturnOrExit() {
-        patientUI.askToReturnToMainMenu();
+        simulationData.append("All ").append(servedCount).append(" patients have been served.");
+        return simulationData.toString();
     }
 }

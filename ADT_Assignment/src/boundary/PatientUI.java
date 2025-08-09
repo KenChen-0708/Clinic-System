@@ -2,7 +2,9 @@ package boundary;
 
 import control.MaintainPatient;
 import entity.Patient;
+import adt.*;
 import utility.MessageUI;
+import utility.FormatUtil;
 
 import java.util.Scanner;
 
@@ -49,12 +51,12 @@ public class PatientUI {
     }
 
     public Patient inputPatientDetails() {
-        String name = inputValidName();
+        String name = inputName();
         String icNumber = inputValidIC();
-        String phone = inputValidPhone();
-        String gender = inputValidGender();
+        String phone = inputPhone();
+        String gender = inputGender();
         System.out.println();
-        return new Patient(name, icNumber, phone, gender);
+        return maintainPatient.createPatient(name, icNumber, phone, gender);
     }
 
     public String inputICForRegistration() {
@@ -77,10 +79,10 @@ public class PatientUI {
                 System.out.println("\nIC Number cannot be empty. Please try again.\n");
             } else if (!icNumber.matches("\\d{12}")) {
                 System.out.println("\nIC Number must be exactly 12 digits (Malaysian format: YYMMDDPBXXXX). Please try again.\n");
-            } else if (!isValidMalaysianIC(icNumber)) {
+            } else if (!maintainPatient.isValidMalaysianIC(icNumber)) {
                 System.out.println("\nInvalid Malaysian IC format. Please enter a valid IC number.\n");
             }
-        } while (icNumber.isEmpty() || !icNumber.matches("\\d{12}") || !isValidMalaysianIC(icNumber));
+        } while (icNumber.isEmpty() || !icNumber.matches("\\d{12}") || !maintainPatient.isValidMalaysianIC(icNumber));
 
         // Return IC without dashes for storage
         return icNumber;
@@ -88,30 +90,28 @@ public class PatientUI {
 
     public Patient inputRemainingPatientDetails(String icNumber) {
         // Display IC with dashes for confirmation
-        String displayIC = formatICForDisplay(icNumber);
+        String displayIC = utility.FormatUtil.formatICForDisplay(icNumber);
         System.out.println("IC Number: " + displayIC + " (Confirmed)");
         System.out.println();
 
-        String name = inputValidName();
-        String phone = inputValidPhone();
-        String gender = inputValidGender();
+        String name = inputName();
+        String phone = inputPhone();
+        String gender = inputGender();
 
-        return new Patient(name, icNumber, phone, gender);
+        return maintainPatient.createPatient(name, icNumber, phone, gender);
     }
 
-    private String inputValidName() {
+    private String inputName() {
         String name;
         do {
             System.out.print("Enter Name      : ");
             name = scanner.nextLine().trim();
             if (name.isEmpty()) {
                 System.out.println("\nName cannot be empty. Please try again.\n");
-            } else if (name.length() < 2) {
-                System.out.println("\nName must be at least 2 characters long. Please try again.\n");
-            } else if (!name.matches("[a-zA-Z\\s]+")) {
-                System.out.println("\nName can only contain letters and spaces. Please try again.\n");
+            } else if (!maintainPatient.isValidName(name)) {
+                System.out.println("\nName must contain only letters and spaces and be at least 2 characters long. Please try again.\n");
             }
-        } while (name.isEmpty() || name.length() < 2 || !name.matches("[a-zA-Z\\s]+"));
+        } while (name.isEmpty() || !maintainPatient.isValidName(name));
         return name;
     }
 
@@ -125,67 +125,35 @@ public class PatientUI {
                 System.out.println("\nIC Number cannot be empty. Please try again.\n");
             } else if (!icNumber.matches("\\d{12}")) {
                 System.out.println("\nIC Number must be exactly 12 digits (Malaysian format: YYMMDDPBXXXX). Please try again.\n");
-            } else if (!isValidMalaysianIC(icNumber)) {
+            } else if (!maintainPatient.isValidMalaysianIC(icNumber)) {
                 System.out.println("\nInvalid Malaysian IC format. Please enter a valid IC number.\n");
             }
-        } while (icNumber.isEmpty() || !icNumber.matches("\\d{12}") || !isValidMalaysianIC(icNumber));
+        } while (icNumber.isEmpty() || !icNumber.matches("\\d{12}") || !maintainPatient.isValidMalaysianIC(icNumber));
 
         // Return IC without dashes for storage
         return icNumber;
     }
 
-    private boolean isValidMalaysianIC(String ic) {
-        if (ic.length() != 12) return false;
 
-        // Check birth date part (first 6 digits)
-        String year = ic.substring(0, 2);
-        String month = ic.substring(2, 4);
-        String day = ic.substring(4, 6);
 
-        int monthInt = Integer.parseInt(month);
-        int dayInt = Integer.parseInt(day);
-
-        // Basic validation for month and day
-        if (monthInt < 1 || monthInt > 12) return false;
-        if (dayInt < 1 || dayInt > 31) return false;
-
-        // Check place of birth (7th and 8th digits) - should be valid state codes
-        String placeCode = ic.substring(6, 8);
-        int placeInt = Integer.parseInt(placeCode);
-        if (placeInt < 1 || placeInt > 59) return false; // Valid Malaysian state codes
-
-        return true;
-    }
-
-    private String inputValidPhone() {
+    private String inputPhone() {
         String phone;
         do {
             System.out.print("Enter Phone     : ");
-            phone = scanner.nextLine().trim().replaceAll("[\\s-]", "");
+            phone = scanner.nextLine().trim();
 
             if (phone.isEmpty()) {
                 System.out.println("\nPhone number cannot be empty. Please try again.\n");
-            } else if (!phone.matches("\\d{10,11}")) {
-                System.out.println("\nPhone number must be 10-11 digits (Malaysian format). Please try again.\n");
-            } else if (!phone.startsWith("01") && !phone.startsWith("03") && !phone.startsWith("04") &&
-                      !phone.startsWith("05") && !phone.startsWith("06") && !phone.startsWith("07") &&
-                      !phone.startsWith("08") && !phone.startsWith("09")) {
-                System.out.println("\nInvalid Malaysian phone number format. Please try again.\n");
+            } else if (!maintainPatient.isValidPhone(phone)) {
+                System.out.println("\nInvalid Malaysian phone number format. Must be 10-11 digits. Please try again.\n");
             }
-        } while (phone.isEmpty() || !phone.matches("\\d{10,11}") ||
-                (!phone.startsWith("01") && !phone.startsWith("03") && !phone.startsWith("04") &&
-                 !phone.startsWith("05") && !phone.startsWith("06") && !phone.startsWith("07") &&
-                 !phone.startsWith("08") && !phone.startsWith("09")));
+        } while (phone.isEmpty() || !maintainPatient.isValidPhone(phone));
 
-        // Format phone number for display
-        if (phone.length() == 10) {
-            return phone.substring(0, 3) + "-" + phone.substring(3, 7) + phone.substring(7);
-        } else {
-            return phone.substring(0, 3) + "-" + phone.substring(3, 7) + "-" + phone.substring(7);
-        }
+        // Format phone number for storage
+        return maintainPatient.formatPhoneForStorage(phone);
     }
 
-    private String inputValidGender() {
+    private String inputGender() {
         String gender;
         do {
             System.out.print("Enter Gender (M/F): ");
@@ -194,8 +162,8 @@ public class PatientUI {
             if (gender.isEmpty()) {
                 System.out.println("\nGender cannot be empty. Please try again.\n");
             } else {
-                // Normalize gender input
-                String normalizedGender = normalizeGender(gender);
+                // Normalize gender input using control layer
+                String normalizedGender = maintainPatient.normalizeGender(gender);
                 if (normalizedGender != null) {
                     return normalizedGender;
                 } else {
@@ -205,22 +173,7 @@ public class PatientUI {
         } while (true);
     }
 
-    private String normalizeGender(String input) {
-        String lower = input.toLowerCase();
-        if (lower.equals("m") || lower.equals("male")) {
-            return "Male";
-        } else if (lower.equals("f") || lower.equals("female")) {
-            return "Female";
-        }
-        return null;
-    }
 
-    private String formatICForDisplay(String icNumber) {
-        if (icNumber.length() == 12) {
-            return icNumber.substring(0, 6) + "-" + icNumber.substring(6, 8) + "-" + icNumber.substring(8);
-        }
-        return icNumber; // Return as-is if not 12 digits
-    }
 
     public String inputPatientId() {
         System.out.print("\nEnter Patient ID (or '0' to exit): ");
@@ -235,10 +188,10 @@ public class PatientUI {
         System.out.println("\n--- Patient Found ---");
         System.out.println("ID        : " + patient.getId());
         System.out.println("Name      : " + patient.getName());
-        System.out.println("IC Number : " + formatICForDisplay(patient.getIcNumber()));
+        System.out.println("IC Number : " + FormatUtil.formatICForDisplay(patient.getIcNumber()));
         System.out.println("Phone     : " + patient.getPhone());
         System.out.println("Gender    : " + patient.getGender());
-        System.out.println("Reg Date  : " + patient.getRegistrationDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")));
+        System.out.println("Reg Date  : " + FormatUtil.formatDateForDisplay(patient.getRegistrationDate()));
     }
 
     public void displayMessage(String msg) {
@@ -420,7 +373,7 @@ public class PatientUI {
         if (nameInput.isEmpty()) {
             name = currentPatient.getName();
         } else {
-            while (!nameInput.matches("[a-zA-Z\\s]+") || nameInput.length() < 2) {
+            while (!maintainPatient.isValidName(nameInput)) {
                 System.out.println("\nInvalid name. Name must be at least 2 characters and contain only letters and spaces.\n");
                 System.out.print("Name [" + currentPatient.getName() + "]: ");
                 nameInput = scanner.nextLine().trim();
@@ -433,16 +386,16 @@ public class PatientUI {
         }
 
         // IC Number update with validation
-        System.out.print("IC Number [" + formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
+        System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
         String icInput = scanner.nextLine().trim();
         String icNumber;
         if (icInput.isEmpty()) {
             icNumber = currentPatient.getIcNumber();
         } else {
             icInput = icInput.replaceAll("-", "");
-            while (!icInput.matches("\\d{12}") || !isValidMalaysianIC(icInput)) {
+            while (!maintainPatient.isValidMalaysianIC(icInput)) {
                 System.out.println("\nInvalid IC number. Must be 12 digits in Malaysian format.\n");
-                System.out.print("IC Number [" + formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
+                System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
                 icInput = scanner.nextLine().trim();
                 if (icInput.isEmpty()) {
                     icInput = currentPatient.getIcNumber();
@@ -462,10 +415,7 @@ public class PatientUI {
             phone = currentPatient.getPhone();
         } else {
             phoneInput = phoneInput.replaceAll("[\\s-]", "");
-            while (!phoneInput.matches("\\d{10,11}") ||
-                   (!phoneInput.startsWith("01") && !phoneInput.startsWith("03") && !phoneInput.startsWith("04") &&
-                    !phoneInput.startsWith("05") && !phoneInput.startsWith("06") && !phoneInput.startsWith("07") &&
-                    !phoneInput.startsWith("08") && !phoneInput.startsWith("09"))) {
+            while (!maintainPatient.isValidPhone(phoneInput)) {
                 System.out.println("\nInvalid phone number. Must be 10-11 digits Malaysian format.\n");
                 System.out.print("Phone [" + currentPatient.getPhone() + "]: ");
                 phoneInput = scanner.nextLine().trim();
@@ -476,12 +426,8 @@ public class PatientUI {
                     phoneInput = phoneInput.replaceAll("[\\s-]", "");
                 }
             }
-            // Format phone number
-            if (phoneInput.length() == 10) {
-                phone = phoneInput.substring(0, 3) + "-" + phoneInput.substring(3, 7) + phoneInput.substring(7);
-            } else {
-                phone = phoneInput.substring(0, 3) + "-" + phoneInput.substring(3, 7) + "-" + phoneInput.substring(7);
-            }
+            // Format phone number using control layer
+            phone = maintainPatient.formatPhoneForStorage(phoneInput);
         }
 
         // Gender update with validation
@@ -491,7 +437,7 @@ public class PatientUI {
         if (genderInput.isEmpty()) {
             gender = currentPatient.getGender();
         } else {
-            String normalizedGender = normalizeGender(genderInput);
+            String normalizedGender = maintainPatient.normalizeGender(genderInput);
             while (normalizedGender == null) {
                 System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
                 System.out.print("Gender [" + currentPatient.getGender() + "]: ");
@@ -500,86 +446,46 @@ public class PatientUI {
                     normalizedGender = currentPatient.getGender();
                     break;
                 } else {
-                    normalizedGender = normalizeGender(genderInput);
+                    normalizedGender = maintainPatient.normalizeGender(genderInput);
                 }
             }
             gender = normalizedGender;
         }
 
-        // Create updated patient with same ID and registration date
-        return new Patient(currentPatient.getId(), name, icNumber, phone, gender, currentPatient.getRegistrationDate());
+        // Return updated data to control layer for entity creation
+        return maintainPatient.createPatientWithId(currentPatient.getId(), name, icNumber, phone, gender, currentPatient.getRegistrationDate());
     }
 
-    public void displayPatientsTable(adt.ListInterface<entity.Patient> patientList) {
+    public void displayPatientsTable(ListInterface<Patient> patientList) {
         System.out.println("\n=== ALL PATIENTS (Sorted by Registration Date) ===");
         System.out.println("Total Patients: " + patientList.getNumberOfEntries());
         System.out.println();
 
-        // Table header with correct sequence: ID, Name, Gender, IC, Phone, Date
+        // Table header
         System.out.printf("%-8s %-22s %-8s %-16s %-16s %-12s%n",
                          "ID", "Name", "Gender", "IC Number", "Phone Number", "Reg Date");
         System.out.println("======================================================================================");
 
         // Table rows
         for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            entity.Patient p = patientList.getEntry(i);
+            Patient p = patientList.getEntry(i);
             System.out.printf("%-8s %-22s %-8s %-16s %-16s %-12s%n",
                              p.getId(),
-                             truncateString(p.getName(), 22),
+                             FormatUtil.truncateString(p.getName(), 22),
                              p.getGender(),
-                             formatICForDisplay(p.getIcNumber()),
+                             FormatUtil.formatICForDisplay(p.getIcNumber()),
                              p.getPhone(),
-                             p.getRegistrationDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")));
+                             FormatUtil.formatDateForDisplay(p.getRegistrationDate()));
         }
         System.out.println("======================================================================================");
     }
 
-    public void displayQueueTable(adt.QueueInterface<entity.Patient> queue) {
-        System.out.println("\n--- QUEUE TABLE ---");
-
-        // Table header with correct sequence: Queue#, ID, Name, Gender, IC, Phone
-        System.out.printf("%-8s %-8s %-20s %-8s %-16s %-16s%n",
-                         "Queue#", "ID", "Name", "Gender", "IC Number", "Phone Number");
-        System.out.println("================================================================================");
-
-        // Create temporary queue to traverse without modifying original
-        adt.QueueInterface<entity.Patient> tempQueue = new adt.LinkedQueue<>();
-        int position = 1;
-
-        // Move patients to temp queue while displaying
-        while (!queue.isEmpty()) {
-            entity.Patient p = queue.dequeue();
-            String queueNum = queue.getQueueNumber(p);
-            if (queueNum == null) {
-                queueNum = String.format("%04d", position);
-            }
-
-            System.out.printf("%-8s %-8s %-20s %-8s %-16s %-16s%n",
-                             queueNum,
-                             p.getId(),
-                             truncateString(p.getName(), 20),
-                             p.getGender(),
-                             formatICForDisplay(p.getIcNumber()),
-                             p.getPhone());
-
-            tempQueue.enqueue(p);
-            position++;
-        }
-
-        // Restore original queue
-        while (!tempQueue.isEmpty()) {
-            queue.enqueue(tempQueue.dequeue());
-        }
-
-        System.out.println("================================================================================");
+    public void displayQueueTable(QueueInterface<Patient> queue) {
+        String queueTableData = maintainPatient.getQueueTableData(queue);
+        System.out.println(queueTableData);
     }
 
-    private String truncateString(String str, int maxLength) {
-        if (str.length() <= maxLength) {
-            return str;
-        }
-        return str.substring(0, maxLength - 3) + "...";
-    }
+
 
     public boolean confirmRemovePatient(String patientName) {
         System.out.print("\nAre you sure you want to remove patient '" + patientName + "'? (y/n): ");
@@ -592,4 +498,72 @@ public class PatientUI {
         String response = scanner.nextLine().trim().toLowerCase();
         return response.equals("y") || response.equals("yes");
     }
+
+    public void displaySimulationResult(QueueInterface<Patient> simulationQueue) {
+        String simulationData = maintainPatient.getSimulationData(simulationQueue);
+        System.out.println(simulationData);
+    }
+
+    public void displayAgeDemographicsReport(int totalPatients, int under18, int age18to30, int age31to50, int age51to65, int over65) {
+        System.out.println("\n=== AGE DEMOGRAPHICS REPORT ===");
+        System.out.println("Total Registered Patients: " + totalPatients);
+        System.out.println();
+        System.out.println("Under 18: " + under18 + " patients");
+        System.out.println("18-30 years: " + age18to30 + " patients");
+        System.out.println("31-50 years: " + age31to50 + " patients");
+        System.out.println("51-65 years: " + age51to65 + " patients");
+        System.out.println("Over 65: " + over65 + " patients");
+        System.out.println("===============================\n");
+
+        askToReturnToMainMenu();
+    }
+
+    public void displayRegistrationTimelineReport(ListInterface<Patient> sortedList, Patient firstPatient, Patient lastPatient,
+                                                 int maleCount, int femaleCount, MapInterface<String, Integer> monthlyCount) {
+        System.out.println("\n================================================================================");
+        System.out.println("                    REGISTRATION TIMELINE REPORT");
+        System.out.println("================================================================================");
+
+        // Registration Statistics
+        System.out.println("\nREGISTRATION STATISTICS:");
+        System.out.println("--------------------------------------------------");
+        System.out.println("Total Registered Patients: " + sortedList.getNumberOfEntries());
+        System.out.println("First Registration: " + firstPatient.getRegistrationDate().format(
+            java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) + " (" + firstPatient.getName() + ")");
+        System.out.println("Latest Registration: " + lastPatient.getRegistrationDate().format(
+            java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) + " (" + lastPatient.getName() + ")");
+        System.out.println("Gender Distribution: " + maleCount + " Male, " + femaleCount + " Female");
+
+        // Detailed Timeline
+        System.out.println("\nDETAILED REGISTRATION TIMELINE:");
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.printf("%-6s %-10s %-20s %-8s %-3s %-16s %-12s%n",
+                         "#", "Patient ID", "Name", "Gender", "Age", "IC Number", "Reg Date");
+        System.out.println("--------------------------------------------------------------------------------");
+
+        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
+            Patient p = sortedList.getEntry(i);
+            int age = maintainPatient.calculateAgeFromIC(p.getIcNumber());
+            System.out.printf("%-6d %-10s %-20s %-8s %-3d %-16s %-12s%n",
+                             i, p.getId(), FormatUtil.truncateString(p.getName(), 20),
+                             p.getGender(), age, FormatUtil.formatICForDisplay(p.getIcNumber()),
+                             FormatUtil.formatDateForDisplay(p.getRegistrationDate()));
+        }
+
+        // Monthly Breakdown
+        System.out.println("\nMONTHLY REGISTRATION BREAKDOWN:");
+        System.out.println("--------------------------------------------------");
+        ListInterface<String> months = monthlyCount.getKeys();
+        for (int i = 1; i <= months.getNumberOfEntries(); i++) {
+            String month = months.getEntry(i);
+            Integer count = monthlyCount.get(month);
+            System.out.printf("%-15s: %3d patients%n", month, count);
+        }
+
+        System.out.println("\n================================================================================\n");
+
+        askToReturnToMainMenu();
+    }
+
+
 }
