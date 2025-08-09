@@ -11,4 +11,8 @@ public class MessageUI {
     System.out.println("\nExiting system");
   }
   
+    public static void displayEmptyMessage() {
+        System.out.println("=== No Data Available ===\n");
+    }
+
 }
