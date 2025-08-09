@@ -286,9 +286,30 @@ public class PatientUI {
     }
 
     public boolean confirmClearQueue() {
-        System.out.print("Are you sure you want to clear the entire queue? (y/n): ");
+        System.out.print("\nAre you sure you want to clear the entire queue? (y/n): ");
         String response = scanner.nextLine().trim().toLowerCase();
         return response.equals("y") || response.equals("yes");
+    }
+
+    public boolean askToReturnToMainMenu() {
+        boolean validChoice = false;
+
+        while (!validChoice) {
+            System.out.print("Do you want to return to the main menu? (y/n): ");
+            String choice = scanner.nextLine().trim().toLowerCase();
+
+            if (choice.equals("y") || choice.equals("yes")) {
+                return true; // Return to main menu
+            } else if (choice.equals("n") || choice.equals("no")) {
+                // Exit system
+                System.out.println("\nThank you for using the Clinic System!");
+                System.out.println("\nGoodbye!");
+                System.exit(0);
+            } else {
+                System.out.println("Invalid choice. Please enter 'y' for yes or 'n' for no.");
+            }
+        }
+        return true; // This line should never be reached
     }
 
     public boolean askToContinueOperation(String operation) {
