@@ -34,18 +34,23 @@ public class MainUI {
 
             switch (choice) {
                 case 1:
+                    MessageUI.clearConsole();
                     new MaintainPatient().runPatientMenu();
                     break;
                 case 2:
+                    MessageUI.clearConsole();
                     new MaintainDoctor().runDoctorMenu();
                     break;
                 case 3:
+                    MessageUI.clearConsole();
                     new MaintainTreatment().runTreatmentMenu();
                     break;
                 case 4:
+                    MessageUI.clearConsole();
                     new MaintainPharmacy().runPharmacyMenu();
                     break;
                 case 5:
+                    MessageUI.clearConsole();
                     new SummaryReport().generate();
                     break;
                 case 0:

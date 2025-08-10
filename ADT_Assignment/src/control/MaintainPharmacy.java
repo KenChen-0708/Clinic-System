@@ -47,7 +47,7 @@ public class MaintainPharmacy {
                     generateDispensedReport();
                     break;
                 case 0:
-                    MessageUI.displayExitMessage();
+                    MessageUI.displayMainMenuMessage();
                     break;
                 default:
                     MessageUI.displayInvalidChoiceMessage();

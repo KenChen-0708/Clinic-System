@@ -5,6 +5,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 import utility.MessageUI;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 
 public class PharmacyUI {
 
@@ -30,17 +34,99 @@ public class PharmacyUI {
     }
 
     public Medicine inputMedicineDetails(String generatedId) {
-        System.out.println("\n--- Add New Medicine ---");
-        System.out.print("Enter medicine name               : ");
-        String name = scanner.nextLine();
-        System.out.print("Enter quantity                    : ");
-        int quantity = Integer.parseInt(scanner.nextLine());
-        System.out.print("Enter price per unit (RM)         : ");
-        double price = Double.parseDouble(scanner.nextLine());
-        System.out.print("Enter expiry date (DD-MM-YYYY)    : ");
-        String expiryStr = scanner.nextLine();
+        // Predefined list of medicine names
+        String[] medicineNames = {
+            "Paracetamol",
+            "Ibuprofen",
+            "Amoxicillin",
+            "Cetirizine",
+            "Vitamin C",
+            "Loratadine",
+            "Aspirin",
+            "Omeprazole",
+            "Metformin",
+            "Atorvastatin",
+            "Losartan",
+            "Amlodipine",
+            "Hydrochlorothiazide",
+            "Azithromycin",
+            "Diclofenac"
+        };
 
-        LocalDate expiry = LocalDate.parse(expiryStr, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        System.out.println("\n--- Add New Medicine ---");
+        System.out.println("Select medicine name (0. Exit / Cancel):");
+        for (int i = 0; i < medicineNames.length; i++) {
+            System.out.printf("%d. %s%n", i + 1, medicineNames[i]);
+        }
+
+        int choice;
+        while (true) {
+            System.out.print("\nEnter choice (1-" + medicineNames.length + ")               : ");
+            try {
+                choice = Integer.parseInt(scanner.nextLine().trim());
+                if (choice == 0) {
+                    System.out.println("Canceled. No medicine added.");
+                    return null; // exit early
+                }
+                if (choice >= 1 && choice <= medicineNames.length) {
+                    break;
+                } else {
+                    System.out.println("Invalid choice. Please try again.\n");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number.\n");
+            }
+        }
+
+        String name = medicineNames[choice - 1];
+
+        int quantity;
+        while (true) {
+            System.out.print("Enter quantity                    : ");
+            try {
+                quantity = Integer.parseInt(scanner.nextLine().trim());
+                if (quantity > 0) {
+                    break;
+                }
+                System.out.println("Quantity must be greater than 0.\n");
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid whole number.\n");
+            }
+        }
+
+        double price;
+        while (true) {
+            System.out.print("Enter price per unit (RM)         : ");
+            try {
+                price = Double.parseDouble(scanner.nextLine().trim());
+                if (price >= 0) {
+                    break;
+                }
+                System.out.println("Price cannot be negative.\n");
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number (e.g., 12.50).\n");
+            }
+        }
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-uuuu")
+                .withResolverStyle(ResolverStyle.STRICT);
+        LocalDate today = LocalDate.now();
+        LocalDate expiry;
+
+        while (true) {
+            System.out.print("Enter expiry date (DD-MM-YYYY)    : ");
+            String expiryStr = scanner.nextLine().trim();
+            try {
+                expiry = LocalDate.parse(expiryStr, fmt);
+                if (expiry.isAfter(today)) {
+                    break;
+                } else {
+                    System.out.println("Expiry must be AFTER today (" + today.format(fmt) + "). Try again.");
+                }
+            } catch (DateTimeParseException e) {
+                System.out.println("Invalid date. Use format DD-MM-YYYY (e.g., 05-11-2026).");
+            }
+        }
 
         return new Medicine(generatedId, name, quantity, price, expiry);
     }
@@ -59,7 +145,6 @@ public class PharmacyUI {
             System.out.println(allMedicines);
         }
     }
-
 
     public String inputMedicineID() {
         System.out.print("Enter Medicine ID: ");
@@ -100,7 +185,6 @@ public class PharmacyUI {
             System.out.println(formattedList);
         }
     }
-
 
     public void displayMessage(String msg) {
         System.out.println(msg);
