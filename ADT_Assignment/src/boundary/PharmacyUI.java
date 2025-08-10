@@ -4,6 +4,7 @@ import entity.Medicine;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
+import utility.MessageUI;
 
 public class PharmacyUI {
 
@@ -23,7 +24,7 @@ public class PharmacyUI {
         System.out.print("Enter your choice: ");
 
         int choice = scanner.nextInt();
-        scanner.nextLine();  // consume newline
+        scanner.nextLine();
         System.out.println();
         return choice;
     }
@@ -47,14 +48,18 @@ public class PharmacyUI {
     public void displayAddConfirmation(Medicine med) {
         System.out.println("\nMedicine successfully added!\n");
         System.out.println(med.toString());
-        System.out.println("--------------------------------------------");
+        System.out.println("--------------------------------------------\n");
     }
 
     public void displayMedicineInventory(String allMedicines) {
         System.out.println("\n--- Current Medicine Inventory ---\n");
-        System.out.println(allMedicines);
-        System.out.println("--------------------------------------------");
+        if (allMedicines == null || allMedicines.trim().isEmpty()) {
+            MessageUI.displayEmptyMessage();
+        } else {
+            System.out.println(allMedicines);
+        }
     }
+
 
     public String inputMedicineID() {
         System.out.print("Enter Medicine ID: ");
@@ -88,8 +93,14 @@ public class PharmacyUI {
     }
 
     public void displayMedicineList(String formattedList) {
-        System.out.println("Medicine Inventory:\n" + formattedList);
+        System.out.println("Medicine Inventory:\n");
+        if (formattedList == null || formattedList.trim().isEmpty()) {
+            MessageUI.displayEmptyMessage();
+        } else {
+            System.out.println(formattedList);
+        }
     }
+
 
     public void displayMessage(String msg) {
         System.out.println(msg);

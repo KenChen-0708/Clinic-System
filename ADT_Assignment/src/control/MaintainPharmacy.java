@@ -25,12 +25,14 @@ public class MaintainPharmacy {
     }
 
     public void runPharmacyMenu() {
-        int choice = 0;
+        int choice = -1;
         do {
             choice = pharmacyUI.getMenuChoice();
             switch (choice) {
                 case 1:
+                    MessageUI.clearConsole();
                     viewAllMedicines();
+                    MessageUI.pressEnterToContinue();
                     break;
                 case 2:
                     addMedicine();
@@ -50,7 +52,7 @@ public class MaintainPharmacy {
                 default:
                     MessageUI.displayInvalidChoiceMessage();
             }
-        } while (choice != 6);
+        } while (choice != 0);
     }
 
     public void addMedicine() {
