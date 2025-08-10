@@ -39,17 +39,6 @@ public class MaintainPharmacy {
         }
     }
 
-    private static class Pair<A, B> {
-
-        A a;
-        B b;
-
-        Pair(A a, B b) {
-            this.a = a;
-            this.b = b;
-        }
-    }
-
     private DoublyLinkedList<Medicine> copyList() {
         DoublyLinkedList<Medicine> copy = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
@@ -117,46 +106,6 @@ public class MaintainPharmacy {
             }
         }
         return -1;
-    }
-
-    private String renderLowStock(int threshold) {
-        // collect matches into temp list then sort by stock asc, then ID
-        DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            if (m.getStock() <= threshold) {
-                tmp.add(m);
-            }
-        }
-        if (tmp.isEmpty()) {
-            return "(No items at or below threshold)";
-        }
-        tmp.mergeSort((a, b) -> {
-            int c = Integer.compare(a.getStock(), b.getStock());
-            if (c != 0) {
-                return c;
-            }
-            return BY_ID_NUM.compare(a, b);
-        });
-        return renderList(tmp);
-    }
-
-    private String renderNearExpiry(int days) {
-        java.time.LocalDate today = java.time.LocalDate.now();
-        java.time.LocalDate cutoff = today.plusDays(days);
-
-        DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            if (!m.getExpiryDate().isAfter(cutoff)) {
-                tmp.add(m);
-            }
-        }
-        if (tmp.isEmpty()) {
-            return "(No items expiring within " + days + " days)";
-        }
-        tmp.mergeSort(BY_EXPIRY_THEN_ID);
-        return renderList(tmp);
     }
 
     private ListInterface<DispenseRecord> filterByDateRange(LocalDate start, LocalDate end) {
@@ -528,17 +477,23 @@ public class MaintainPharmacy {
         while (true) {
             int action = pharmacyUI.confirmAddMedicine(newMed);
 
-            if (action == 1) { // Confirm
-                medicineList.add(newMed);
-                medicineDAO.saveToFile(medicineList);
-                return;
-            } else if (action == 2) { // Edit
-                newMed = pharmacyUI.editMedicineDetails(newMed);
-                if (newMed == null) {
-                    return; // Cancelled while editing
-                }
-            } else if (action == 3) { // Discard
-                return;
+            switch (action) {
+                case 1:
+                    // Confirm
+                    medicineList.add(newMed);
+                    medicineDAO.saveToFile(medicineList);
+                    return;
+                case 2:
+                    // Edit
+                    newMed = pharmacyUI.editMedicineDetails(newMed);
+                    if (newMed == null) {
+                        return; // Cancelled while editing
+                    }   break;
+                case 3:
+                    // Discard
+                    return;
+                default:
+                    break;
             }
         }
     }
