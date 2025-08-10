@@ -13,6 +13,7 @@ public class MessageUI {
     }
 
     public static void displayMainMenuMessage() {
+        clearConsole();
         System.out.println("\nReturning to the main menu...");
     }
 
