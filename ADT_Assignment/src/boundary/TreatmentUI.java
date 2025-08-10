@@ -2,72 +2,163 @@ package boundary;
 
 import control.MaintainTreatment;
 import entity.Treatment;
-import utility.MessageUI;
-
 import java.util.Scanner;
 
 public class TreatmentUI {
-    private final Scanner scanner = new Scanner(System.in);
+    private final Scanner scanner;
     private final MaintainTreatment maintainTreatment;
 
-    public TreatmentUI(MaintainTreatment control) {
-        this.maintainTreatment = control;
+    public TreatmentUI(MaintainTreatment maintainTreatment) {
+        this.scanner = new Scanner(System.in);
+        this.maintainTreatment = maintainTreatment;
     }
 
     public void run() {
         int choice;
         do {
-            System.out.println("\n===============================");
-            System.out.println("     MEDICAL TREATMENT MENU    ");
-            System.out.println("===============================");
-            System.out.println("1. Record Diagnosis & Prescription");
-            System.out.println("2. Remove Treatment");
-            System.out.println("3. View Treatment History");
-            System.out.println("4. Search Treatment by Patient ID");
-            System.out.println("0. Back to Main Menu");
-            System.out.println("-------------------------------");
-            System.out.print("Enter your choice: ");
-            choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
-
-            switch (choice) {
-                case 1: maintainTreatment.addTreatment(); break;
-                case 2: maintainTreatment.removeTreatment(); break;
-                case 3: maintainTreatment.displayAllTreatments(); break;
-                case 4: maintainTreatment.searchTreatmentByPatientId(); break;
-                case 0: MessageUI.displayExitMessage(); break;
-                default: MessageUI.displayInvalidChoiceMessage();
+            displayMainMenu();
+            try {
+                choice = scanner.nextInt();
+                scanner.nextLine();
+                processMenuChoice(choice);
+            } catch (Exception e) {
+                System.out.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
+                choice = -1;
             }
         } while (choice != 0);
     }
 
+    private void displayMainMenu() {
+        System.out.println("\n=== TREATMENT MANAGEMENT ===");
+        System.out.println("1. Add New Treatment");
+        System.out.println("2. Update Treatment");
+        System.out.println("3. Delete Treatment");
+        System.out.println("4. Search Treatment by ID");
+        System.out.println("5. View All Treatments");
+        System.out.println("6. Generate Treatment Analysis");
+        System.out.println("7. Generate Doctor Workload");
+        System.out.println("0. Exit");
+        System.out.print("Enter choice: ");
+    }
+
+    private void processMenuChoice(int choice) {
+        switch (choice) {
+            case 1: maintainTreatment.addTreatment(); break;
+            case 2: maintainTreatment.updateTreatment(); break;
+            case 3: maintainTreatment.deleteTreatment(); break;
+            case 4: maintainTreatment.searchTreatment(); break;
+            case 5: maintainTreatment.viewAllTreatments(); break;
+            case 6: maintainTreatment.generateTreatmentAnalysis(); break;
+            case 7: maintainTreatment.generateDoctorWorkload(); break;
+            case 0: System.out.println("Exiting system..."); break;
+            default: System.out.println("Invalid choice! Please try again.");
+        }
+    }
+
     public Treatment inputTreatmentDetails() {
-        System.out.print("Enter Treatment ID : ");
-        String tid = scanner.nextLine();
-        System.out.print("Enter Patient ID   : ");
-        String pid = scanner.nextLine();
-        System.out.print("Enter Diagnosis    : ");
-        String diagnosis = scanner.nextLine();
-        System.out.print("Enter Prescription : ");
-        String prescription = scanner.nextLine();
-        return new Treatment(tid, pid, diagnosis, prescription);
+        System.out.println("\n=== NEW TREATMENT ===");
+        String tid = inputField("Treatment ID");
+        String pid = inputField("Patient ID");
+        String did = inputField("Doctor ID");
+        String symptoms = inputField("Symptoms");
+        String diagnosis = inputField("Diagnosis");
+        int severity = inputSeverity();
+        String prescription = inputField("Prescription");
+        
+        System.out.println("Status automatically set to: Pending");
+        return new Treatment(tid, pid, did, symptoms, diagnosis, severity, prescription, "Pending"); //Trearment cannnot be applied
+    }
+
+    public Treatment inputUpdatedDetails(Treatment existing) {
+        System.out.println("\n=== UPDATE TREATMENT ===");
+        System.out.println("Current details:");
+        System.out.println(existing);
+
+        System.out.println("\nSelect fields to update (leave blank to keep current):");
+        String pid = updateField("Patient ID", existing.getPatientId());
+        String did = updateField("Doctor ID", existing.getDoctorId());
+        String symptoms = updateField("Symptoms", existing.getSymptoms());
+        String diagnosis = updateField("Diagnosis", existing.getDiagnosis());
+        int severity = updateSeverity(existing.getSeverityLevel());
+        String prescription = updateField("Prescription", existing.getPrescription());
+
+        return new Treatment( //constructor Treatment cannot be applied
+            existing.getTreatmentId(),
+            pid.isEmpty() ? existing.getPatientId() : pid,
+            did.isEmpty() ? existing.getDoctorId() : did,
+            symptoms.isEmpty() ? existing.getSymptoms() : symptoms,
+            diagnosis.isEmpty() ? existing.getDiagnosis() : diagnosis,
+            severity,
+            prescription.isEmpty() ? existing.getPrescription() : prescription,
+            existing.getStatus()
+        );
+    }
+
+    private String inputField(String fieldName) {
+        System.out.printf("%-12s: ", fieldName);
+        return scanner.nextLine();
+    }
+
+    private String updateField(String fieldName, String currentValue) {
+        System.out.printf("%-12s [Current: %s]: ", fieldName, currentValue);
+        return scanner.nextLine();
+    }
+
+    private int inputSeverity() {
+        int severity = 0;
+        while (severity < 1 || severity > 5) {
+            System.out.print("Severity (1-5, 1=Low, 5=Critical): ");
+            try {
+                severity = scanner.nextInt();
+                scanner.nextLine();
+                if (severity < 1 || severity > 5) {
+                    System.out.println("Please enter between 1-5");
+                }
+            } catch (Exception e) {
+                System.out.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
+            }
+        }
+        return severity;
+    }
+
+    private int updateSeverity(int currentSeverity) {
+        System.out.printf("Severity (1-5) [Current: %d]: ", currentSeverity);
+        try {
+            String input = scanner.nextLine();
+            if (!input.isEmpty()) {
+                int severity = Integer.parseInt(input);
+                if (severity >= 1 && severity <= 5) {
+                    return severity;
+                }
+                System.out.println("Invalid severity! Keeping current value.");
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid number! Keeping current value.");
+        }
+        return currentSeverity;
     }
 
     public String inputTreatmentId() {
-        System.out.print("Enter Treatment ID to remove: ");
-        return scanner.nextLine();
+        return inputField("Treatment ID");
     }
 
-    public String inputPatientId() {
-        System.out.print("Enter Patient ID: ");
-        return scanner.nextLine();
+    public void displayTreatment(Treatment treatment) {
+        if (treatment != null) {
+            System.out.println("\n=== TREATMENT DETAILS ===");
+            System.out.println(treatment);
+        } else {
+            System.out.println("Treatment not found.");
+        }
     }
 
-    public void displayTreatmentList(String output) {
-        System.out.println("\n--- Treatment List ---\n" + output);
+    public void displayMessage(String message) {
+        System.out.println(message);
     }
 
-    public void displayMessage(String msg) {
-        System.out.println(msg);
+    public void displayReport(String report) {
+        System.out.println("\n=== REPORT ===");
+        System.out.println(report);
     }
 }
