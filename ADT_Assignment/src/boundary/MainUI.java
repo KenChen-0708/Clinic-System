@@ -14,7 +14,7 @@ public class MainUI {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         int choice;
-
+        MessageUI.clearConsole();
         do {
             System.out.println("\n====== Clinic Management System ======");
             System.out.println("1. Patient Management");
@@ -57,6 +57,7 @@ public class MainUI {
                     MessageUI.displayExitMessage();
                     break;
                 default:
+                    MessageUI.clearConsole();
                     MessageUI.displayInvalidChoiceMessage();
             }
 
