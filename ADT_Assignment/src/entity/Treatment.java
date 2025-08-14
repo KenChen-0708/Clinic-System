@@ -6,7 +6,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 public class Treatment implements Serializable {
-
     private String treatmentId;
     private String patientId;
     private String doctorId;
@@ -69,6 +68,10 @@ public class Treatment implements Serializable {
     }
 
     // Setters
+    public void setTreatmentId(String treatmentId) {
+        this.treatmentId = treatmentId;
+    }
+
     public void setSymptoms(String symptoms) {
         this.symptoms = symptoms;
     }

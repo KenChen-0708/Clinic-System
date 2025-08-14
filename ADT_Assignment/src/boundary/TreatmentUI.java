@@ -5,6 +5,7 @@ import entity.Treatment;
 import java.util.Scanner;
 
 public class TreatmentUI {
+
     private final Scanner scanner;
     private final MaintainTreatment maintainTreatment;
 
@@ -44,30 +45,47 @@ public class TreatmentUI {
 
     private void processMenuChoice(int choice) {
         switch (choice) {
-            case 1: maintainTreatment.addTreatment(); break;
-            case 2: maintainTreatment.updateTreatment(); break;
-            case 3: maintainTreatment.deleteTreatment(); break;
-            case 4: maintainTreatment.searchTreatment(); break;
-            case 5: maintainTreatment.viewAllTreatments(); break;
-            case 6: maintainTreatment.generateTreatmentAnalysis(); break;
-            case 7: maintainTreatment.generateDoctorWorkload(); break;
-            case 0: System.out.println("Exiting system..."); break;
-            default: System.out.println("Invalid choice! Please try again.");
+            case 1:
+                maintainTreatment.addTreatment();
+                break;
+            case 2:
+                maintainTreatment.updateTreatment();
+                break;
+            case 3:
+                maintainTreatment.deleteTreatment();
+                break;
+            case 4:
+                maintainTreatment.searchTreatment();
+                break;
+            case 5:
+                maintainTreatment.viewAllTreatments();
+                break;
+            case 6:
+                maintainTreatment.generateTreatmentAnalysis();
+                break;
+            case 7:
+                maintainTreatment.generateDoctorWorkload();
+                break;
+            case 0:
+                System.out.println("Exiting system...");
+                break;
+            default:
+                System.out.println("Invalid choice! Please try again.");
         }
     }
 
     public Treatment inputTreatmentDetails() {
         System.out.println("\n=== NEW TREATMENT ===");
-        String tid = inputField("Treatment ID");
         String pid = inputField("Patient ID");
         String did = inputField("Doctor ID");
         String symptoms = inputField("Symptoms");
         String diagnosis = inputField("Diagnosis");
         int severity = inputSeverity();
         String prescription = inputField("Prescription");
-        
+
         System.out.println("Status automatically set to: Pending");
-        return new Treatment(tid, pid, did, symptoms, diagnosis, severity, prescription, "Pending"); //Trearment cannnot be applied
+        // Return treatment with null ID (will be set by MaintainTreatment)
+        return new Treatment(null, pid, did, symptoms, diagnosis, severity, prescription, "Pending");
     }
 
     public Treatment inputUpdatedDetails(Treatment existing) {
@@ -83,15 +101,15 @@ public class TreatmentUI {
         int severity = updateSeverity(existing.getSeverityLevel());
         String prescription = updateField("Prescription", existing.getPrescription());
 
-        return new Treatment( //constructor Treatment cannot be applied
-            existing.getTreatmentId(),
-            pid.isEmpty() ? existing.getPatientId() : pid,
-            did.isEmpty() ? existing.getDoctorId() : did,
-            symptoms.isEmpty() ? existing.getSymptoms() : symptoms,
-            diagnosis.isEmpty() ? existing.getDiagnosis() : diagnosis,
-            severity,
-            prescription.isEmpty() ? existing.getPrescription() : prescription,
-            existing.getStatus()
+        return new Treatment(
+                existing.getTreatmentId(), // Keep original ID
+                pid.isEmpty() ? existing.getPatientId() : pid,
+                did.isEmpty() ? existing.getDoctorId() : did,
+                symptoms.isEmpty() ? existing.getSymptoms() : symptoms,
+                diagnosis.isEmpty() ? existing.getDiagnosis() : diagnosis,
+                severity,
+                prescription.isEmpty() ? existing.getPrescription() : prescription,
+                existing.getStatus() // Keep original status
         );
     }
 

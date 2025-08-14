@@ -19,11 +19,53 @@ public class MaintainTreatment {
 
     public void addTreatment() {
         Treatment newTreatment = treatmentUI.inputTreatmentDetails();
+        newTreatment.setTreatmentId(generateNextTreatmentId());
+        
         if (validateTreatment(newTreatment)) {
             treatments.add(newTreatment);
             treatmentDAO.saveToFile(treatments);
-            treatmentUI.displayMessage("Treatment added successfully!");
+            treatmentUI.displayMessage("Treatment added successfully! ID: " + newTreatment.getTreatmentId());
         }
+    }
+
+    private String generateNextTreatmentId() {
+        if (treatments.isEmpty()) {
+            return "T0001";
+        }
+
+        int maxId = 0;
+        for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
+            String currentId = treatments.getEntry(i).getTreatmentId();
+            if (currentId != null && currentId.matches("T\\d{4}")) {
+                int num = Integer.parseInt(currentId.substring(1));
+                maxId = Math.max(maxId, num);
+            }
+        }
+
+        if (maxId >= 9999) {
+            throw new IllegalStateException("Maximum treatment ID limit reached (T9999)");
+        }
+
+        return String.format("T%04d", maxId + 1);
+    }
+
+    private boolean validateTreatment(Treatment treatment) {
+        if (treatment.getTreatmentId() == null || !treatment.getTreatmentId().matches("T\\d{4}")) {
+            treatmentUI.displayMessage("Error: Invalid treatment ID format.");
+            return false;
+        }
+        
+        if (treatments.contains(treatment)) {
+            treatmentUI.displayMessage("Error: Treatment ID already exists.");
+            return false;
+        }
+        
+        if (treatment.getSeverityLevel() < 1 || treatment.getSeverityLevel() > 5) {
+            treatmentUI.displayMessage("Error: Severity must be between 1-5.");
+            return false;
+        }
+        
+        return true;
     }
 
     public void updateTreatment() {
@@ -69,11 +111,11 @@ public class MaintainTreatment {
             return;
         }
         
-        String output = "ALL TREATMENTS:\n";
+        StringBuilder output = new StringBuilder("ALL TREATMENTS:\n");
         for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
-            output += treatments.getEntry(i).toString() + "----------------\n";
+            output.append(treatments.getEntry(i).toString()).append("\n----------------\n");
         }
-        treatmentUI.displayMessage(output);
+        treatmentUI.displayMessage(output.toString());
     }
 
     public void generateTreatmentAnalysis() {
@@ -161,12 +203,12 @@ public class MaintainTreatment {
 
     private String getSeverityLabel(int level) {
         switch(level) {
-            case 1: return "Mild   ";
+            case 1: return "Mild";
             case 2: return "Moderate";
-            case 3: return "Serious ";
-            case 4: return "Severe  ";
+            case 3: return "Serious";
+            case 4: return "Severe";
             case 5: return "Critical";
-            default: return "Unknown ";
+            default: return "Unknown";
         }
     }
 
@@ -178,7 +220,6 @@ public class MaintainTreatment {
             swapped = false;
             for (int i = 1; i < doctorIds.getNumberOfEntries(); i++) {
                 if (treatmentCounts.getEntry(i) < treatmentCounts.getEntry(i+1)) {
-                    // Swap entries
                     swap(doctorIds, i, i+1);
                     swap(treatmentCounts, i, i+1);
                     swap(prescriptionCounts, i, i+1);
@@ -192,18 +233,6 @@ public class MaintainTreatment {
         T temp = list.getEntry(i);
         list.replace(i, list.getEntry(j));
         list.replace(j, temp);
-    }
-
-    private boolean validateTreatment(Treatment treatment) {
-        if (treatments.contains(treatment)) {
-            treatmentUI.displayMessage("Error: Treatment ID already exists.");
-            return false;
-        }
-        if (treatment.getSeverityLevel() < 1 || treatment.getSeverityLevel() > 5) {
-            treatmentUI.displayMessage("Error: Severity must be between 1-5.");
-            return false;
-        }
-        return true;
     }
 
     public Treatment findTreatmentById(String id) {
