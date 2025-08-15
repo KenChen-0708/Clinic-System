@@ -54,7 +54,7 @@ public class MaintainPatient {
 
         for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
             Patient patient = patientList.getEntry(i);
-            if (patient != null) {
+            if (patient != null && patient.getId() != null && patient.getIcNumber() != null) {
                 patientMap.put(patient.getId(), patient);
                 icMap.put(patient.getIcNumber(), patient);
             }
@@ -88,8 +88,10 @@ public class MaintainPatient {
         }
 
         // Add new entries
-        patientMap.put(newPatient.getId(), newPatient);
-        icMap.put(newPatient.getIcNumber(), newPatient);
+        if (newPatient.getId() != null && newPatient.getIcNumber() != null) {
+            patientMap.put(newPatient.getId(), newPatient);
+            icMap.put(newPatient.getIcNumber(), newPatient);
+        }
 
         // Save to file
         patientDAO.saveToFile(patientList);
@@ -98,10 +100,12 @@ public class MaintainPatient {
 
     // Unified method to add patient to all data structures
     private void addToAllDataStructures(Patient patient) {
-        patientList.add(patient);
-        patientMap.put(patient.getId(), patient);
-        icMap.put(patient.getIcNumber(), patient);
-        patientDAO.saveToFile(patientList);
+        if (patient != null && patient.getId() != null && patient.getIcNumber() != null) {
+            patientList.add(patient);
+            patientMap.put(patient.getId(), patient);
+            icMap.put(patient.getIcNumber(), patient);
+            patientDAO.saveToFile(patientList);
+        }
     }
 
     // Unified method to remove patient from all data structures
@@ -127,25 +131,35 @@ public class MaintainPatient {
 
     // Queue management methods with O(1) operations
     private void enqueuePatient(Patient patient) {
-        patientQueue.enqueueWithNumber(patient);
-        queueMap.put(patient.getId(), true); // O(1) patient tracking
-        queueNameMap.put(patient.getName().toLowerCase(), patient); // O(1) name search
-        queueIcMap.put(patient.getIcNumber(), patient); // O(1) IC search
+        if (patient != null && patient.getId() != null && patient.getName() != null && patient.getIcNumber() != null) {
+            patientQueue.enqueueWithNumber(patient);
+            queueMap.put(patient.getId(), true); // O(1) patient tracking
+            queueNameMap.put(patient.getName().toLowerCase(), patient); // O(1) name search
+            queueIcMap.put(patient.getIcNumber(), patient); // O(1) IC search
+        }
     }
 
     private Patient dequeuePatient() {
         if (!patientQueue.isEmpty()) {
             Patient patient = patientQueue.dequeue();
-            queueMap.remove(patient.getId()); // O(1) patient removal
-            queueNameMap.remove(patient.getName().toLowerCase()); // O(1) name removal
-            queueIcMap.remove(patient.getIcNumber()); // O(1) IC removal
+            if (patient != null) {
+                if (patient.getId() != null) {
+                    queueMap.remove(patient.getId()); // O(1) patient removal
+                }
+                if (patient.getName() != null) {
+                    queueNameMap.remove(patient.getName().toLowerCase()); // O(1) name removal
+                }
+                if (patient.getIcNumber() != null) {
+                    queueIcMap.remove(patient.getIcNumber()); // O(1) IC removal
+                }
+            }
             return patient;
         }
         return null;
     }
 
     private boolean isInQueue(Patient patient) {
-        return queueMap.containsKey(patient.getId()); // O(1) check
+        return patient != null && patient.getId() != null && queueMap.containsKey(patient.getId()); // O(1) check
     }
 
     private void clearAllQueueMaps() {
@@ -262,12 +276,12 @@ public class MaintainPatient {
                         String queueNum = patientQueue.getQueueNumber(existingPatient);
                         patientUI.displayMessage("\nExisting patient " + existingPatient.getName() + " has been added to the line-up queue.");
                         patientUI.displayMessage("Queue Number: " + queueNum);
-                        patientUI.displayMessage("Total patients in queue: " + patientQueue.size() + "\n");
+                        patientUI.displayMessage("Total patients in queue: " + patientQueue.size());
                     } else {
-                        patientUI.displayMessage("\nPatient is already in the queue.\n");
+                        patientUI.displayMessage("\nPatient is already in the queue.");
                     }
                 } else {
-                    patientUI.displayMessage("\nPatient not added to queue.\n");
+                    patientUI.displayMessage("\nPatient not added to queue.");
                 }
             } else {
                 // New patient - continue with registration
@@ -587,7 +601,7 @@ public class MaintainPatient {
                     patientUI.displayPatient(p, age);
                 }
             } else {
-                patientUI.displayMessage("No patients found with name '" + name + "'.");
+                patientUI.displayMessage("\nNo patients found with name '" + name + "'.");
             }
 
             continueSearching = patientUI.askToContinueOperation("search another patient by name");
@@ -628,14 +642,14 @@ public class MaintainPatient {
                     } else {
                         String displayIC = ic.length() == 12 ?
                             ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8) : ic;
-                        patientUI.displayMessage("Patient with IC '" + displayIC + "' not found.");
+                        patientUI.displayMessage("\nPatient with IC '" + displayIC + "' not found.");
                     }
                 }
             } else {
                 // Format IC for display in error message
                 String displayIC = ic.length() == 12 ?
                     ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8) : ic;
-                patientUI.displayMessage("Patient with IC '" + displayIC + "' not found.");
+                patientUI.displayMessage("\nPatient with IC '" + displayIC + "' not found.");
             }
 
             continueSearching = patientUI.askToContinueOperation("search another patient by IC");
@@ -677,7 +691,7 @@ public class MaintainPatient {
                     patientUI.displayMessage("Update cancelled to prevent duplicate IC numbers.");
                 }
             } else {
-                patientUI.displayMessage("Patient with ID '" + id + "' not found.");
+                patientUI.displayMessage("\nPatient with ID '" + id + "' not found.");
             }
 
             continueUpdating = patientUI.askToContinueOperation("update another patient");
@@ -734,7 +748,7 @@ public class MaintainPatient {
                     patientUI.displayMessage("Queue Number: " + queueNum);
                     patientUI.displayMessage("Total patients in queue: " + patientQueue.size());
                 } else {
-                    patientUI.displayMessage("Patient is already in the queue.");
+                    patientUI.displayMessage("\nPatient is already in the queue.");
                 }
             } else {
                 patientUI.displayMessage("\nPatient ID not found.");
@@ -762,7 +776,7 @@ public class MaintainPatient {
                 if (!patientQueue.isEmpty()) {
                     continueServing = patientUI.askToContinueOperation("serve next patient");
                 } else {
-                    patientUI.displayMessage("All patients have been served. Queue is now empty.");
+                    patientUI.displayMessage("\nAll patients have been served. Queue is now empty.");
                     continueServing = false;
                 }
             } else {
@@ -1071,12 +1085,6 @@ public class MaintainPatient {
         }
         return sortedList;
     }
-
-
-
-
-
-
 
     // Business logic methods - delegate to ValidationUtil
     public boolean isValidMalaysianIC(String ic) {
