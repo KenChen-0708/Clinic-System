@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class Medicine implements Serializable{
+public class Medicine implements Serializable {
 
     private String medId;
     private String name;
@@ -44,6 +44,18 @@ public class Medicine implements Serializable{
 
     public void setStock(int stock) {
         this.stock = stock;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public void setExpiryDate(LocalDate expiryDate) {
+        this.expiryDate = expiryDate;
     }
 
     @Override

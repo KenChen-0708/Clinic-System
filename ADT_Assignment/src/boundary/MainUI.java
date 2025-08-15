@@ -14,7 +14,7 @@ public class MainUI {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         int choice;
-
+        MessageUI.clearConsole();
         do {
             System.out.println("\n====== Clinic Management System ======");
             System.out.println("1. Patient Management");
@@ -34,24 +34,30 @@ public class MainUI {
 
             switch (choice) {
                 case 1:
+                    MessageUI.clearConsole();
                     new MaintainPatient().runPatientMenu();
                     break;
                 case 2:
+                    MessageUI.clearConsole();
                     new MaintainDoctor().runDoctorMenu();
                     break;
                 case 3:
+                    MessageUI.clearConsole();
                     new MaintainTreatment().runTreatmentMenu();
                     break;
                 case 4:
+                    MessageUI.clearConsole();
                     new MaintainPharmacy().runPharmacyMenu();
                     break;
                 case 5:
+                    MessageUI.clearConsole();
                     new SummaryReport().generate();
                     break;
                 case 0:
                     MessageUI.displayExitMessage();
                     break;
                 default:
+                    MessageUI.clearConsole();
                     MessageUI.displayInvalidChoiceMessage();
             }
 
