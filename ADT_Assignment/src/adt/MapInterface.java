@@ -2,7 +2,7 @@ package adt;
 
 public interface MapInterface<K, V> {
 
-    void put(K key, V value);           // Add or update key-value pair
+    V put(K key, V value);              // Add or update key-value pair, returns previous value
 
     V get(K key);                       // Get value by key
 
@@ -23,4 +23,13 @@ public interface MapInterface<K, V> {
     ListInterface<V> getValues();       // Get all values as a list
 
     String toString();                  // Display all key-value pairs
+
+    // Optional/Advanced methods
+    void putAll(MapInterface<K, V> otherMap);  // Copy all entries from another map
+
+    V replace(K key, V newValue);       // Replace value only if key exists
+
+    boolean equals(Object o);           // Check if two maps are equal
+
+    int hashCode();                     // Hash code for the map
 }

@@ -47,32 +47,36 @@ public class HashMap<K, V> implements MapInterface<K, V> {
     }
 
     @Override
-    public void put(K key, V value) {
-        int index = hash(key);
-        Entry<K, V> current = buckets[index];
+    public V put(K key, V value) {
+    int index = hash(key);
+    Entry<K, V> current = buckets[index];
 
-        // 1) Check if key exists → update value
-        while (current != null) {
-            if ((key == null && current.key == null) ||
-                (key != null && key.equals(current.key))) {
-                current.value = value;
-                return;
-            }
-            current = current.next;
+    // 1) Check if key exists → update value
+    while (current != null) {
+        if ((key == null && current.key == null) ||
+            (key != null && key.equals(current.key))) {
+            V oldValue = current.value;
+            current.value = value;
+            return oldValue; // Return previous value
         }
-
-        // 2) Ensure capacity before adding new key
-        if (size + 1 > capacity * LOAD_FACTOR) {
-            resize();
-            index = hash(key); // Recompute index after resize
-        }
-
-        // 3) Insert new entry at head of bucket
-        Entry<K, V> newEntry = new Entry<>(key, value);
-        newEntry.next = buckets[index];
-        buckets[index] = newEntry;
-        size++;
+        current = current.next;
     }
+
+    // 2) Ensure capacity before adding new key
+    if (size + 1 > capacity * LOAD_FACTOR) {
+        resize();
+        index = hash(key); // Recompute index after resize
+    }
+
+    // 3) Insert new entry at head of bucket
+    Entry<K, V> newEntry = new Entry<>(key, value);
+    newEntry.next = buckets[index];
+    buckets[index] = newEntry;
+    size++;
+
+    return null; // No previous value
+}
+
 
     @Override
     public V get(K key) {
@@ -227,5 +231,70 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         }
         sb.append("}");
         return sb.toString();
+    }
+
+    // Optional/Advanced methods implementation
+    @Override
+    public void putAll(MapInterface<K, V> otherMap) {
+        if (otherMap == null) {
+            return;
+        }
+        ListInterface<K> keys = otherMap.getKeys();
+        for (int i = 1; i <= keys.getNumberOfEntries(); i++) {
+            K key = keys.getEntry(i);
+            V value = otherMap.get(key);
+            put(key, value);
+        }
+    }
+
+    @Override
+    public V replace(K key, V newValue) {
+        if (!containsKey(key)) {
+            return null; // Key doesn't exist, no replacement
+        }
+        return put(key, newValue); // Use existing put method which returns old value
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MapInterface)) return false;
+
+        @SuppressWarnings("unchecked")
+        MapInterface<K, V> otherMap = (MapInterface<K, V>) o;
+
+        if (size() != otherMap.size()) {
+            return false;
+        }
+
+        // Check if all key-value pairs match
+        ListInterface<K> keys = getKeys();
+        for (int i = 1; i <= keys.getNumberOfEntries(); i++) {
+            K key = keys.getEntry(i);
+            V thisValue = get(key);
+            V otherValue = otherMap.get(key);
+
+            if ((thisValue == null && otherValue != null) ||
+                (thisValue != null && !thisValue.equals(otherValue))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 0;
+        for (int i = 0; i < capacity; i++) {
+            Entry<K, V> current = buckets[i];
+            while (current != null) {
+                // Combine key and value hash codes
+                int keyHash = (current.key == null) ? 0 : current.key.hashCode();
+                int valueHash = (current.value == null) ? 0 : current.value.hashCode();
+                hash += keyHash ^ valueHash; // XOR for better distribution
+                current = current.next;
+            }
+        }
+        return hash;
     }
 }
