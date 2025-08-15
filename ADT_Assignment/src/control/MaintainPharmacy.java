@@ -279,46 +279,114 @@ public class MaintainPharmacy {
     }
 
     // --- Build a report snapshot text ---
-    private String buildInventorySnapshotText() {
+//    private String buildInventorySnapshotText() {
+//        StringBuilder sb = new StringBuilder();
+//
+//        java.time.format.DateTimeFormatter dtf
+//                = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
+//
+//        sb.append("INVENTORY SNAPSHOT\n");
+//        sb.append("Generated: ").append(java.time.LocalDateTime.now().format(dtf)).append("\n\n");
+//
+//        // KPIs
+//        sb.append("== KPIs ==\n");
+//        sb.append(String.format("Total SKUs     : %d%n", countSkus()));
+//        sb.append(String.format("Total Units    : %d%n", sumUnits()));
+//        sb.append(String.format("Total Valuation: RM %.2f%n", totalValuation()));
+//
+//        Medicine earliest = getEarliestExpiry();
+//        Medicine latest = getLatestExpiry();
+//        if (earliest != null) {
+//            sb.append(String.format("Earliest Expiry: %s (ID %s, %s)%n",
+//                    earliest.getExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu")),
+//                    earliest.getMedId(), earliest.getName()));
+//        }
+//        if (latest != null) {
+//            sb.append(String.format("Latest Expiry  : %s (ID %s, %s)%n",
+//                    latest.getExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu")),
+//                    latest.getMedId(), latest.getName()));
+//        }
+//        sb.append("\n");
+//
+//        return sb.toString();
+//    }
+    // Build a simple plain-text table we can export (independent of TablePrinter)
+    private String buildTableText(String title, String[] headers, String[][] rows) {
         StringBuilder sb = new StringBuilder();
-
-        java.time.format.DateTimeFormatter dtf
-                = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
-
-        sb.append("INVENTORY SNAPSHOT\n");
-        sb.append("Generated: ").append(java.time.LocalDateTime.now().format(dtf)).append("\n\n");
-
-        // KPIs
-        sb.append("== KPIs ==\n");
-        sb.append(String.format("Total SKUs     : %d%n", countSkus()));
-        sb.append(String.format("Total Units    : %d%n", sumUnits()));
-        sb.append(String.format("Total Valuation: RM %.2f%n", totalValuation()));
-
-        Medicine earliest = getEarliestExpiry();
-        Medicine latest = getLatestExpiry();
-        if (earliest != null) {
-            sb.append(String.format("Earliest Expiry: %s (ID %s, %s)%n",
-                    earliest.getExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu")),
-                    earliest.getMedId(), earliest.getName()));
+        if (title != null && !title.isEmpty()) {
+            sb.append(title).append("\n\n");
         }
-        if (latest != null) {
-            sb.append(String.format("Latest Expiry  : %s (ID %s, %s)%n",
-                    latest.getExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu")),
-                    latest.getMedId(), latest.getName()));
+        // compute column widths
+        int cols = headers.length;
+        int[] w = new int[cols];
+        for (int c = 0; c < cols; c++) {
+            w[c] = headers[c].length();
+        }
+        for (String[] r : rows) {
+            for (int c = 0; c < cols; c++) {
+                if (r[c] != null && r[c].length() > w[c]) {
+                    w[c] = r[c].length();
+                }
+            }
+        }
+        // header
+        for (int c = 0; c < cols; c++) {
+            sb.append(String.format("%-" + (w[c] + 2) + "s", headers[c]));
         }
         sb.append("\n");
-
+        // separator
+        for (int c = 0; c < cols; c++) {
+            sb.append("-".repeat(w[c])).append("  ");
+        }
+        sb.append("\n");
+        // rows
+        for (String[] r : rows) {
+            for (int c = 0; c < cols; c++) {
+                String cell = (r[c] == null) ? "" : r[c];
+                sb.append(String.format("%-" + (w[c] + 2) + "s", cell));
+            }
+            sb.append("\n");
+        }
         return sb.toString();
     }
 
+    /**
+     * Unified post-display flow: offer export after any report/text/table
+     */
+    private void offerExportAfterDisplay(String exportTitle, String exportBody) {
+        int act = pharmacyUI.getPostReportAction();
+        if (act == 1) {
+            String path = exportReportToFile(exportTitle, exportBody);
+            if (path == null) {
+                pharmacyUI.displayMessage("\nFailed to export report.\n");
+            } else {
+                pharmacyUI.displayExportResult(path);
+            }
+            MessageUI.pressEnterToContinue();
+        } else {
+            MessageUI.clearConsole();
+        }
+    }
 
     private String exportReportToFile(String title, String body) {
-        java.time.format.DateTimeFormatter fnf = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
-        String filename = title.toLowerCase().replace(' ', '_') + "_"
+        java.time.format.DateTimeFormatter fnf
+                = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+
+        // 1) Make a filesystem-safe slug from the title
+        // Replace Windows-invalid chars: \ / : * ? " < > |
+        String safeTitle = title
+                .replaceAll("[\\\\/:*?\"<>|]", "_") // replace invalids with underscore
+                .replaceAll("\\s+", "_") // collapse whitespace to underscores
+                .replaceAll("_+", "_") // collapse multiple underscores
+                .replaceAll("^_+|_+$", "");         // trim leading/trailing underscores
+
+        String filename = safeTitle.toLowerCase() + "_"
                 + java.time.LocalDateTime.now().format(fnf) + ".txt";
+
         java.io.File file = new java.io.File(filename);
-        try (java.io.PrintWriter pw = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
-            pw.println(title);
+        try (java.io.PrintWriter pw
+                = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
+            pw.println(title); // keep the original (pretty) title inside the file
             pw.println();
             pw.println(body);
         } catch (java.io.IOException e) {
@@ -513,6 +581,120 @@ public class MaintainPharmacy {
         } while (choice != 0);
     }
 
+    public void viewAllMedicines() {
+        MessageUI.clearConsole();
+
+        if (medicineList.isEmpty()) {
+            MessageUI.displayEmptyMessage();
+            MessageUI.pressEnterToContinue();
+            return;
+        }
+
+        // Always show a default table first
+        DoublyLinkedList<Medicine> byId = copyList();
+        byId.mergeSort(BY_ID_NUM);
+        pharmacyUI.displayTable("== Inventory (By ID) ==",
+                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                toRowsById(byId));
+
+        // Now enter a loop so "Back" from sort-direction ONLY goes back ONE level
+        while (true) {
+            int choice = pharmacyUI.getSortChoice(); // 0..4
+            if (choice == 0) {
+                MessageUI.clearConsole();   // Back exactly one level: to the Inventory menu
+                return;
+            }
+
+            String title = "== Inventory (";
+            DoublyLinkedList<Medicine> tmp;
+
+            switch (choice) {
+                case 1: { // Sort by ID
+                    int dir = pharmacyUI.getSortDirection("by ID",
+                            "ID ascending (M0001 → M9999)",
+                            "ID descending (M9999 → M0001)");
+                    MessageUI.clearConsole();
+                    if (dir == 0) {
+                        // Back to sort menu (one level)
+                        continue;
+                    }
+                    tmp = copyList();
+                    if (dir == 1) {
+                        tmp.mergeSort(BY_ID_NUM); // Asc
+                        title += "Sorted by ID Ascending)";
+                    } else {
+                        tmp.mergeSort((a, b) -> BY_ID_NUM.compare(b, a)); // Desc
+                        title += "Sorted by ID Descending)";
+                    }
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                            toRowsById(tmp));
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+
+                case 2: { // Sort by Expiry
+                    int dir = pharmacyUI.getSortDirection("by Expiry Date",
+                            "Earliest first", "Latest first");
+                    MessageUI.clearConsole();
+                    if (dir == 0) {
+                        continue; // back to sort menu
+                    }
+                    tmp = copyList();
+                    if (dir == 1) {
+                        tmp.mergeSort(BY_EXPIRY_THEN_ID);
+                        title += "Sorted by Expiry Date (Earliest first))";
+                    } else {
+                        tmp.mergeSort((a, b) -> BY_EXPIRY_THEN_ID.compare(b, a));
+                        title += "Sorted by Expiry Date (Latest first))";
+                    }
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                            toRowsByExpiryDate(tmp));
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+
+                case 3: { // Sort by Price
+                    int dir = pharmacyUI.getSortDirection("by Price",
+                            "Lowest first", "Highest first");
+                    MessageUI.clearConsole();
+                    if (dir == 0) {
+                        continue; // back to sort menu
+                    }
+                    tmp = copyList();
+                    if (dir == 1) {
+                        tmp.mergeSort(BY_PRICE_THEN_ID);
+                        title += "Sorted by Price (Lowest first))";
+                    } else {
+                        tmp.mergeSort((a, b) -> BY_PRICE_THEN_ID.compare(b, a));
+                        title += "Sorted by Price (Highest first))";
+                    }
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                            toRowsByPrice(tmp));
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+
+                case 4: { // Group by name
+                    MessageUI.clearConsole();
+                    title += "Grouped by Name (Total Quantity))";
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Name", "Total Qty"},
+                            toRowsTotalsByName());
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
+            }
+            // After any action, the while-loop shows the sort menu again,
+            // so Back from getSortDirection returns ONE level to that menu.
+        }
+    }
+
     public void addMedicine() {
         MessageUI.clearConsole();
         String newId = generateNextMedicineId();
@@ -558,9 +740,17 @@ public class MaintainPharmacy {
             return;
         }
 
-        pharmacyUI.displayMedicineInventory(renderList(medicineList));
+        DoublyLinkedList<Medicine> byId = copyList();
+        byId.mergeSort(BY_ID_NUM);
+        pharmacyUI.displayTable("== Edit Inventory ==",
+                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                toRowsById(byId));
 
         String medId = pharmacyUI.inputMedicineID();
+        if (medId == null) {
+            MessageUI.clearConsole();
+            return;
+        }
 
         // Find the medicine by ID
         Medicine medToEdit = null;
@@ -571,6 +761,8 @@ public class MaintainPharmacy {
                 break;
             }
         }
+
+        MessageUI.clearConsole();
 
         if (medToEdit == null) {
             pharmacyUI.displayMessage("Medicine ID not found.");
@@ -587,8 +779,6 @@ public class MaintainPharmacy {
         } else {
             pharmacyUI.displayMessage("Medicine editing canceled.");
         }
-
-        MessageUI.pressEnterToContinue();
     }
 
     public void removeMedicineStock() {
@@ -601,9 +791,19 @@ public class MaintainPharmacy {
             return;
         }
 
-        pharmacyUI.displayMedicineInventory(renderList(medicineList));
-
+        DoublyLinkedList<Medicine> byId = copyList();
+        byId.mergeSort(BY_ID_NUM);
+        pharmacyUI.displayTable("== Remove Inventory ==",
+                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                toRowsById(byId));
+        
         String medId = pharmacyUI.inputMedicineID();
+        if (medId == null) {
+            MessageUI.clearConsole();
+            return;
+        }
+        
+        MessageUI.clearConsole();
 
         // Find the medicine by ID and its position in the list
         int positionToRemove = -1;
@@ -622,6 +822,7 @@ public class MaintainPharmacy {
 
         // Confirm removal
         int action = pharmacyUI.confirmRemoveMedicine(medicineList.getEntry(positionToRemove));
+        MessageUI.clearConsole();
         if (action == 1) {
             // Remove medicine using the position
             medicineList.remove(positionToRemove);
@@ -630,8 +831,6 @@ public class MaintainPharmacy {
         } else {
             pharmacyUI.displayMessage("Medicine removal canceled.");
         }
-
-        MessageUI.pressEnterToContinue();
     }
 
     private String generateNextMedicineId() {
@@ -646,113 +845,6 @@ public class MaintainPharmacy {
         return String.format("M%04d", max + 1);
     }
 
-    public void viewAllMedicines() {
-        MessageUI.clearConsole();
-
-        if (medicineList.isEmpty()) {
-            MessageUI.displayEmptyMessage();
-            MessageUI.pressEnterToContinue();
-            return;
-        }
-
-        // Default behavior: Sort by ID in ascending order
-        int dir = 1;
-
-        DoublyLinkedList<Medicine> tmp = copyList();
-
-        DoublyLinkedList<Medicine> byId = copyList();
-        byId.mergeSort(BY_ID_NUM);
-        pharmacyUI.displayTable("== Inventory (By ID) ==",
-                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                toRowsById(byId));
-
-        // Prompt the user for further sorting or grouping actions
-        int choice = pharmacyUI.getSortChoice();  // Get the sort or group choice
-        if (choice == 0) {
-            // If the user selects 0, exit and go back to the previous menu
-            MessageUI.clearConsole();
-            return;
-        }
-
-        String title = "== Inventory (";
-
-        switch (choice) {
-            case 1: { // Sort by ID
-                dir = pharmacyUI.getSortDirection("by ID", "ID ascending (M0001 → M9999)", "ID descending (M9999 → M0001)");
-                MessageUI.clearConsole();
-                if (dir == 0) {
-                    // If 0 is selected, go back
-                    return;
-                }
-                tmp = copyList();
-                if (dir == 1) {
-                    tmp.mergeSort(BY_ID_NUM); // Ascending
-                    title += "Sorted by ID Ascending)";
-                } else {
-                    tmp.mergeSort((a, b) -> BY_ID_NUM.compare(b, a)); // Descending
-                    title += "Sorted by ID Descending)";
-                }
-                pharmacyUI.displayTable(title,
-                        new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                        toRowsById(tmp));
-                break;
-            }
-
-            case 2: { // Sort by Expiry Date
-                dir = pharmacyUI.getSortDirection("by Expiry Date", "Earliest first", "Latest first");
-                MessageUI.clearConsole();
-                if (dir == 0) {
-                    // If 0 is selected, go back
-                    return;
-                }
-                tmp = copyList();
-                if (dir == 1) {
-                    tmp.mergeSort(BY_EXPIRY_THEN_ID); // Ascending
-                    title += "Sorted by Expiry Date (Earliest first))";
-                } else {
-                    tmp.mergeSort((a, b) -> BY_EXPIRY_THEN_ID.compare(b, a)); // Descending
-                    title += "Sorted by Expiry Date (Latest first))";
-                }
-                pharmacyUI.displayTable(title,
-                        new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                        toRowsByExpiryDate(tmp));
-                break;
-            }
-
-            case 3: { // Sort by Price
-                dir = pharmacyUI.getSortDirection("by Price", "Lowest first", "Highest first");
-                MessageUI.clearConsole();
-                if (dir == 0) {
-                    // If 0 is selected, go back
-                    return;
-                }
-                tmp = copyList();
-                if (dir == 1) {
-                    tmp.mergeSort(BY_PRICE_THEN_ID); // Ascending
-                    title += "Sorted by Price (Lowest first))";
-                } else {
-                    tmp.mergeSort((a, b) -> BY_PRICE_THEN_ID.compare(b, a)); // Descending
-                    title += "Sorted by Price (Highest first))";
-                }
-                pharmacyUI.displayTable(title,
-                        new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                        toRowsByPrice(tmp));
-                break;
-            }
-
-            case 4: { // Group by name: total qty
-                MessageUI.clearConsole();
-                title += "Grouped by Name (Total Quantity))";
-                pharmacyUI.displayTable(title,
-                        new String[]{"Name", "Total Qty"},
-                        toRowsTotalsByName());
-                break;
-            }
-        }
-
-        MessageUI.pressEnterToContinue();
-    }
-
     public void dispenseMedicine() {
         MessageUI.clearConsole();
         StringBuilder patientOutput = new StringBuilder();
@@ -765,6 +857,10 @@ public class MaintainPharmacy {
         pharmacyUI.displayMessage("Select a patient:\n" + patientOutput);
 
         int selectedIndex = pharmacyUI.inputPatientSelection();
+        if (selectedIndex == 0) {
+            MessageUI.clearConsole();
+            return;
+        }
         if (selectedIndex < 1 || selectedIndex > patientList.getNumberOfEntries()) {
             pharmacyUI.displayMessage("Invalid selection.");
             return;
@@ -828,117 +924,155 @@ public class MaintainPharmacy {
 
     public void generateInventoryReport() {
         MessageUI.clearConsole();
+
+        // Optional: if completely empty, you can still show the menu
         if (medicineList.isEmpty()) {
-            pharmacyUI.displayReport("Inventory Report", "");
+            pharmacyUI.displayReport("Inventory Report", "(No inventory items)");
             MessageUI.pressEnterToContinue();
-            return;
+            return; // Nothing useful to loop on
         }
 
-        int choice = pharmacyUI.getInventoryReportChoice();
-        switch (choice) {
-            case 0:
-                return;
+        int choice;
+        do {
+            choice = pharmacyUI.getInventoryReportChoice();
+            switch (choice) {
+                case 0:
+                    MessageUI.clearConsole();
+                    break;
 
-            case 1: { // Snapshot (tables)
-                MessageUI.clearConsole();
-                // KPIs table
-                pharmacyUI.displayTable("== KPIs ==", new String[]{"Metric", "Value"}, toRowsKpis());
+                case 1: { // KPI Snapshot
+                    MessageUI.clearConsole();
+                    String[] headers = {"Metric", "Value"};
+                    String[][] rows = toRowsKpis();
+                    pharmacyUI.displayTable("== KPIs ==", headers, rows);
 
-                break;
-            }
-
-            case 2: { // Low-stock table
-                int threshold = pharmacyUI.inputLowStockThreshold();
-                MessageUI.clearConsole();
-                String[][] rows = toRowsLowStock(threshold);
-                if (rows.length == 0) {
-                    pharmacyUI.displayReport("Inventory Report (Low-stock)", "(No items at or below threshold)");
-                } else {
-                    pharmacyUI.displayTable("== Low-stock (<= " + threshold + ") ==",
-                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                            rows);
+                    String tableText = buildTableText("KPIs", headers, rows);
+                    offerExportAfterDisplay("Inventory Report - KPI Snapshot", tableText);
+                    break;
                 }
-                break;
-            }
 
-            case 3: { // Near-expiry table
-                int days = pharmacyUI.inputNearExpiryDays();
-                MessageUI.clearConsole();
-                String[][] rows = toRowsNearExpiry(days);
-                if (rows.length == 0) {
-                    pharmacyUI.displayReport("Inventory Report (Near-expiry)", "(No items expiring within " + days + " days)");
-                } else {
-                    pharmacyUI.displayTable("== Near-expiry (within " + days + " days) ==",
-                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                            rows);
+                case 2: { // Low-stock
+                    int threshold = pharmacyUI.inputLowStockThreshold();
+                    if (threshold == -1) {
+                        MessageUI.clearConsole();
+                        break;
+                    }
+                    MessageUI.clearConsole();
+                    String[] headers = {"Med ID", "Name", "Qty", "Price/Unit", "Expiry"};
+                    String[][] rows = toRowsLowStock(threshold);
+
+                    if (rows.length == 0) {
+                        String body = "(No items at or below threshold)";
+                        pharmacyUI.displayReport("Inventory Report (Low-stock)", body);
+                        offerExportAfterDisplay("Inventory Report - Low Stock (<= " + threshold + ")", body);
+                    } else {
+                        String title = "== Low-stock (<= " + threshold + ") ==";
+                        pharmacyUI.displayTable(title, headers, rows);
+                        String tableText = buildTableText(title, headers, rows);
+                        offerExportAfterDisplay("Inventory Report - Low Stock (<= " + threshold + ")", tableText);
+                    }
+                    break;
                 }
-                break;
-            }
 
-            case 4: { // Snapshot + export (still export your existing text version)
-                String body = buildInventorySnapshotText(); // keep your text snapshot for file
-                String path = exportReportToFile("Inventory Report (Snapshot)", body);
+                case 3: { // Near-expiry
+                    int days = pharmacyUI.inputNearExpiryDays();
+                    if (days == -1) {
+                        MessageUI.clearConsole();
+                        break;
+                    }
+                    MessageUI.clearConsole();
+                    String[] headers = {"Med ID", "Name", "Qty", "Price/Unit", "Expiry"};
+                    String[][] rows = toRowsNearExpiry(days);
 
-                // On-screen: also show the tables for a nicer UI
-                pharmacyUI.displayTable("== KPIs ==", new String[]{"Metric", "Value"}, toRowsKpis());
-
-                if (path == null) {
-                    pharmacyUI.displayMessage("\nFailed to export report.\n");
-                } else {
-                    pharmacyUI.displayExportResult(path);
+                    if (rows.length == 0) {
+                        String body = "(No items expiring within " + days + " days)";
+                        pharmacyUI.displayReport("Inventory Report (Near-expiry)", body);
+                        offerExportAfterDisplay("Inventory Report - Near Expiry (within " + days + " days)", body);
+                    } else {
+                        String title = "== Near-expiry (within " + days + " days) ==";
+                        pharmacyUI.displayTable(title, headers, rows);
+                        String tableText = buildTableText(title, headers, rows);
+                        offerExportAfterDisplay("Inventory Report - Near Expiry (within " + days + " days)", tableText);
+                    }
+                    break;
                 }
-                break;
             }
-        }
-        MessageUI.pressEnterToContinue();
+            // loop shows the Inventory Report menu again until user presses 0
+        } while (choice != 0);
     }
 
     public void generateDispensedReport() {
         MessageUI.clearConsole();
 
-        // refresh log from file in case other ops wrote
+        // Refresh log
         dispenseLog = dispenseDAO.retrieveFromFile();
         if (dispenseLog.isEmpty()) {
-            pharmacyUI.displayReport("Dispensed Medicines Report", "");
+            pharmacyUI.displayReport("Dispensed Medicines Report", "(No records)");
             MessageUI.pressEnterToContinue();
             return;
         }
 
-        int choice = pharmacyUI.getDispensedReportChoice();
-        if (choice == 0) {
-            return;
-        }
+        int choice;
+        do {
+            choice = pharmacyUI.getDispensedReportChoice();
+            switch (choice) {
+                case 0:
+                    // Back exactly ONE level (to Pharmacy main)
+                    break;
 
-        switch (choice) {
-            case 1: { // all time detail
-                pharmacyUI.displayReport("Dispensed (All Time - Detail)", renderDispenseDetail(dispenseLog));
-                break;
+                case 1: {
+                    String title = "Dispensed (All Time - Detail)";
+                    String body = renderDispenseDetail(dispenseLog);
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+                case 2: {
+                    LocalDate today = LocalDate.now();
+                    String title = "Dispensed Today (By Medicine)";
+                    String body = renderDispenseSummaryByMedicine(filterByDateRange(today, today));
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+                case 3: {
+                    LocalDate end = LocalDate.now();
+                    LocalDate start = end.minusDays(6);
+                    String title = "Dispensed Last 7 Days (By Medicine)";
+                    String body = renderDispenseSummaryByMedicine(filterByDateRange(start, end));
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+                case 4: {
+                    LocalDate start = pharmacyUI.inputDate("Start date");
+                    if (start == null) {
+                        MessageUI.clearConsole();
+                        break;
+                    }
+                    LocalDate end = pharmacyUI.inputDate("End date");
+                    if (end == null) {
+                        MessageUI.clearConsole();
+                        break;
+                    }
+                    String title = "Dispensed (" + start + " to " + end + ") (By Medicine)";
+                    String body = renderDispenseSummaryByMedicine(filterByDateRange(start, end));
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+                case 5: {
+                    LocalDate start = pharmacyUI.inputDate("Start date");
+                    LocalDate end = pharmacyUI.inputDate("End date");
+                    String title = "Dispensed (" + start + " to " + end + ") (By Patient)";
+                    String body = renderDispenseSummaryByPatient(filterByDateRange(start, end));
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
             }
-            case 2: { // today summary by medicine
-                LocalDate today = LocalDate.now();
-                pharmacyUI.displayReport("Dispensed Today (By Medicine)", renderDispenseSummaryByMedicine(filterByDateRange(today, today)));
-                break;
-            }
-            case 3: { // last 7 days summary by medicine
-                LocalDate end = LocalDate.now();
-                LocalDate start = end.minusDays(6);
-                pharmacyUI.displayReport("Dispensed Last 7 Days (By Medicine)", renderDispenseSummaryByMedicine(filterByDateRange(start, end)));
-                break;
-            }
-            case 4: { // custom range by medicine
-                LocalDate start = pharmacyUI.inputDate("Start date");
-                LocalDate end = pharmacyUI.inputDate("End date");
-                pharmacyUI.displayReport("Dispensed (" + start + " to " + end + ") (By Medicine)", renderDispenseSummaryByMedicine(filterByDateRange(start, end)));
-                break;
-            }
-            case 5: { // custom range by patient
-                LocalDate start = pharmacyUI.inputDate("Start date");
-                LocalDate end = pharmacyUI.inputDate("End date");
-                pharmacyUI.displayReport("Dispensed (" + start + " to " + end + ") (By Patient)", renderDispenseSummaryByPatient(filterByDateRange(start, end)));
-                break;
-            }
-        }
-        MessageUI.pressEnterToContinue();
+            // loop shows the Dispensed Report menu again until user presses 0
+        } while (choice != 0);
     }
 
     public static void main(String[] args) {
