@@ -1,113 +1,86 @@
 package entity;
 
+import adt.DoublyLinkedList;
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.Objects;
 
 public class Treatment implements Serializable {
 
+    private static int counter = 1; // Static counter to generate unique treatmentId
     private String treatmentId;
     private String patientId;
     private String doctorId;
-    private String symptoms;
-    private String diagnosis;
-    private int severityLevel;
-    private String prescription;
-    private LocalDate treatmentDate;
     private String status;
+    private LocalDate treatmentDate;  // Field for treatment date
+    private DoublyLinkedList<TreatmentMedicineList> medicineList;  // List of medicines
 
-    public Treatment(String treatmentId, String patientId, String doctorId,
-            String symptoms, String diagnosis, int severityLevel,
-            String prescription, String status) {
-        this.treatmentId = treatmentId;
+    // Constructor for creating a new treatment with treatment date and medicine list
+    public Treatment(String patientId, String doctorId, String status, LocalDate treatmentDate) {
+        this.treatmentId = "T" + String.format("%04d", counter++);
         this.patientId = patientId;
         this.doctorId = doctorId;
-        this.symptoms = symptoms;
-        this.diagnosis = diagnosis;
-        this.severityLevel = severityLevel;
-        this.prescription = prescription;
-        this.treatmentDate = LocalDate.now();
         this.status = status;
+        this.treatmentDate = treatmentDate;
+        this.medicineList = new DoublyLinkedList<>();  // Initialize the medicine list
     }
 
-    // Getters
+    // Constructor to create Treatment with just treatmentId (for retrieval purposes)
+    public Treatment(String treatmentId) {
+        this.treatmentId = treatmentId;
+        this.medicineList = new DoublyLinkedList<>();  // Initialize the medicine list
+    }
+
+    // Getters and Setters
     public String getTreatmentId() {
         return treatmentId;
+    }
+
+    public void setTreatmentId(String treatmentId) {
+        this.treatmentId = treatmentId;
     }
 
     public String getPatientId() {
         return patientId;
     }
 
+    public void setPatientId(String patientId) {
+        this.patientId = patientId;
+    }
+
     public String getDoctorId() {
         return doctorId;
     }
 
-    public String getSymptoms() {
-        return symptoms;
-    }
-
-    public String getDiagnosis() {
-        return diagnosis;
-    }
-
-    public int getSeverityLevel() {
-        return severityLevel;
-    }
-
-    public String getPrescription() {
-        return prescription;
-    }
-
-    public String getFormattedDate() {
-        return treatmentDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    public void setDoctorId(String doctorId) {
+        this.doctorId = doctorId;
     }
 
     public String getStatus() {
         return status;
     }
 
-    // Setters
-    public void setSymptoms(String symptoms) {
-        this.symptoms = symptoms;
-    }
-
-    public void setDiagnosis(String diagnosis) {
-        this.diagnosis = diagnosis;
-    }
-
-    public void setSeverityLevel(int severityLevel) {
-        this.severityLevel = severityLevel;
-    }
-
-    public void setPrescription(String prescription) {
-        this.prescription = prescription;
-    }
-
     public void setStatus(String status) {
         this.status = status;
     }
 
-    @Override
-    public String toString() {
-        return String.format(
-                "Treatment ID: %s\nPatient ID: %s\nDoctor ID: %s\nDate: %s\n"
-                + "Symptoms: %s\nDiagnosis: %s\nSeverity: %d\nPrescription: %s\nStatus: %s\n",
-                treatmentId, patientId, doctorId, getFormattedDate(), symptoms,
-                diagnosis, severityLevel, prescription, status
-        );
+    public LocalDate getTreatmentDate() {
+        return treatmentDate;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof Treatment)) {
-            return false;
-        }
-        Treatment treatment = (Treatment) o;
-        return treatmentId.equals(treatment.treatmentId);
+    public void setTreatmentDate(LocalDate treatmentDate) {
+        this.treatmentDate = treatmentDate;
+    }
+
+    public DoublyLinkedList<TreatmentMedicineList> getMedicineList() {
+        return medicineList;
+    }
+
+    public void setMedicineList(DoublyLinkedList<TreatmentMedicineList> medicineList) {
+        this.medicineList = medicineList;
+    }
+
+    // Add a medicine to the list
+    public void addMedicine(TreatmentMedicineList medicine) {
+        this.medicineList.add(medicine);
     }
 }
