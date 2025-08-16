@@ -3,25 +3,39 @@ package entity;
 import java.io.Serializable;
 
 public class Doctor implements Serializable {
+
     private String id;
     private String name;
     private String specialization;
     private String schedule; // New field
+    private String availability;
 
     public Doctor(String id, String name, String specialization) {
         this.id = id;
         this.name = name;
         this.specialization = specialization;
         this.schedule = null; // Default: no schedule
+        this.availability =  null;
     }
 
     // =========================
     // Getters
     // =========================
-    public String getId() { return id; }
-    public String getName() { return name; }
-    public String getSpecialization() { return specialization; }
-    public String getSchedule() { return schedule; }
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getSpecialization() {
+        return specialization;
+    }
+
+    public String getSchedule() {
+        return schedule;
+    }
 
     // =========================
     // Setters
@@ -38,21 +52,33 @@ public class Doctor implements Serializable {
         this.schedule = schedule;
     }
 
+    public String getAvailability() {
+        return availability;
+    }
+
+    public void setAvailability(String availability) {
+        this.availability = availability;
+    }
+
     // =========================
     // Overrides
     // =========================
     @Override
     public String toString() {
         return String.format(
-            "ID            : %s\nName          : %s\nSpecialization: %s\nSchedule      : %s\n",
-            id, name, specialization, (schedule != null ? schedule : "Not set")
+                "ID            : %s\nName          : %s\nSpecialization: %s\nSchedule      : %s\n",
+                id, name, specialization, (schedule != null ? schedule : "Not set")
         );
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Doctor)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Doctor)) {
+            return false;
+        }
         Doctor d = (Doctor) o;
         return id.equalsIgnoreCase(d.id);
     }

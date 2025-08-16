@@ -7,6 +7,7 @@ import utility.MessageUI;
 import java.util.Scanner;
 
 public class DoctorUI {
+
     private final Scanner scanner = new Scanner(System.in);
     private final MaintainDoctor maintainDoctor;
 
@@ -31,7 +32,9 @@ public class DoctorUI {
             System.out.println("9. Sort Doctors by Specialization");
             System.out.println("10. Set Doctor Schedule");
             System.out.println("11. View Doctor Schedule");
-            System.out.println("12. View Statistics");
+            System.out.println("12. Set Doctor Availability");   // ⭐ NEW
+            System.out.println("13. View Doctor Availability");  // ⭐ NEW
+            System.out.println("14. View Statistics");
             System.out.println("0. Back to Main Menu");
             System.out.println("-------------------------------");
             System.out.print("Enter your choice: ");
@@ -44,20 +47,53 @@ public class DoctorUI {
             scanner.nextLine(); // consume newline
 
             switch (choice) {
-                case 1: maintainDoctor.addDoctor(); break;
-                case 2: maintainDoctor.removeDoctor(); break;
-                case 3: maintainDoctor.displayAllDoctors(); break;
-                case 4: maintainDoctor.searchDoctorById(); break;
-                case 5: maintainDoctor.searchDoctorByName(); break;
-                case 6: maintainDoctor.searchDoctorBySpecialization(); break;
-                case 7: maintainDoctor.updateDoctorDetails(); break;
-                case 8: maintainDoctor.sortDoctorsByName(); break;
-                case 9: maintainDoctor.sortDoctorsBySpecialization(); break;
-                case 10: maintainDoctor.setDoctorSchedule(); break;
-                case 11: maintainDoctor.displayDoctorSchedule(); break;
-                case 12: maintainDoctor.displayStatistics(); break;
-                case 0: MessageUI.displayExitMessage(); break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.addDoctor();
+                    break;
+                case 2:
+                    maintainDoctor.removeDoctor();
+                    break;
+                case 3:
+                    maintainDoctor.displayAllDoctors();
+                    break;
+                case 4:
+                    maintainDoctor.searchDoctorById();
+                    break;
+                case 5:
+                    maintainDoctor.searchDoctorByName();
+                    break;
+                case 6:
+                    maintainDoctor.searchDoctorBySpecialization();
+                    break;
+                case 7:
+                    maintainDoctor.updateDoctorDetails();
+                    break;
+                case 8:
+                    maintainDoctor.sortDoctorsByName();
+                    break;
+                case 9:
+                    maintainDoctor.sortDoctorsBySpecialization();
+                    break;
+                case 10:
+                    maintainDoctor.setDoctorSchedule();
+                    break;
+                case 11:
+                    maintainDoctor.displayDoctorSchedule();
+                    break;
+                case 12:
+                    maintainDoctor.setDoctorAvailability();
+                    break;
+                case 13:
+                    maintainDoctor.displayDoctorAvailability();
+                    break;
+                case 14:
+                    maintainDoctor.displayStatistics();
+                    break;
+                case 0:
+                    MessageUI.displayExitMessage();
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (choice != 0);
     }
@@ -104,5 +140,10 @@ public class DoctorUI {
 
     public void displayMessage(String msg) {
         System.out.println(msg);
+    }
+
+    public String inputAvailability() {
+        System.out.print("Enter doctor availability (Available, On Duty, Off Duty, On Leave): ");
+        return scanner.nextLine();
     }
 }
