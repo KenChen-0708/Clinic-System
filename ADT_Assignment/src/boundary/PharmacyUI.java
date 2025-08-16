@@ -68,6 +68,17 @@ public class PharmacyUI {
         }
     }
 
+    private void displayMedicineNames(ListInterface<String> names) {
+        if (names == null || names.isEmpty()) {
+            System.out.println("No medicines available.");
+            return;
+        }
+
+        for (int i = 1; i <= names.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + names.getEntry(i));
+        }
+    }
+
     public void runManageMedicineNames() {
         int choice = -1;
         do {
@@ -77,14 +88,7 @@ public class PharmacyUI {
             System.out.println("================================");
 
             // Display the medicine names
-            if (medicineNames.isEmpty()) {
-                System.out.println("No medicines available.");
-            } else {
-                System.out.println("List of Medicine Names:");
-                for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
-                    System.out.println(i + ". " + medicineNames.getEntry(i));
-                }
-            }
+            displayMedicineNames(medicineNames);
 
             // Provide options for adding, editing, or removing medicine names
             System.out.println("\nOptions:");
@@ -301,19 +305,16 @@ public class PharmacyUI {
     }
 
     public Medicine inputMedicineDetails(String generatedId) {
-        System.out.println("\n== Add New Inventory (0. Exit / Cancel) ==");
-        System.out.println("Select medicine name:");
+        System.out.println("\n== Add New Inventory (0 to back) ==");
 
-        // Display the available medicine names
-        for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
-            System.out.printf("%d. %s%n", i, medicineNames.getEntry(i));
-        }
+        displayMedicineNames(medicineNames);
 
         final int PROMPT_WIDTH = 35;
 
         int choice;
         while (true) {
-            System.out.printf("\n%-" + PROMPT_WIDTH + "s: ", "Enter choice (0-" + medicineNames.getNumberOfEntries() + ")");
+            System.out.printf("\n%-" + PROMPT_WIDTH + "s: ", "Select medicine name");
+
             try {
                 choice = Integer.parseInt(scanner.nextLine().trim());
                 if (choice == 0) {
@@ -478,22 +479,20 @@ public class PharmacyUI {
 
             switch (input) {
                 case "1": {
-                    ListInterface<String> medicineNames = medicineNamesDAO.retrieveFromFile();
+                    ListInterface<String> refreshed = medicineNamesDAO.retrieveFromFile();
                     System.out.println("\nSelect medicine name (0 to Back):");
-                    for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
-                        System.out.printf("%d. %s%n", i, medicineNames.getEntry(i));
-                    }
+                    displayMedicineNames(refreshed);
 
                     while (true) {
-                        System.out.print("Enter choice (0-" + medicineNames.getNumberOfEntries() + "): ");
+                        System.out.print("Enter choice (0-" + refreshed.getNumberOfEntries() + "): ");
                         try {
                             int ch = Integer.parseInt(scanner.nextLine().trim());
                             if (ch == 0) {
                                 MessageUI.clearConsole();
                                 break;
                             }
-                            if (ch >= 1 && ch <= medicineNames.getNumberOfEntries()) {
-                                med.setName(medicineNames.getEntry(ch));
+                            if (ch >= 1 && ch <= refreshed.getNumberOfEntries()) {
+                                med.setName(refreshed.getEntry(ch));
                                 MessageUI.clearConsole();
                                 break;
                             }
