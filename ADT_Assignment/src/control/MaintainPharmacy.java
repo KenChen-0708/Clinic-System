@@ -11,12 +11,14 @@ import entity.DispenseRecord;
 import entity.Medicine;
 import entity.Patient;
 import entity.Treatment;
+import entity.TreatmentMedicineList;
 import utility.MessageUI;
 
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.Scanner;
 
 /**
  * Application layer (controller) for pharmacy operations. - Manages inventory
@@ -549,81 +551,199 @@ public class MaintainPharmacy implements Serializable {
     public void dispenseMedicine() {
         MessageUI.clearConsole();
 
-        // Let the user choose a patient from the list
+        // Display all patients
         StringBuilder patientOutput = new StringBuilder();
         for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
             Patient p = patientList.getEntry(i);
             patientOutput.append(i).append(". ")
-                    .append(p.getId()).append(" - ").append(p.getName()).append("\n");
+                    .append(p.getId()).append(" - ")
+                    .append(p.getName()).append("\n");
         }
         pharmacyUI.displayMessage("Select a patient:\n" + patientOutput);
 
+        // Get patient selection
         int selectedIndex = pharmacyUI.inputPatientSelection();
-        if (selectedIndex == 0) {
-            MessageUI.clearConsole();
-            return;
-        }
         if (selectedIndex < 1 || selectedIndex > patientList.getNumberOfEntries()) {
             pharmacyUI.displayMessage("Invalid selection.");
             return;
         }
 
         Patient selectedPatient = patientList.getEntry(selectedIndex);
+        pharmacyUI.displayMessage("Selected Patient: " + selectedPatient.getName() + " (ID: " + selectedPatient.getId() + ")");
 
-        // Find latest prescription for this patient (scan from end)
+        // Get all treatments for the selected patient
         ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
-        String prescription = "";
-        for (int i = treatments.getNumberOfEntries(); i >= 1; i--) {
-            Treatment t = treatments.getEntry(i);
-            if (t.getPatientId().equals(selectedPatient.getId())) {
-                prescription = t.getPrescription();
-                break;
+        DoublyLinkedList<Treatment> patientTreatments = new DoublyLinkedList<>();
+
+        for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
+            Treatment treatment = treatments.getEntry(i);
+            if (treatment.getPatientId().equalsIgnoreCase(selectedPatient.getId())) {
+                patientTreatments.add(treatment);
             }
         }
-        if (prescription.isEmpty()) {
-            pharmacyUI.displayMessage("\nNo prescription found for this patient.");
+
+        if (patientTreatments.isEmpty()) {
+            pharmacyUI.displayMessage("\nNo treatments found for this patient.");
             return;
         }
 
-        // Parse "ID:qty" pairs
-        String[] meds = prescription.split(",");
-        for (String med : meds) {
-            String[] parts = med.split(":");
-            String medId = parts[0].trim();
-            int qty = Integer.parseInt(parts[1].trim());
+        // Find the most recent treatment with "Pending" status and medicines
+        Treatment treatmentToDispense = null;
+        for (int i = patientTreatments.getNumberOfEntries(); i >= 1; i--) {
+            Treatment treatment = patientTreatments.getEntry(i);
 
-            boolean found = false;
-            for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-                Medicine m = medicineList.getEntry(i);
-                if (m.getMedId().equals(medId)) {
-                    found = true;
-                    if (m.getStock() >= qty) {
-                        m.setStock(m.getStock() - qty);
-                        pharmacyUI.displayMessage("Dispensed " + qty + " units of " + m.getName());
-
-                        DispenseRecord rec = new DispenseRecord(
-                                selectedPatient.getId(),
-                                selectedPatient.getName(),
-                                m.getMedId(),
-                                m.getName(),
-                                qty,
-                                LocalDateTime.now()
-                        );
-                        dispenseLog.add(rec);
-                    } else {
-                        pharmacyUI.displayMessage("Insufficient stock for " + m.getName());
-                    }
-                    break;
-                }
-            }
-            if (!found) {
-                pharmacyUI.displayMessage("Medicine " + medId + " not found in inventory.");
+            // Only process treatments with "Pending" status
+            if (treatment.getStatus().equalsIgnoreCase("Pending")
+                    && treatment.getMedicineList() != null
+                    && !treatment.getMedicineList().isEmpty()) {
+                treatmentToDispense = treatment;
+                break;
             }
         }
 
-        // Persist inventory & dispense log updates
+        if (treatmentToDispense == null) {
+            pharmacyUI.displayMessage("\nNo pending treatments with prescribed medicines found for this patient.");
+
+            // Check if there are completed treatments
+            boolean hasCompletedTreatments = false;
+            for (int i = 1; i <= patientTreatments.getNumberOfEntries(); i++) {
+                Treatment treatment = patientTreatments.getEntry(i);
+                if (treatment.getStatus().equalsIgnoreCase("Completed")) {
+                    hasCompletedTreatments = true;
+                    break;
+                }
+            }
+
+            if (hasCompletedTreatments) {
+                pharmacyUI.displayMessage("Note: This patient has completed treatments that don't require medicine dispensing.");
+            }
+            return;
+        }
+
+        // Display treatment information
+        pharmacyUI.displayMessage("\nTreatment ID: " + treatmentToDispense.getTreatmentId());
+        pharmacyUI.displayMessage("Treatment Date: " + treatmentToDispense.getTreatmentDate());
+        pharmacyUI.displayMessage("Status: " + treatmentToDispense.getStatus());
+
+        // Get the medicine list from treatment
+        DoublyLinkedList<TreatmentMedicineList> prescribedMedicines = treatmentToDispense.getMedicineList();
+
+        pharmacyUI.displayMessage("\n=== PRESCRIBED MEDICINES ===");
+        for (int i = 1; i <= prescribedMedicines.getNumberOfEntries(); i++) {
+            TreatmentMedicineList prescribedMed = prescribedMedicines.getEntry(i);
+            pharmacyUI.displayMessage(i + ". Medicine: " + prescribedMed.getPrescription());
+            pharmacyUI.displayMessage("   Tablets per dose: " + prescribedMed.getTablets());
+            pharmacyUI.displayMessage("   Times per day: " + prescribedMed.getTimesPerDay());
+            pharmacyUI.displayMessage("   Total days: " + prescribedMed.getTotalDay());
+            pharmacyUI.displayMessage("   Meal timing: " + prescribedMed.getMealTiming());
+
+            // Calculate total tablets needed
+            int totalTabletsNeeded = prescribedMed.getTablets() * prescribedMed.getTimesPerDay() * prescribedMed.getTotalDay();
+            pharmacyUI.displayMessage("   Total tablets needed: " + totalTabletsNeeded);
+            pharmacyUI.displayMessage("");
+        }
+
+        // Ask for confirmation before dispensing
+        pharmacyUI.displayMessage("\nDo you want to proceed with dispensing these medicines?");
+        pharmacyUI.displayMessage("1. Yes, dispense all medicines");
+        pharmacyUI.displayMessage("2. No, cancel dispensing");
+
+        int confirmDispense = 0;
+        try {
+            confirmDispense = new Scanner(System.in).nextInt();
+        } catch (Exception e) {
+            confirmDispense = 2; // Default to cancel
+        }
+
+        if (confirmDispense != 1) {
+            pharmacyUI.displayMessage("Dispensing cancelled.");
+            return;
+        }
+
+        // Process each prescribed medicine
+        boolean allDispensed = true;
+        StringBuilder dispensingReport = new StringBuilder();
+        dispensingReport.append("\n=== DISPENSING REPORT ===\n");
+
+        for (int i = 1; i <= prescribedMedicines.getNumberOfEntries(); i++) {
+            TreatmentMedicineList prescribedMed = prescribedMedicines.getEntry(i);
+            String medicineName = prescribedMed.getPrescription();
+            int totalTabletsNeeded = prescribedMed.getTablets() * prescribedMed.getTimesPerDay() * prescribedMed.getTotalDay();
+
+            // Find medicine in inventory by name
+            Medicine foundMedicine = null;
+            for (int j = 1; j <= medicineList.getNumberOfEntries(); j++) {
+                Medicine m = medicineList.getEntry(j);
+                if (m.getName().equalsIgnoreCase(medicineName)) {
+                    foundMedicine = m;
+                    break;
+                }
+            }
+
+            if (foundMedicine == null) {
+                dispensingReport.append(medicineName).append(" - NOT FOUND in inventory\n");
+                allDispensed = false;
+                continue;
+            }
+
+            // Check stock availability
+            if (foundMedicine.getStock() >= totalTabletsNeeded) {
+                // Dispense medicine
+                foundMedicine.setStock(foundMedicine.getStock() - totalTabletsNeeded);
+
+                dispensingReport.append(medicineName)
+                        .append(" - Dispensed ").append(totalTabletsNeeded).append(" tablets")
+                        .append(" (Remaining stock: ").append(foundMedicine.getStock()).append(")\n");
+
+                // Create dispense record
+                DispenseRecord rec = new DispenseRecord(
+                        selectedPatient.getId(),
+                        selectedPatient.getName(),
+                        foundMedicine.getMedId(),
+                        foundMedicine.getName(),
+                        totalTabletsNeeded,
+                        LocalDateTime.now()
+                );
+                dispenseLog.add(rec);
+            } else {
+                dispensingReport.append(medicineName)
+                        .append(" - INSUFFICIENT STOCK (Need: ").append(totalTabletsNeeded)
+                        .append(", Available: ").append(foundMedicine.getStock()).append(")\n");
+                allDispensed = false;
+            }
+        }
+
+        // Display dispensing report
+        pharmacyUI.displayMessage(dispensingReport.toString());
+
+        if (allDispensed) {
+            // Update treatment status to "Completed" since all medicines were dispensed
+            for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
+                Treatment treatment = treatments.getEntry(i);
+                if (treatment.getTreatmentId().equals(treatmentToDispense.getTreatmentId())) {
+                    treatment.setStatus("Completed");
+                    break;
+                }
+            }
+            treatmentDAO.saveToFile(treatments);
+
+            pharmacyUI.displayMessage("All medicines dispensed successfully!");
+            pharmacyUI.displayMessage("Treatment status updated to 'Completed'.");
+        } else {
+            pharmacyUI.displayMessage("Some medicines could not be dispensed due to insufficient stock or unavailability.");
+            pharmacyUI.displayMessage("Treatment status remains 'Pending' until all medicines can be dispensed.");
+        }
+
+        // Save updated data
         medicineDAO.saveToFile(medicineList);
         dispenseDAO.saveToFile(dispenseLog);
+
+        pharmacyUI.displayMessage("\nPress Enter to continue...");
+        try {
+            new Scanner(System.in).nextLine();
+        } catch (Exception e) {
+            // Handle scanner exception
+        }
     }
 
     /* =========================

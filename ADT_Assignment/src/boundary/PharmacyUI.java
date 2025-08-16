@@ -727,6 +727,10 @@ public class PharmacyUI {
             System.out.println(i + ". " + names.getEntry(i));
         }
     }
+    
+    public ListInterface<String> getMedicineNames() {
+        return medicineNames;  // This exposes the list of medicine names
+    }
 
     /**
      * Inventory text dumper (used by some controllers).
