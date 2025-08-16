@@ -24,6 +24,7 @@ public class MaintainPatient {
     private final MapInterface<String, Boolean> queueMap; // Map for O(1) queue patient checks
     private final MapInterface<String, Patient> queueNameMap; // Map for O(1) queue search by name
     private final MapInterface<String, Patient> queueIcMap; // Map for O(1) queue search by IC
+    private final MaintainTreatment maintainTreatment;  //Siuyee changes - to get current serving patient id
 
     public MaintainPatient() {
         patientDAO = new PatientDAO();
@@ -35,6 +36,7 @@ public class MaintainPatient {
         queueMap = new HashMap<>(); // Initialize queue duplicate prevention map (PatientID -> true if in queue)
         queueNameMap = new HashMap<>(); // Initialize queue name search map
         queueIcMap = new HashMap<>(); // Initialize queue IC search map
+        maintainTreatment = new MaintainTreatment(); //Siuyee changes - to get current serving patient id
 
         // Populate maps with existing patients for efficient lookup
         populateMaps();
@@ -643,6 +645,7 @@ public class MaintainPatient {
             Patient nextPatient = dequeuePatient(); // FAST O(1) removal with patient tracking
             if (nextPatient != null) {
                 String queueNum = patientQueue.getQueueNumber(nextPatient);
+                maintainTreatment.setServingPatient(nextPatient);  //Siuyee changes - to get current serving patient id
                 if (queueNum != null) {
                     patientUI.displayMessage("\nNow serving: Queue #" + queueNum +
                                            " - " + nextPatient.getName() + " (ID: " + nextPatient.getId() + ")");

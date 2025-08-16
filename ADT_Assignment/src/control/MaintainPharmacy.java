@@ -777,7 +777,7 @@ public class MaintainPharmacy {
         for (int i = treatments.getNumberOfEntries(); i >= 1; i--) {
             Treatment t = treatments.getEntry(i);
             if (t.getPatientId().equals(selectedPatient.getId())) {
-                prescription = t.getPrescription();
+//                prescription = t.getPrescription();
                 break;
             }
         }
