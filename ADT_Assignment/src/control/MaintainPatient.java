@@ -21,6 +21,7 @@ public class MaintainPatient {
     private final ListInterface<Patient> patientList;        // Main patient storage (DoublyLinkedList)
     private final PatientDAO patientDAO;                     // Data persistence layer
     private final PatientUI patientUI;                       // User interface layer
+    private final MaintainTreatment maintainTreatment;  //Siuyee changes - to get current serving patient id
 
     // Queue management system
     private final QueueInterface<Patient> patientQueue;      // FIFO line-up queue for patients
@@ -42,6 +43,7 @@ public class MaintainPatient {
         queueMap = new HashMap<>(); // Initialize queue duplicate prevention map (PatientID -> true if in queue)
         queueNameMap = new HashMap<>(); // Initialize queue name search map
         queueIcMap = new HashMap<>(); // Initialize queue IC search map
+        maintainTreatment = new MaintainTreatment(); //Siuyee changes - to get current serving patient id
 
         // Populate maps with existing patients for efficient lookup
         populateMaps();
@@ -751,6 +753,7 @@ public class MaintainPatient {
             Patient nextPatient = dequeuePatient(); // FAST O(1) removal with patient tracking
             if (nextPatient != null) {
                 String queueNum = patientQueue.getQueueNumber(nextPatient);
+                maintainTreatment.setServingPatient(nextPatient);  //Siuyee changes - to get current serving patient id
                 if (queueNum != null) {
                     patientUI.displayMessage("\nNow serving: Queue #" + queueNum +
                                            " - " + nextPatient.getName() + " (ID: " + nextPatient.getId() + ")");
