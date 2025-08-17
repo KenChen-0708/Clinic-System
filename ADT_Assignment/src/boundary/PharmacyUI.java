@@ -3,26 +3,53 @@ package boundary;
 import adt.ListInterface;
 import dao.MedicineNamesDAO;
 import entity.Medicine;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.Scanner;
 import utility.MessageUI;
-import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
 import utility.TablePrinter;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.Scanner;
+
+/**
+ * # PharmacyUI Console-based user interface for the Pharmacy module.
+ *
+ * Responsibilities: - Show menus and collect inputs safely (with validation &
+ * "0 to Back" patterns). - Display tables/reports using TablePrinter. -
+ * Delegate data changes to DAO classes (no business logic here).
+ *
+ * Design choices: - Centralized input helpers to avoid duplicated
+ * parsing/validation code. - Clear sections and short, descriptive methods to
+ * make live demos easier. - Comments explain *why* not only *what* to help
+ * during presentation.
+ */
 public class PharmacyUI {
 
-    Scanner scanner = new Scanner(System.in);
+    /* =========================================================
+     * Fields & Data Access
+     * ========================================================= */
+    private final Scanner scanner = new Scanner(System.in);
 
     private final MedicineNamesDAO medicineNamesDAO = new MedicineNamesDAO();
-    private ListInterface<String> medicineNames;
+    private ListInterface<String> medicineNames; // loaded at construction
 
+    /* =========================================================
+     * Construction
+     * ========================================================= */
     public PharmacyUI() {
         // Load the list of medicine names when the UI is created
         medicineNames = medicineNamesDAO.retrieveFromFile();
     }
 
+    /* =========================================================
+     * Top-Level Menus
+     * ========================================================= */
+    /**
+     * Main Pharmacy menu (Pharmacy Management Menu).
+     *
+     * @return user choice 0..5 (already validated)
+     */
     public int getMenuChoice() {
         System.out.println("================================");
         System.out.println("   PHARMACY MANAGEMENT MENU");
@@ -36,12 +63,15 @@ public class PharmacyUI {
         System.out.println("--------------------------------");
         System.out.print("Enter your choice: ");
 
-        int choice = scanner.nextInt();
-        scanner.nextLine();  // consume the newline
+        // Uses a simple readInt helper + range check
+        int choice = readIntAllowAny(); // allow any int; caller validates range
         System.out.println();
         return choice;
     }
 
+    /**
+     * Inventory sub-menu (safe loop with validation).
+     */
     public int getInventoryManagementChoice() {
         System.out.println("============================================");
         System.out.println("     PHARMACY INVENTORY MANAGEMENT MENU");
@@ -50,51 +80,40 @@ public class PharmacyUI {
         System.out.println("2. Add New Medicine Stock");
         System.out.println("3. Edit Medicine Stock");
         System.out.println("4. Remove Medicine Stock");
+        System.out.println("5. Search Medicine"); // <-- NEW
         System.out.println("0. Back to PHARMACY Menu");
         System.out.println("--------------------------------------------");
         System.out.print("Enter your choice: ");
 
-        while (true) {
-            String s = scanner.nextLine().trim();
-            try {
-                int choice = Integer.parseInt(s);
-                if (choice >= 0 && choice <= 4) {
-                    return choice;
-                }
-                System.out.print("Please enter 0-4: ");
-            } catch (NumberFormatException e) {
-                System.out.print("Please enter a valid number (0-4): ");
-            }
-        }
+        // expand to 0..5
+        return readIntInRangeLoop(0, 5, "Please enter 0-5: ");
     }
 
+    /**
+     * Manage medicine names (Add/Edit/Remove) loop. Keeps returning to the list
+     * after each operation.
+     */
     public void runManageMedicineNames() {
-        int choice = -1;
+        int choice;
         do {
-            // Show all the medicines
+            // Header
             System.out.println("================================");
             System.out.println("     MANAGE MEDICINE NAMES");
             System.out.println("================================");
 
-            // Display the medicine names
-            if (medicineNames.isEmpty()) {
-                System.out.println("No medicines available.");
-            } else {
-                System.out.println("List of Medicine Names:");
-                for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
-                    System.out.println(i + ". " + medicineNames.getEntry(i));
-                }
-            }
+            // Show current names
+            displayMedicineNames(medicineNames);
 
-            // Provide options for adding, editing, or removing medicine names
+            // Options
             System.out.println("\nOptions:");
             System.out.println("1. Add New Medicine Name");
             System.out.println("2. Edit Medicine Name");
             System.out.println("3. Remove Medicine Name");
             System.out.println("0. Back to PHARMACY Menu");
+            System.out.println("--------------------------------");
             System.out.print("Enter your choice: ");
 
-            choice = Integer.parseInt(scanner.nextLine().trim());
+            choice = readIntAllowAny();
 
             switch (choice) {
                 case 1:
@@ -115,134 +134,12 @@ public class PharmacyUI {
         } while (choice != 0);
     }
 
-    private void addMedicineName() {
-        while (true) {
-            System.out.print("\nEnter the name of the new medicine (0 to Back): ");
-            String newMedicineName = scanner.nextLine().trim();
-
-            if ("0".equals(newMedicineName)) {
-                MessageUI.clearConsole();
-                System.out.println("Operation cancelled.");
-                return;
-            }
-
-            if (newMedicineName.isEmpty()) {
-                System.out.print("\nMedicine name cannot be empty. Please try again.");
-                continue;
-            }
-
-            // Validation: only letters and spaces allowed
-            if (!newMedicineName.matches("[a-zA-Z ]+")) {
-                System.out.print("\nMedicine name must contain only letters and spaces. Please try again.");
-                continue;
-            }
-
-            medicineNamesDAO.addMedicine(medicineNames, newMedicineName);
-            MessageUI.clearConsole();
-            System.out.println("Medicine added successfully.");
-            break;
-        }
-    }
-
-    private void editMedicineName() {
-        System.out.print("\nEnter the number of the medicine to edit (0 to Back): ");
-        int index;
-
-        try {
-            index = Integer.parseInt(scanner.nextLine().trim());
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-            return;
-        }
-
-        if (index == 0) {
-            MessageUI.clearConsole();
-            System.out.println("Operation cancelled.");
-            return;
-        }
-
-        if (index < 1 || index > medicineNames.getNumberOfEntries()) {
-            System.out.println("Invalid medicine number.");
-            return;
-        }
-
-        // Loop until valid name or cancel
-        while (true) {
-            System.out.print("\nEnter the new name of the medicine (0 to Back): ");
-            String newMedicineName = scanner.nextLine().trim();
-
-            if ("0".equals(newMedicineName)) {
-                MessageUI.clearConsole();
-                System.out.println("Operation cancelled.");
-                return;
-            }
-
-            if (newMedicineName.isEmpty()) {
-                System.out.print("\nMedicine name cannot be empty. Please try again.");
-                continue;
-            }
-
-            // Validation: only letters and spaces allowed
-            if (!newMedicineName.matches("[a-zA-Z ]+")) {
-                System.out.print("\nMedicine name must contain only letters and spaces. Please try again.");
-                continue;
-            }
-
-            medicineNamesDAO.editMedicine(medicineNames, index, newMedicineName);
-            MessageUI.clearConsole();
-            System.out.println("Medicine updated successfully.");
-            break;
-        }
-    }
-
-    private void removeMedicineName() {
-        System.out.print("\nEnter the number of the medicine to remove (0 to Back): ");
-        int index;
-
-        try {
-            index = Integer.parseInt(scanner.nextLine().trim());
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-            return;
-        }
-
-        if (index == 0) {
-            MessageUI.clearConsole();
-            System.out.println("Operation cancelled.");
-            return;
-        }
-
-        if (index < 1 || index > medicineNames.getNumberOfEntries()) {
-            System.out.println("Invalid medicine number.");
-            return;
-        }
-
-        String selectedMedicine = medicineNames.getEntry(index);
-
-        // Confirmation menu
-        while (true) {
-            System.out.println("\nYou have selected: " + "[" + selectedMedicine + "]");
-            System.out.println("1. Confirm removal");
-            System.out.println("0. Cancel removal");
-            System.out.print("Enter choice (0-1): ");
-
-            String input = scanner.nextLine().trim();
-
-            if ("0".equals(input)) {
-                MessageUI.clearConsole();
-                System.out.println("Operation cancelled.");
-                return;
-            } else if ("1".equals(input)) {
-                medicineNamesDAO.removeMedicine(medicineNames, index);
-                MessageUI.clearConsole();
-                System.out.println("Medicine removed successfully.");
-                return;
-            } else {
-                System.out.println("Invalid choice. Please enter 0 or 1.\n");
-            }
-        }
-    }
-
+    /* =========================================================
+     * Inventory: Sort/Group Menus
+     * ========================================================= */
+    /**
+     * Sort/group selection for inventory table.
+     */
     public int getSortChoice() {
         System.out.println("\n--- Sort / Group Inventory ---");
         System.out.println("1. Sort by ID");
@@ -250,22 +147,20 @@ public class PharmacyUI {
         System.out.println("3. Sort by Price");
         System.out.println("4. Group by Medicine Name (Total Quantity)");
         System.out.println("0. Back");
+        System.out.println("--------------------------------");
         System.out.print("Enter your choice: ");
 
-        while (true) {
-            String s = scanner.nextLine().trim();
-            try {
-                int choice = Integer.parseInt(s);
-                if (choice >= 0 && choice <= 4) {
-                    return choice;
-                }
-                System.out.print("Please enter 0-4: ");
-            } catch (NumberFormatException e) {
-                System.out.print("Please enter a number (0-4): ");
-            }
-        }
+        return readIntInRangeLoop(0, 4, "Please enter 0-4: ");
     }
 
+    /**
+     * Generic direction picker for a given sort.
+     *
+     * @param title e.g. "by ID" / "by Price"
+     * @param ascLabel label for ascending option
+     * @param descLabel label for descending option
+     * @return 0=Back, 1=asc, 2=desc
+     */
     public int getSortDirection(String title, String ascLabel, String descLabel) {
         MessageUI.clearConsole();
 
@@ -273,73 +168,59 @@ public class PharmacyUI {
         System.out.println("1. " + ascLabel);
         System.out.println("2. " + descLabel);
         System.out.println("0. Back");
+        System.out.println("--------------------------------");
         System.out.print("Enter your choice: ");
 
-        while (true) {
-            String s = scanner.nextLine().trim();
-            try {
-                int choice = Integer.parseInt(s);
-                if (choice == 0) {
-                    return 0;  // Back one level (to the sort menu)
-                } else if (choice == 1 || choice == 2) {
-                    return choice;
-                }
-                System.out.print("Please enter 0-2: ");
-            } catch (NumberFormatException e) {
-                System.out.print("Please enter a valid number (0-2): ");
-            }
-        }
+        // Only allow 0..2
+        return readIntInRangeLoop(0, 2, "Please enter 0-2: ");
     }
 
-    public void displayGroupedTotals(String totalsText) {
-        System.out.println("\n--- Grouped by Medicine Name (Total Quantity) ---\n");
-        if (totalsText == null || totalsText.trim().isEmpty()) {
-            MessageUI.displayEmptyMessage();
-            return;
-        }
-        System.out.println(totalsText);
-    }
-
+    /* =========================================================
+     * Inventory: Add/Edit/Remove UI/Search
+     * ========================================================= */
+    /**
+     * Guided input for creating a new Medicine object. - Follows the same "0 to
+     * Back" pattern at each step. - Validates name, quantity, price, and
+     * expiry.
+     *
+     * @param generatedId ID supplied by controller (e.g. M0001)
+     */
     public Medicine inputMedicineDetails(String generatedId) {
-        System.out.println("\n== Add New Inventory (0. Exit / Cancel) ==");
-        System.out.println("Select medicine name:");
+        System.out.println("\n== Add New Inventory (0 to back) ==");
 
-        // Display the available medicine names
-        for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
-            System.out.printf("%d. %s%n", i, medicineNames.getEntry(i));
-        }
+        displayMedicineNames(medicineNames);
 
         final int PROMPT_WIDTH = 35;
 
+        // 1) Choose Name from list
         int choice;
         while (true) {
-            System.out.printf("\n%-" + PROMPT_WIDTH + "s: ", "Enter choice (0-" + medicineNames.getNumberOfEntries() + ")");
+            System.out.printf("\n%-" + PROMPT_WIDTH + "s: ", "Select medicine name");
+            String raw = scanner.nextLine().trim();
+
+            if ("0".equals(raw)) {
+                cancel("Canceled. No medicine added.");
+                return null;
+            }
             try {
-                choice = Integer.parseInt(scanner.nextLine().trim());
-                if (choice == 0) {
-                    MessageUI.clearConsole();
-                    System.out.println("Canceled. No medicine added.");
-                    return null; // exit early
-                }
+                choice = Integer.parseInt(raw);
                 if (choice >= 1 && choice <= medicineNames.getNumberOfEntries()) {
                     break;
-                } else {
-                    System.out.println("Invalid choice. Please try again.");
                 }
+                System.out.println("Invalid choice. Please try again.");
             } catch (NumberFormatException e) {
                 System.out.println("Please enter a valid number.");
             }
         }
-
         String name = medicineNames.getEntry(choice);
 
+        // 2) Quantity (>0)
         int quantity;
         while (true) {
             System.out.printf("%-" + PROMPT_WIDTH + "s: ", "Enter quantity");
             String s = scanner.nextLine().trim();
             if ("0".equals(s)) {
-                MessageUI.clearConsole();
-                System.out.println("Canceled. No medicine added.");
+                cancel("Canceled. No medicine added.");
                 return null;
             }
             try {
@@ -353,13 +234,13 @@ public class PharmacyUI {
             }
         }
 
+        // 3) Price (>=0)
         double price;
         while (true) {
             System.out.printf("%-" + PROMPT_WIDTH + "s: ", "Enter price per unit");
             String s = scanner.nextLine().trim();
             if ("0".equals(s)) {
-                MessageUI.clearConsole();
-                System.out.println("Canceled. No medicine added.");
+                cancel("Canceled. No medicine added.");
                 return null;
             }
             try {
@@ -373,6 +254,7 @@ public class PharmacyUI {
             }
         }
 
+        // 4) Expiry (strict dd-MM-uuuu and must be after today)
         LocalDate expiry;
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT);
         LocalDate today = LocalDate.now();
@@ -380,8 +262,7 @@ public class PharmacyUI {
             System.out.printf("%-" + PROMPT_WIDTH + "s: ", "Enter expiry date (DD-MM-YYYY)");
             String expiryStr = scanner.nextLine().trim();
             if ("0".equals(expiryStr)) {
-                MessageUI.clearConsole();
-                System.out.println("Canceled. No medicine added.");
+                cancel("Canceled. No medicine added.");
                 return null;
             }
             try {
@@ -398,59 +279,53 @@ public class PharmacyUI {
         return new Medicine(generatedId, name, quantity, price, expiry);
     }
 
-    public void displayAddConfirmation(Medicine med) {
-        System.out.println("\nMedicine successfully added!\n");
-        System.out.println(med.toString());
-        System.out.println("--------------------------------------------\n");
-    }
-
+    /**
+     * Confirmation step for adding a medicine.
+     *
+     * @return 1=Confirm, 2=Edit, 3=Discard
+     */
     public int confirmAddMedicine(Medicine med) {
         System.out.println("\n--- Confirm New Medicine ---");
         System.out.println(med.toString());
         System.out.println("--------------------------------------------");
         System.out.println("1. Confirm and save");
         System.out.println("2. Edit details");
-        System.out.println("3. Discard");
-
-        int choice;
+        System.out.println("0. Discard");
+        System.out.println("--------------------------------");
         while (true) {
-            System.out.print("Enter choice (1-3): ");
-            try {
-                choice = Integer.parseInt(scanner.nextLine().trim());
-                switch (choice) {
-                    case 1:
-                        MessageUI.clearConsole();
-                        System.out.println("Details confirmed. Saved.");
-                        return 1;
-                    case 2:
-                        MessageUI.clearConsole();
-                        return 2;
-                    case 3:
-                        MessageUI.clearConsole();
-                        System.out.println("Medicine discarded. Nothing will be saved.");
-                        return 3;
-                    default:
-                        System.out.println("Invalid choice. Please enter 1, 2, or 3.\n");
-                        break;
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Please enter a valid number.\n");
+            System.out.print("Enter choice (0-2): ");
+            int choice = readIntAllowAnySafe();
+
+            switch (choice) {
+                case 1:
+                    MessageUI.clearConsole();
+                    System.out.println("Details confirmed. Saved.");
+                    return 1;
+                case 2:
+                    MessageUI.clearConsole();
+                    return 2;
+                case 0: // user picks Discard with 0
+                    MessageUI.clearConsole();
+                    System.out.println("Medicine discarded. Nothing will be saved.");
+                    return 0;
+                default:
+                    System.out.println("Invalid choice. Please enter 0, 1, or 2.\n");
             }
         }
     }
 
+    /**
+     * Guided editor for a Medicine (in-place update). Follows "0 to Back" in
+     * each field editor.
+     */
     public Medicine editMedicineDetails(Medicine med) {
         DateTimeFormatter fmtStrict = DateTimeFormatter.ofPattern("dd-MM-uuuu")
                 .withResolverStyle(ResolverStyle.STRICT);
         LocalDate today = LocalDate.now();
 
-        // Make a copy of the original details to restore if changes are discarded
+        // Backup so we can rollback if the user discards from the main menu.
         Medicine original = new Medicine(
-                med.getMedId(),
-                med.getName(),
-                med.getStock(),
-                med.getPrice(),
-                med.getExpiryDate()
+                med.getMedId(), med.getName(), med.getStock(), med.getPrice(), med.getExpiryDate()
         );
 
         while (true) {
@@ -459,10 +334,12 @@ public class PharmacyUI {
             System.out.println("2. Quantity       : " + med.getStock());
             System.out.println("3. Price per unit : RM " + med.getPrice());
             System.out.println("4. Expiry Date    : " + med.getExpiryDate().format(DateTimeFormatter.ofPattern("dd-MMM-uuuu")));
+            System.out.println("--------------------------------------------");
             System.out.println("5. Done editing");
             System.out.println("0. Discard changes");
-
+            System.out.println("--------------------------------");
             System.out.print("Enter choice (0-5): ");
+
             String input = scanner.nextLine().trim();
 
             if ("0".equals(input)) {
@@ -477,35 +354,29 @@ public class PharmacyUI {
             }
 
             switch (input) {
-                case "1": {
-                    ListInterface<String> medicineNames = medicineNamesDAO.retrieveFromFile();
+                case "1": { // Change name from master list
+                    ListInterface<String> refreshed = medicineNamesDAO.retrieveFromFile();
                     System.out.println("\nSelect medicine name (0 to Back):");
-                    for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
-                        System.out.printf("%d. %s%n", i, medicineNames.getEntry(i));
-                    }
+                    displayMedicineNames(refreshed);
 
                     while (true) {
-                        System.out.print("Enter choice (0-" + medicineNames.getNumberOfEntries() + "): ");
-                        try {
-                            int ch = Integer.parseInt(scanner.nextLine().trim());
-                            if (ch == 0) {
-                                MessageUI.clearConsole();
-                                break;
-                            }
-                            if (ch >= 1 && ch <= medicineNames.getNumberOfEntries()) {
-                                med.setName(medicineNames.getEntry(ch));
-                                MessageUI.clearConsole();
-                                break;
-                            }
-                            System.out.println("Invalid choice. Try again.\n");
-                        } catch (NumberFormatException e) {
-                            System.out.println("Please enter a valid number.\n");
+                        System.out.print("Enter choice (0-" + refreshed.getNumberOfEntries() + "): ");
+                        int ch = readIntAllowAnySafe();
+                        if (ch == 0) {
+                            MessageUI.clearConsole();
+                            break;
                         }
+                        if (ch >= 1 && ch <= refreshed.getNumberOfEntries()) {
+                            med.setName(refreshed.getEntry(ch));
+                            MessageUI.clearConsole();
+                            break;
+                        }
+                        System.out.println("Invalid choice. Try again.\n");
                     }
                     break;
                 }
 
-                case "2": {
+                case "2": { // Change quantity (>0)
                     while (true) {
                         System.out.print("\nEnter new quantity (0 to Back): ");
                         String s = scanner.nextLine().trim();
@@ -527,7 +398,7 @@ public class PharmacyUI {
                     break;
                 }
 
-                case "3": {
+                case "3": { // Change price (>=0)
                     while (true) {
                         System.out.print("\nEnter new price per unit (RM) (0 to Back): ");
                         String s = scanner.nextLine().trim();
@@ -549,7 +420,7 @@ public class PharmacyUI {
                     break;
                 }
 
-                case "4": {
+                case "4": { // Change expiry (must be after today)
                     while (true) {
                         System.out.print("\nEnter new expiry date (DD-MM-YYYY) (0 to Back): ");
                         String ds = scanner.nextLine().trim();
@@ -581,66 +452,208 @@ public class PharmacyUI {
         }
     }
 
+    /**
+     * Removal confirmation dialog.
+     *
+     * @return 1=Confirm, 0=Cancel
+     */
     public int confirmRemoveMedicine(Medicine med) {
         System.out.println("\n--- Remove Medicine ---");
         System.out.println(med.toString());
         System.out.println("--------------------------------------------");
         System.out.println("1. Confirm removal");
         System.out.println("0. Cancel removal");
-
-        int choice;
+        System.out.println("--------------------------------");
+        
         while (true) {
             System.out.print("Enter choice (0-1): ");
-            try {
-                choice = Integer.parseInt(scanner.nextLine().trim());
-                switch (choice) {
-                    case 1:
-                        return 1;
-                    case 0:
-                        return 0;
-                    default:
-                        System.out.println("Invalid choice. Please enter 0 or 1.\n");
-                        break;
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Please enter a valid number.\n");
+            int choice = readIntAllowAnySafe();
+            switch (choice) {
+                case 1:
+                    return 1;
+                case 0:
+                    return 0;
+                default:
+                    System.out.println("Invalid choice. Please enter 0 or 1.\n");
             }
         }
     }
 
-    public void displayMedicineInventory(String allMedicines) {
-        System.out.println("\n--- Current Medicine Inventory ---\n");
-        if (allMedicines == null || allMedicines.trim().isEmpty()) {
-            MessageUI.displayEmptyMessage();
-        } else {
-            System.out.println(allMedicines);
-        }
+    /**
+     * Search mode: by ID or by Name (contains).
+     */
+    public int getSearchChoice() {
+        System.out.println("\n--- Search Medicines ---");
+        System.out.println("1. By ID");
+        System.out.println("2. By Name");
+        System.out.println("0. Back");
+        System.out.println("--------------------------------");
+        System.out.print("Enter your choice: ");
+        return readIntInRangeLoop(0, 2, "Please enter 0-2: ");
     }
 
-    // Add in PharmacyUI
+
+    /* =========================================================
+     * Reporting Menus & Printers
+     * ========================================================= */
+    /**
+     * Inventory reports menu (KPI / low-stock / near-expiry).
+     */
     public int getInventoryReportChoice() {
         System.out.println("\n=== Inventory Report ===");
         System.out.println("1. KPI Snapshot Report");
         System.out.println("2. Low-stock section (choose threshold)");
         System.out.println("3. Near-expiry section (choose days)");
         System.out.println("0. Back");
+        System.out.println("--------------------------------");
         System.out.print("Enter your choice: ");
+
+        return readIntInRangeLoop(0, 3, "Please enter 0-3: ");
+    }
+
+    /**
+     * Dispensed-medicines reports menu (detail & summaries).
+     */
+    public int getDispensedReportChoice() {
+        System.out.println("\n=== Dispensed Medicines Report ===");
+        System.out.println("1. All time (detail)");
+        System.out.println("2. Today (summary by medicine)");
+        System.out.println("3. Last 7 days (summary by medicine)");
+        System.out.println("4. Custom date range (summary by medicine)");
+        System.out.println("5. Custom date range (summary by patient)");
+        System.out.println("0. Back");
+        System.out.println("--------------------------------");
+        System.out.print("Enter choice: ");
+
+        return readIntInRangeLoop(0, 5, "Please enter 0-5: ");
+    }
+
+    /**
+     * Post-report action (export / back).
+     */
+    public int getPostReportAction() {
+        System.out.println("\n--- What would you like to do? ---");
+        System.out.println("1. Export to file");
+        System.out.println("0. Back");
+        System.out.println("--------------------------------");
+        System.out.print("Enter choice: ");
+
         while (true) {
-            try {
-                int c = Integer.parseInt(scanner.nextLine().trim());
-                if (c >= 0 && c <= 3) {
-                    return c;
-                }
-            } catch (NumberFormatException ignore) {
+            String s = scanner.nextLine().trim();
+            if ("0".equals(s)) {
+                return 0;
             }
-            System.out.print("Please enter 0-3: ");
+            if ("1".equals(s)) {
+                return 1;
+            }
+            System.out.print("Please enter 0 or 1: ");
         }
     }
 
+    /**
+     * Table wrapper — delegates to TablePrinter.
+     */
+    public void displayTable(String title, String[] headers, String[][] rows) {
+        TablePrinter.printTable(title, headers, rows);
+    }
+
+    /**
+     * Generic report printer (for pre-formatted bodies).
+     */
+    public void displayReport(String title, String body) {
+        System.out.println("\n=== " + title + " ===\n");
+        if (isBlank(body)) {
+            MessageUI.displayEmptyMessage();
+        } else {
+            System.out.println(body);
+        }
+    }
+
+    /**
+     * Export result acknowledgement.
+     */
     public void displayExportResult(String path) {
         System.out.println("\nReport exported to: " + path + "\n");
     }
 
+    /* =========================================================
+     * Simple Inputs (IDs, names, thresholds)
+     * ========================================================= */
+    /**
+     * Read a Medicine ID as digits only; auto-prefixes 'M' and zero-pads to 4.
+     * Examples user can type: 7, 007, 1234, M9, m0042. Enter exactly "0" to
+     * Back.
+     */
+    public String inputMedicineID() {
+        // Visual hint that M is auto-applied
+        System.out.print("Enter Medicine ID number (0 to Back): M");
+
+        String typed = scanner.nextLine().trim();
+
+        // Back (only if the user literally typed 0 after the printed 'M')
+        if ("0".equals(typed)) {
+            return null;
+        }
+
+        // Allow accidental 'M' or 'm' (because we printed M)
+        String digits = typed.replaceFirst("^[Mm]", "").trim();
+
+        // Keep only digits; reject if nothing left
+        digits = digits.replaceAll("\\D", "");
+        if (digits.isEmpty()) {
+            return null; // treat invalid as Back
+        }
+        // Limit to 4 (your IDs are M####). If you need >4, adjust here.
+        int num = Integer.parseInt(digits);
+        if (num <= 0) {
+            return null; // 0 is Back; negative not allowed
+        }
+        return String.format("M%04d", num);
+    }
+
+    /**
+     * Name pattern input for search; returns null on Back.
+     */
+    public String inputNamePattern() {
+        System.out.print("Enter medicine name or part (0 to Back): ");
+        String s = scanner.nextLine().trim();
+        return "0".equals(s) ? null : s;
+    }
+
+    /**
+     * Patient selection for dispensing.
+     *
+     * @return selected patient number (0 = Back)
+     */
+    public int inputPatientSelection() {
+        System.out.print("Enter patient number to dispense (0 to Back): ");
+        return readIntInRangeLoop(0, Integer.MAX_VALUE, "Please enter a whole number (0 to Back): ");
+    }
+
+    public String inputMedicineName() {
+        System.out.print("Enter Medicine Name: ");
+        return scanner.nextLine();
+    }
+
+    public int inputMedicineQuantity() {
+        System.out.print("Enter Stock Quantity: ");
+        int qty = readIntAllowAnySafe();
+        return qty;
+    }
+
+    public int inputDispenseQuantity() {
+        System.out.print("Enter quantity to dispense: ");
+        return readIntAllowAnySafe();
+    }
+
+    public int inputStockThreshold() {
+        System.out.print("Enter stock threshold: ");
+        return readIntAllowAnySafe();
+    }
+
+    /**
+     * Low-stock threshold, using 0 as "Back". Returns -1 if Back.
+     */
     public int inputLowStockThreshold() {
         System.out.print("Enter low-stock threshold (0 to Back): ");
         while (true) {
@@ -653,13 +666,15 @@ public class PharmacyUI {
                 if (t > 0) {
                     return t;
                 }
-                System.out.print("Please enter a whole number (> 0) or 0 to Back: ");
             } catch (NumberFormatException ignore) {
-                System.out.print("Please enter a whole number (> 0) or 0 to Back: ");
             }
+            System.out.print("Please enter a whole number (> 0) or 0 to Back: ");
         }
     }
 
+    /**
+     * Near-expiry days, using 0 as "Back". Returns -1 if Back.
+     */
     public int inputNearExpiryDays() {
         System.out.print("Enter days from today (0 to Back): ");
         while (true) {
@@ -672,34 +687,15 @@ public class PharmacyUI {
                 if (d > 0) {
                     return d;
                 }
-                System.out.print("Please enter a whole number (> 0) or 0 to Back: ");
             } catch (NumberFormatException ignore) {
-                System.out.print("Please enter a whole number (> 0) or 0 to Back: ");
             }
+            System.out.print("Please enter a whole number (> 0) or 0 to Back: ");
         }
     }
 
-    public int getDispensedReportChoice() {
-        System.out.println("\n=== Dispensed Medicines Report ===");
-        System.out.println("1. All time (detail)");
-        System.out.println("2. Today (summary by medicine)");
-        System.out.println("3. Last 7 days (summary by medicine)");
-        System.out.println("4. Custom date range (summary by medicine)");
-        System.out.println("5. Custom date range (summary by patient)");
-        System.out.println("0. Back");
-        System.out.print("Enter choice: ");
-        while (true) {
-            try {
-                int c = Integer.parseInt(scanner.nextLine().trim());
-                if (c >= 0 && c <= 5) {
-                    return c;
-                }
-            } catch (NumberFormatException ignore) {
-            }
-            System.out.print("Please enter 0-5: ");
-        }
-    }
-
+    /**
+     * Prompt for a date (controller decides the label). Returns null on Back.
+     */
     public LocalDate inputDate(String label) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-uuuu");
         while (true) {
@@ -716,51 +712,41 @@ public class PharmacyUI {
         }
     }
 
-    // Generic printers that take pre-formatted text
-    public void displayReport(String title, String body) {
-        System.out.println("\n=== " + title + " ===\n");
-        if (body == null || body.trim().isEmpty()) {
-            MessageUI.displayEmptyMessage();
-        } else {
-            System.out.println(body);
+    /* =========================================================
+     * Display Helpers
+     * ========================================================= */
+    /**
+     * Prints a numbered list of medicine names or a friendly message if empty.
+     */
+    private void displayMedicineNames(ListInterface<String> names) {
+        if (names == null || names.isEmpty()) {
+            System.out.println("No medicines available.");
+            return;
+        }
+        for (int i = 1; i <= names.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + names.getEntry(i));
         }
     }
-
-    public String inputMedicineID() {
-        System.out.print("Enter Medicine ID (0 to Back): ");
-        String id = scanner.nextLine().trim();
-        return "0".equals(id) ? null : id;
+    
+    public ListInterface<String> getMedicineNames() {
+        return medicineNames;  // This exposes the list of medicine names
     }
 
-    public String inputMedicineName() {
-        System.out.print("Enter Medicine Name: ");
-        return scanner.nextLine();
-    }
-
-    public int inputMedicineQuantity() {
-        System.out.print("Enter Stock Quantity: ");
-        int qty = scanner.nextInt();
-        scanner.nextLine();  // consume newline
-        return qty;
-    }
-
-    public int inputDispenseQuantity() {
-        System.out.print("Enter quantity to dispense: ");
-        int qty = scanner.nextInt();
-        scanner.nextLine();  // consume newline
-        return qty;
-    }
-
-    public int inputStockThreshold() {
-        System.out.print("Enter stock threshold: ");
-        int threshold = scanner.nextInt();
-        scanner.nextLine();  // consume newline
-        return threshold;
+    /**
+     * Inventory text dumper (used by some controllers).
+     */
+    public void displayMedicineInventory(String allMedicines) {
+        System.out.println("\n--- Current Medicine Inventory ---\n");
+        if (isBlank(allMedicines)) {
+            MessageUI.displayEmptyMessage();
+        } else {
+            System.out.println(allMedicines);
+        }
     }
 
     public void displayMedicineList(String formattedList) {
         System.out.println("Medicine Inventory:\n");
-        if (formattedList == null || formattedList.trim().isEmpty()) {
+        if (isBlank(formattedList)) {
             MessageUI.displayEmptyMessage();
         } else {
             System.out.println(formattedList);
@@ -771,41 +757,193 @@ public class PharmacyUI {
         System.out.println(msg);
     }
 
-    public int inputPatientSelection() {
-        System.out.print("Enter patient number to dispense (0 to Back): ");
+    /* =========================================================
+     * Medicine Names CRUD (UI layer only; DAO does the saving)
+     * ========================================================= */
+    /**
+     * Add a new name (letters + spaces only).
+     */
+    private void addMedicineName() {
+        while (true) {
+            System.out.print("\nEnter the name of the new medicine (0 to Back): ");
+            String newMedicineName = scanner.nextLine().trim();
+
+            if ("0".equals(newMedicineName)) {
+                cancel("Operation cancelled.");
+                return;
+            }
+            if (newMedicineName.isEmpty()) {
+                System.out.print("\nMedicine name cannot be empty. Please try again.");
+                continue;
+            }
+            if (!newMedicineName.matches("[a-zA-Z ]+")) {
+                System.out.print("\nMedicine name must contain only letters and spaces. Please try again.");
+                continue;
+            }
+
+            medicineNamesDAO.addMedicine(medicineNames, newMedicineName);
+            MessageUI.clearConsole();
+            System.out.println("Medicine added successfully.");
+            break;
+        }
+    }
+
+    /**
+     * Edit an existing name by index.
+     */
+    private void editMedicineName() {
+        System.out.print("\nEnter the number of the medicine to edit (0 to Back): ");
+        int index;
+        try {
+            index = Integer.parseInt(scanner.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid number.");
+            return;
+        }
+
+        if (index == 0) {
+            cancel("Operation cancelled.");
+            return;
+        }
+        if (index < 1 || index > medicineNames.getNumberOfEntries()) {
+            System.out.println("Invalid medicine number.");
+            return;
+        }
+
+        // Loop until valid name or cancel
+        while (true) {
+            System.out.print("\nEnter the new name of the medicine (0 to Back): ");
+            String newMedicineName = scanner.nextLine().trim();
+
+            if ("0".equals(newMedicineName)) {
+                cancel("Operation cancelled.");
+                return;
+            }
+            if (newMedicineName.isEmpty()) {
+                System.out.print("\nMedicine name cannot be empty. Please try again.");
+                continue;
+            }
+            if (!newMedicineName.matches("[a-zA-Z ]+")) {
+                System.out.print("\nMedicine name must contain only letters and spaces. Please try again.");
+                continue;
+            }
+
+            medicineNamesDAO.editMedicine(medicineNames, index, newMedicineName);
+            MessageUI.clearConsole();
+            System.out.println("Medicine updated successfully.");
+            break;
+        }
+    }
+
+    /**
+     * Remove a name by index (with confirmation).
+     */
+    private void removeMedicineName() {
+        System.out.print("\nEnter the number of the medicine to remove (0 to Back): ");
+        int index;
+
+        try {
+            index = Integer.parseInt(scanner.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid number.");
+            return;
+        }
+
+        if (index == 0) {
+            cancel("Operation cancelled.");
+            return;
+        }
+        if (index < 1 || index > medicineNames.getNumberOfEntries()) {
+            System.out.println("Invalid medicine number.");
+            return;
+        }
+
+        String selectedMedicine = medicineNames.getEntry(index);
+
+        // Confirmation loop
+        while (true) {
+            System.out.println("\nYou have selected: " + "[" + selectedMedicine + "]");
+            System.out.println("1. Confirm removal");
+            System.out.println("0. Cancel removal");
+            System.out.println("--------------------------------");
+            System.out.print("Enter choice (0-1): ");
+
+            String input = scanner.nextLine().trim();
+
+            if ("0".equals(input)) {
+                cancel("Operation cancelled.");
+                return;
+            } else if ("1".equals(input)) {
+                medicineNamesDAO.removeMedicine(medicineNames, index);
+                MessageUI.clearConsole();
+                System.out.println("Medicine removed successfully.");
+                return;
+            } else {
+                System.out.println("Invalid choice. Please enter 0 or 1.\n");
+            }
+        }
+    }
+
+    /* =========================================================
+     * Low-level Input Helpers (keep UI code DRY & readable)
+     * ========================================================= */
+    /**
+     * Reads any integer (no validation); if invalid, re-prompts.
+     */
+    private int readIntAllowAnySafe() {
+        while (true) {
+            try {
+                return Integer.parseInt(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.print("Please enter a valid number: ");
+            }
+        }
+    }
+
+    /**
+     * Reads an int without re-prompting (used where caller does its own
+     * validation).
+     */
+    private int readIntAllowAny() {
+        int n = scanner.nextInt();
+        scanner.nextLine(); // consume newline
+        return n;
+        // Note: only used in a couple of places mirroring your original behavior.
+    }
+
+    /**
+     * Loop until user enters an int within [min..max]. Shows the given prompt
+     * again for invalid input.
+     */
+    private int readIntInRangeLoop(int min, int max, String retryPrompt) {
         while (true) {
             String s = scanner.nextLine().trim();
             try {
-                int n = Integer.parseInt(s);
-                if (n >= 0) {
-                    return n; // 0 = Back
+                int choice = Integer.parseInt(s);
+                if (choice >= min && choice <= max) {
+                    return choice;
                 }
             } catch (NumberFormatException ignore) {
             }
-            System.out.print("Please enter a whole number (0 to Back): ");
+            System.out.print(retryPrompt);
         }
     }
 
-    public void displayTable(String title, String[] headers, String[][] rows) {
-        TablePrinter.printTable(title, headers, rows);
+    /* =========================================================
+     * Tiny Utility Helpers
+     * ========================================================= */
+    /**
+     * Friendly cancel pattern with clear screen + message.
+     */
+    private void cancel(String msg) {
+        MessageUI.clearConsole();
+        System.out.println(msg);
     }
 
-    // In PharmacyUI
-    public int getPostReportAction() {
-        System.out.println("\n--- What would you like to do? ---");
-        System.out.println("1. Export to file");
-        System.out.println("0. Back");
-        System.out.print("Enter choice: ");
-        while (true) {
-            String s = scanner.nextLine().trim();
-            if ("0".equals(s)) {
-                return 0;
-            }
-            if ("1".equals(s)) {
-                return 1;
-            }
-            System.out.print("Please enter 0 or 1: ");
-        }
+    /**
+     * Null/blank checker to keep prints clean.
+     */
+    private boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
     }
-
 }

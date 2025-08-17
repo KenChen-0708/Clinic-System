@@ -28,8 +28,6 @@ public interface ListInterface<T> {
 
     public int linearSearch(T target);
 
-    public int binarySearch(T target, Comparator<T> comparator);
-
     public boolean isSorted(Comparator<T> comparator);
 
     public String toString();
