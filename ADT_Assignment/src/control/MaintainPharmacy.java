@@ -551,18 +551,45 @@ public class MaintainPharmacy implements Serializable {
     public void dispenseMedicine() {
         MessageUI.clearConsole();
 
-        // Display all patients
+        // Find patients with pending treatments
         StringBuilder patientOutput = new StringBuilder();
         for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
             Patient p = patientList.getEntry(i);
-            patientOutput.append(i).append(". ")
-                    .append(p.getId()).append(" - ")
-                    .append(p.getName()).append("\n");
-        }
-        pharmacyUI.displayMessage("Select a patient:\n" + patientOutput);
 
-        // Get patient selection
+            // Check if the patient has any pending treatments
+            boolean hasPendingTreatment = false;
+            ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
+            for (int j = 1; j <= treatments.getNumberOfEntries(); j++) {
+                Treatment treatment = treatments.getEntry(j);
+                if (treatment.getPatientId().equalsIgnoreCase(p.getId())
+                        && treatment.getStatus().equalsIgnoreCase("Pending")
+                        && treatment.getMedicineList() != null && !treatment.getMedicineList().isEmpty()) {
+                    hasPendingTreatment = true;
+                    break;
+                }
+            }
+
+            if (hasPendingTreatment) {
+                patientOutput.append(i).append(". ")
+                        .append(p.getId()).append(" - ")
+                        .append(p.getName()).append("\n");
+            }
+        }
+
+        if (patientOutput.length() == 0) {
+            pharmacyUI.displayMessage("No patients with pending treatments found.");
+            return;
+        }
+
+        pharmacyUI.displayMessage("Select a patient with pending treatments:\n" + patientOutput);
+
+        // Get patient selection (0 = Back ONE level)
         int selectedIndex = pharmacyUI.inputPatientSelection();
+        if (selectedIndex == 0) { // <-- back one level
+            MessageUI.clearConsole();
+            return;
+        }
+        MessageUI.clearConsole();
         if (selectedIndex < 1 || selectedIndex > patientList.getNumberOfEntries()) {
             pharmacyUI.displayMessage("Invalid selection.");
             return;
@@ -644,9 +671,10 @@ public class MaintainPharmacy implements Serializable {
         }
 
         // Ask for confirmation before dispensing
-        pharmacyUI.displayMessage("\nDo you want to proceed with dispensing these medicines?");
-        pharmacyUI.displayMessage("1. Yes, dispense all medicines");
-        pharmacyUI.displayMessage("2. No, cancel dispensing");
+        pharmacyUI.displayMessage("1. Dispense all medicines");
+        pharmacyUI.displayMessage("0. Discard");
+        pharmacyUI.displayMessage("--------------------------------");
+        System.out.print("Enter your choice: ");
 
         int confirmDispense = 0;
         try {
@@ -656,6 +684,7 @@ public class MaintainPharmacy implements Serializable {
         }
 
         if (confirmDispense != 1) {
+            MessageUI.clearConsole();
             pharmacyUI.displayMessage("Dispensing cancelled.");
             return;
         }
@@ -728,22 +757,15 @@ public class MaintainPharmacy implements Serializable {
             treatmentDAO.saveToFile(treatments);
 
             pharmacyUI.displayMessage("All medicines dispensed successfully!");
-            pharmacyUI.displayMessage("Treatment status updated to 'Completed'.");
         } else {
             pharmacyUI.displayMessage("Some medicines could not be dispensed due to insufficient stock or unavailability.");
-            pharmacyUI.displayMessage("Treatment status remains 'Pending' until all medicines can be dispensed.");
         }
 
         // Save updated data
         medicineDAO.saveToFile(medicineList);
         dispenseDAO.saveToFile(dispenseLog);
 
-        pharmacyUI.displayMessage("\nPress Enter to continue...");
-        try {
-            new Scanner(System.in).nextLine();
-        } catch (Exception e) {
-            // Handle scanner exception
-        }
+        MessageUI.pressEnterToContinue();
     }
 
     /* =========================
@@ -840,8 +862,8 @@ public class MaintainPharmacy implements Serializable {
     public void generateDispensedReport() {
         MessageUI.clearConsole();
 
-        // Refresh latest log from storage
         dispenseLog = dispenseDAO.retrieveFromFile();
+
         if (dispenseLog.isEmpty()) {
             pharmacyUI.displayReport("Dispensed Medicines Report", "(No records)");
             MessageUI.pressEnterToContinue();
@@ -851,75 +873,83 @@ public class MaintainPharmacy implements Serializable {
         int choice;
         do {
             choice = pharmacyUI.getDispensedReportChoice();
-            switch (choice) {
+            MessageUI.clearConsole();
+
+            if (choice == 0) {
+                break;
+            }
+
+            // Get the date range choice from the user
+            int dateRangeChoice = pharmacyUI.getDateRangeChoice();
+            MessageUI.clearConsole();
+            LocalDate startDate = null;
+            LocalDate endDate = null;
+
+            // Handling date range options
+            switch (dateRangeChoice) {
+                case 1: // All (no date filter)
+                    // If "All" is selected, we want to include all records
+                    startDate = null;
+                    endDate = null;
+                    break;
+                case 2: // Today
+                    startDate = LocalDate.now();
+                    endDate = LocalDate.now();
+                    break;
+                case 3: // This Week
+                    startDate = LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1); // Start of the week
+                    endDate = LocalDate.now().plusDays(7 - LocalDate.now().getDayOfWeek().getValue()); // End of the week
+                    break;
+                case 4: // Last 30 Days
+                    startDate = LocalDate.now().minusDays(30);
+                    endDate = LocalDate.now();
+                    break;
+                case 5: // Custom Range
+                    startDate = pharmacyUI.inputDate("Start date");
+                    if (startDate == null) {
+                        break;
+                    }
+                    endDate = pharmacyUI.inputDate("End date");
+                    if (endDate == null) {
+                        break;
+                    }
+                    break;
                 case 0:
                     break;
+            }
 
-                case 1: {
-                    String title = "Dispensed (All Time - Detail)";
-                    String body = renderDispenseDetail(dispenseLog);
+            // If "All" is selected, we do not filter by date, so we pass all records
+            ListInterface<DispenseRecord> filteredRecords = (startDate == null && endDate == null)
+                    ? dispenseLog // No filter, all records
+                    : filterByDateRange(startDate, endDate);
+
+            switch (choice) {
+                case 1: { // Detail Report
+                    String title = "Dispensed (Detail) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
+                    String body = renderDispenseDetail(filteredRecords);
                     pharmacyUI.displayReport(title, body);
                     offerExportAfterDisplay(title, body);
                     break;
                 }
 
-                case 2: {
-                    LocalDate today = LocalDate.now();
-                    String title = "Dispensed Today (By Medicine)";
-                    String body = renderDispenseSummaryByMedicine(filterByDateRange(today, today));
+                case 2: { // By Medicine
+                    String title = "Dispensed (By Medicine) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
+                    String body = renderDispenseSummaryByMedicine(filteredRecords);
                     pharmacyUI.displayReport(title, body);
                     offerExportAfterDisplay(title, body);
                     break;
                 }
 
-                case 3: {
-                    LocalDate end = LocalDate.now();
-                    LocalDate start = end.minusDays(6);
-                    String title = "Dispensed Last 7 Days (By Medicine)";
-                    String body = renderDispenseSummaryByMedicine(filterByDateRange(start, end));
+                case 3: { // By Patient
+                    String title = "Dispensed (By Patient) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
+                    String body = renderDispenseSummaryByPatient(filteredRecords);
                     pharmacyUI.displayReport(title, body);
                     offerExportAfterDisplay(title, body);
                     break;
                 }
 
-                case 4: {
-                    LocalDate start = pharmacyUI.inputDate("Start date");
-                    if (start == null) {
-                        MessageUI.clearConsole();
-                        break;
-                    }
-                    LocalDate end = pharmacyUI.inputDate("End date");
-                    if (end == null) {
-                        MessageUI.clearConsole();
-                        break;
-                    }
-
-                    String title = "Dispensed (" + start + " to " + end + ") (By Medicine)";
-                    String body = renderDispenseSummaryByMedicine(filterByDateRange(start, end));
-                    pharmacyUI.displayReport(title, body);
-                    offerExportAfterDisplay(title, body);
-                    break;
-                }
-
-                case 5: {
-                    LocalDate start = pharmacyUI.inputDate("Start date");
-                    if (start == null) {
-                        MessageUI.clearConsole();
-                        break;
-                    }
-                    LocalDate end = pharmacyUI.inputDate("End date");
-                    if (end == null) {
-                        MessageUI.clearConsole();
-                        break;
-                    }
-
-                    String title = "Dispensed (" + start + " to " + end + ") (By Patient)";
-                    String body = renderDispenseSummaryByPatient(filterByDateRange(start, end));
-                    pharmacyUI.displayReport(title, body);
-                    offerExportAfterDisplay(title, body);
-                    break;
-                }
                 default:
+                    MessageUI.clearConsole();
                     break;
             }
         } while (choice != 0);
@@ -997,7 +1027,8 @@ public class MaintainPharmacy implements Serializable {
     }
 
     /**
-     * Detail view: sort by timestamp, then patient, then medicine.
+     * Detail view: sort by timestamp, then patient, then medicine, with better
+     * formatting.
      */
     private String renderDispenseDetail(ListInterface<DispenseRecord> list) {
         DoublyLinkedList<DispenseRecord> tmp = new DoublyLinkedList<>();
@@ -1005,6 +1036,7 @@ public class MaintainPharmacy implements Serializable {
             tmp.add(list.getEntry(i));
         }
 
+        // Sorting by timestamp, patient name, and medicine name
         tmp.mergeSort((a, b) -> {
             int c = a.getTimestamp().compareTo(b.getTimestamp());
             if (c != 0) {
@@ -1018,21 +1050,30 @@ public class MaintainPharmacy implements Serializable {
         });
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-20s %-20s %-12s %-25s %8s%n",
+        sb.append("==== DISPENSE DETAILS REPORT ====\n\n");
+
+        // Header for the report
+        sb.append(String.format("%-25s %-30s %-15s %-30s %10s%n",
                 "DateTime", "Patient", "Med ID", "Medicine", "Qty"));
-        sb.append("-------------------------------------------------------------------------------\n");
+        sb.append("---------------------------------------------------------------"
+                + "---------------------------------------------------------------\n");
 
         var dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
         for (int i = 1; i <= tmp.getNumberOfEntries(); i++) {
             DispenseRecord r = tmp.getEntry(i);
-            sb.append(String.format("%-20s %-20s %-12s %-25s %8d%n",
+            sb.append(String.format("%-25s %-30s %-15s %-30s %10d%n",
                     r.getTimestamp().format(dtf), r.getPatientName(), r.getMedId(), r.getMedName(), r.getQuantity()));
         }
+
+        // Footer with total count
+        sb.append("\nTotal Records: ").append(tmp.getNumberOfEntries()).append(" dispensations\n");
+
         return sb.toString();
     }
 
     /**
-     * Summary by medicine: totals (desc), tie-breaker by name (asc).
+     * Summary by medicine: totals (desc), tie-breaker by name (asc), enhanced
+     * layout.
      */
     private String renderDispenseSummaryByMedicine(ListInterface<DispenseRecord> list) {
         DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
@@ -1051,23 +1092,31 @@ public class MaintainPharmacy implements Serializable {
             return "(No records)";
         }
 
+        // Sorting by total quantity descending, and by name ascending
         totals.mergeSort((a, b) -> {
             int c = Integer.compare(b.total, a.total);
             return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
         });
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-30s %10s%n", "Medicine", "Total Qty"));
-        sb.append("-----------------------------------------------\n");
+        sb.append("==== MEDICINE DISPENSE SUMMARY ====\n\n");
+        sb.append(String.format("%-30s %15s%n", "Medicine", "Total Qty"));
+        sb.append("---------------------------------------------------------------\n");
+
         for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
             NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %10d%n", nt.name, nt.total));
+            sb.append(String.format("%-30s %15d%n", nt.name, nt.total));
         }
+
+        // Footer with total count of medicines
+        sb.append("\nTotal Medicines: ").append(totals.getNumberOfEntries()).append(" unique medicines\n");
+
         return sb.toString();
     }
 
     /**
-     * Summary by patient: totals (desc), tie-breaker by name (asc).
+     * Summary by patient: totals (desc), tie-breaker by name (asc), enhanced
+     * layout.
      */
     private String renderDispenseSummaryByPatient(ListInterface<DispenseRecord> list) {
         DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
@@ -1086,20 +1135,28 @@ public class MaintainPharmacy implements Serializable {
             return "(No records)";
         }
 
+        // Sorting by total quantity descending, and by name ascending
         totals.mergeSort((a, b) -> {
             int c = Integer.compare(b.total, a.total);
             return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
         });
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-30s %10s%n", "Patient", "Total Qty"));
-        sb.append("-----------------------------------------------\n");
+        sb.append("==== PATIENT DISPENSE SUMMARY ====\n\n");
+        sb.append(String.format("%-30s %15s%n", "Patient", "Total Qty"));
+        sb.append("---------------------------------------------------------------\n");
+
         for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
             NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %10d%n", nt.name, nt.total));
+            sb.append(String.format("%-30s %15d%n", nt.name, nt.total));
         }
+
+        // Footer with total count of patients
+        sb.append("\nTotal Patients: ").append(totals.getNumberOfEntries()).append(" unique patients\n");
+
         return sb.toString();
     }
+
 
     /* =========================
      * KPIs
