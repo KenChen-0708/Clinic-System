@@ -349,6 +349,28 @@ public class PatientUI {
             name = nameInput;
         }
 
+        // Gender update with validation
+        System.out.print("Gender [" + currentPatient.getGender() + "]: ");
+        String genderInput = scanner.nextLine().trim();
+        String gender;
+        if (genderInput.isEmpty()) {
+            gender = currentPatient.getGender();
+        } else {
+            String normalizedGender = maintainPatient.normalizeGender(genderInput);
+            while (normalizedGender == null) {
+                System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
+                System.out.print("Gender [" + currentPatient.getGender() + "]: ");
+                genderInput = scanner.nextLine().trim();
+                if (genderInput.isEmpty()) {
+                    normalizedGender = currentPatient.getGender();
+                    break;
+                } else {
+                    normalizedGender = maintainPatient.normalizeGender(genderInput);
+                }
+            }
+            gender = normalizedGender;
+        }
+
         // IC Number update with validation
         System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
         String icInput = scanner.nextLine().trim();
@@ -392,28 +414,6 @@ public class PatientUI {
             }
             // Format phone number using control layer
             phone = maintainPatient.formatPhoneForStorage(phoneInput);
-        }
-
-        // Gender update with validation
-        System.out.print("Gender [" + currentPatient.getGender() + "]: ");
-        String genderInput = scanner.nextLine().trim();
-        String gender;
-        if (genderInput.isEmpty()) {
-            gender = currentPatient.getGender();
-        } else {
-            String normalizedGender = maintainPatient.normalizeGender(genderInput);
-            while (normalizedGender == null) {
-                System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
-                System.out.print("Gender [" + currentPatient.getGender() + "]: ");
-                genderInput = scanner.nextLine().trim();
-                if (genderInput.isEmpty()) {
-                    normalizedGender = currentPatient.getGender();
-                    break;
-                } else {
-                    normalizedGender = maintainPatient.normalizeGender(genderInput);
-                }
-            }
-            gender = normalizedGender;
         }
 
         // Return updated data to control layer for entity creation
