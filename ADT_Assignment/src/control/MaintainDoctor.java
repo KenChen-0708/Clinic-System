@@ -2,12 +2,11 @@ package control;
 
 import adt.DoublyLinkedList;
 import adt.ListInterface;
+import adt.HashMap;
 import boundary.DoctorUI;
 import dao.DoctorDAO;
 import entity.Doctor;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
 
 public class MaintainDoctor {
 
@@ -88,6 +87,9 @@ public class MaintainDoctor {
             if (d.getSchedule() != null) {
                 output.append(" | Schedule: ").append(d.getSchedule());
             }
+            if (d.getAvailability() != null) {
+                output.append(" | Availability: ").append(d.getAvailability());
+            }
             output.append("\n");
         }
         doctorUI.displayDoctorList(output.toString());
@@ -95,8 +97,6 @@ public class MaintainDoctor {
 
     public void searchDoctorById() {
         String id = doctorUI.inputDoctorId();
-
-        // Linear search (could be binary if sorted by ID)
         Doctor doc = findDoctorById(id);
         if (doc != null) {
             displayDoctorDetails(doc);
@@ -107,34 +107,12 @@ public class MaintainDoctor {
 
     public void searchDoctorByName() {
         String name = doctorUI.inputDoctorName().toLowerCase();
-        StringBuilder output = new StringBuilder();
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            Doctor d = doctorList.getEntry(i);
-            if (d.getName().toLowerCase().contains(name)) {
-                output.append(d).append("\n");
-            }
-        }
-        if (output.length() > 0) {
-            doctorUI.displayDoctorList(output.toString());
-        } else {
-            doctorUI.displayMessage("No doctors match the given name.");
-        }
+        searchDoctors(d -> d.getName().toLowerCase().contains(name));
     }
 
     public void searchDoctorBySpecialization() {
         String specialization = doctorUI.inputSpecialization().toLowerCase();
-        StringBuilder output = new StringBuilder();
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            Doctor d = doctorList.getEntry(i);
-            if (d.getSpecialization().toLowerCase().contains(specialization)) {
-                output.append(d).append("\n");
-            }
-        }
-        if (output.length() > 0) {
-            doctorUI.displayDoctorList(output.toString());
-        } else {
-            doctorUI.displayMessage("No doctors match the given specialization.");
-        }
+        searchDoctors(d -> d.getSpecialization().toLowerCase().contains(specialization));
     }
 
     // =========================
@@ -191,7 +169,34 @@ public class MaintainDoctor {
     }
 
     // =========================
-    // Statistics
+    // Availability Management
+    // =========================
+    public void setDoctorAvailability() {
+        String id = doctorUI.inputDoctorId();
+        Doctor doc = findDoctorById(id);
+        if (doc != null) {
+            String availability = doctorUI.inputAvailability();
+            doc.setAvailability(availability);
+            save();
+            doctorUI.displayMessage("Availability updated for Doctor ID: " + id);
+        } else {
+            doctorUI.displayMessage("Doctor not found.");
+        }
+    }
+
+    public void displayDoctorAvailability() {
+        String id = doctorUI.inputDoctorId();
+        Doctor doc = findDoctorById(id);
+        if (doc != null) {
+            doctorUI.displayMessage("Doctor Availability: "
+                    + (doc.getAvailability() != null ? doc.getAvailability() : "Not set"));
+        } else {
+            doctorUI.displayMessage("Doctor not found.");
+        }
+    }
+
+    // =========================
+    // Statistics using custom HashMap
     // =========================
     public void displayStatistics() {
         if (doctorList.isEmpty()) {
@@ -200,19 +205,46 @@ public class MaintainDoctor {
         }
 
         int totalDoctors = doctorList.getNumberOfEntries();
-        Map<String, Integer> specializationCount = new HashMap<>();
+        HashMap<String, Integer> specializationCount = new HashMap<>();
+        HashMap<String, Integer> availabilityCount = new HashMap<>();
 
+        // Count specializations and availability
         for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            String spec = doctorList.getEntry(i).getSpecialization();
-            specializationCount.put(spec, specializationCount.getOrDefault(spec, 0) + 1);
+            Doctor doc = doctorList.getEntry(i);
+
+            // Specialization
+            String spec = doc.getSpecialization();
+            Integer count = specializationCount.get(spec);
+            specializationCount.put(spec, (count != null ? count : 0) + 1);
+
+            // Availability
+            String avail = doc.getAvailability() != null ? doc.getAvailability() : "Not set";
+            Integer availCount = availabilityCount.get(avail);
+            availabilityCount.put(avail, (availCount != null ? availCount : 0) + 1);
         }
 
         StringBuilder stats = new StringBuilder();
-        stats.append("Total Doctors: ").append(totalDoctors).append("\n");
+        stats.append("Total Doctors: ").append(totalDoctors).append("\n\n");
+
+        // Specialization Breakdown
         stats.append("Specialization Breakdown:\n");
-        specializationCount.forEach((spec, count)
-                -> stats.append(" - ").append(spec).append(": ").append(count).append("\n")
-        );
+        ListInterface<String> specKeys = specializationCount.getKeys();
+        for (int i = 1; i <= specKeys.getNumberOfEntries(); i++) {
+            String key = specKeys.getEntry(i);
+            stats.append(" - ").append(key)
+                    .append(": ").append(specializationCount.get(key))
+                    .append("\n");
+        }
+
+        // Availability Breakdown
+        stats.append("\nAvailability Breakdown:\n");
+        ListInterface<String> availKeys = availabilityCount.getKeys();
+        for (int i = 1; i <= availKeys.getNumberOfEntries(); i++) {
+            String key = availKeys.getEntry(i);
+            stats.append(" - ").append(key)
+                    .append(": ").append(availabilityCount.get(key))
+                    .append("\n");
+        }
 
         doctorUI.displayMessage(stats.toString());
     }
@@ -244,7 +276,8 @@ public class MaintainDoctor {
                 + "ID            : " + doc.getId() + "\n"
                 + "Name          : " + doc.getName() + "\n"
                 + "Specialization: " + doc.getSpecialization() + "\n"
-                + "Schedule      : " + (doc.getSchedule() != null ? doc.getSchedule() : "Not set") + "\n";
+                + "Schedule      : " + (doc.getSchedule() != null ? doc.getSchedule() : "Not set") + "\n"
+                + "Availability  : " + (doc.getAvailability() != null ? doc.getAvailability() : "Not set") + "\n";
         doctorUI.displayMessage(msg);
     }
 
@@ -254,5 +287,20 @@ public class MaintainDoctor {
 
     public void runDoctorMenu() {
         doctorUI.run();
+    }
+
+    private void searchDoctors(java.util.function.Predicate<Doctor> filter) {
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor d = doctorList.getEntry(i);
+            if (filter.test(d)) {
+                output.append(d).append("\n");
+            }
+        }
+        if (output.length() > 0) {
+            doctorUI.displayDoctorList(output.toString());
+        } else {
+            doctorUI.displayMessage("No doctors match the criteria given.");
+        }
     }
 }

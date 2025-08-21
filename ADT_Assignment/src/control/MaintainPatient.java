@@ -406,7 +406,7 @@ public class MaintainPatient {
 
     private void viewAllPatients() {
         if (patientList.getNumberOfEntries() == 0) {
-            patientUI.displayMessage("No patients registered yet.");
+            patientUI.displayMessage("\nNo patients registered yet.");
             patientUI.askToContinueOrReturnToMenu();
             return;
         }

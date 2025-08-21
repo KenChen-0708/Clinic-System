@@ -464,7 +464,7 @@ public class PharmacyUI {
         System.out.println("1. Confirm removal");
         System.out.println("0. Cancel removal");
         System.out.println("--------------------------------");
-        
+
         while (true) {
             System.out.print("Enter choice (0-1): ");
             int choice = readIntAllowAnySafe();
@@ -516,15 +516,27 @@ public class PharmacyUI {
      */
     public int getDispensedReportChoice() {
         System.out.println("\n=== Dispensed Medicines Report ===");
-        System.out.println("1. All time (detail)");
-        System.out.println("2. Today (summary by medicine)");
-        System.out.println("3. Last 7 days (summary by medicine)");
-        System.out.println("4. Custom date range (summary by medicine)");
-        System.out.println("5. Custom date range (summary by patient)");
+        System.out.println("1. Detail Report");
+        System.out.println("2. By Medicine");
+        System.out.println("3. By Patient");
         System.out.println("0. Back");
         System.out.println("--------------------------------");
         System.out.print("Enter choice: ");
+        
+        return readIntInRangeLoop(0, 3, "Please enter 0-3: ");
+    }
 
+    public int getDateRangeChoice() {
+        System.out.println("\nSelect the time period for the report:");
+        System.out.println("1. All");
+        System.out.println("2. Today");
+        System.out.println("3. This Week");
+        System.out.println("4. Last 30 Days");
+        System.out.println("5. Custom Range");
+        System.out.println("0. Back");
+        System.out.println("--------------------------------");
+        System.out.print("Enter choice: ");
+        
         return readIntInRangeLoop(0, 5, "Please enter 0-5: ");
     }
 
@@ -535,7 +547,7 @@ public class PharmacyUI {
         System.out.println("\n--- What would you like to do? ---");
         System.out.println("1. Export to file");
         System.out.println("0. Back");
-        System.out.println("--------------------------------");
+        System.out.println("----------------------------------");
         System.out.print("Enter choice: ");
 
         while (true) {
@@ -727,7 +739,7 @@ public class PharmacyUI {
             System.out.println(i + ". " + names.getEntry(i));
         }
     }
-    
+
     public ListInterface<String> getMedicineNames() {
         return medicineNames;  // This exposes the list of medicine names
     }
