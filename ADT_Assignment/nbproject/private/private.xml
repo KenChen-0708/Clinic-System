@@ -3,6 +3,7 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
+<<<<<<< HEAD
             <file>file:/C:/Users/limtz/Documents/Clinic-System/ADT_Assignment/src/boundary/PatientUI.java</file>
             <file>file:/C:/Users/limtz/Documents/Clinic-System/ADT_Assignment/src/control/MaintainPharmacy.java</file>
             <file>file:/C:/Users/limtz/Documents/Clinic-System/ADT_Assignment/src/entity/Medicine.java</file>
@@ -24,6 +25,10 @@
             <file>file:/C:/Users/limtz/Documents/Clinic-System/ADT_Assignment/src/adt/ListInterface.java</file>
             <file>file:/C:/Users/limtz/Documents/Clinic-System/ADT_Assignment/src/boundary/DoctorUI.java</file>
             <file>file:/C:/Users/limtz/Documents/Clinic-System/ADT_Assignment/src/control/MaintainPatient.java</file>
+=======
+            <file>file:/C:/Users/kench/Downloads/DATA/Asm/ADT_Assignment/src/control/MaintainPharmacy.java</file>
+            <file>file:/C:/Users/kench/Downloads/DATA/Asm/ADT_Assignment/src/boundary/MainUI.java</file>
+>>>>>>> 665fa69950b77973d4ed6360fa6c4f1445c82ad2
         </group>
     </open-files>
 </project-private>

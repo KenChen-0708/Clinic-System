@@ -1,1 +1,32 @@
-/ADT_Assignment/dist/
+# ========================
+# NetBeans / Java Project
+# ========================
+
+# Ignore build and dist folders
+ADT_Assignment/build/
+ADT_Assignment/dist/
+
+# Ignore NetBeans private project config
+ADT_Assignment/nbproject/private/
+
+# Ignore compiled class files
+*.class
+
+# Ignore log files
+*.log
+
+# Ignore OS-generated junk
+.DS_Store
+Thumbs.db
+
+# Ignore NetBeans generated files
+ADT_Assignment/build.xml
+ADT_Assignment/manifest.mf
+
+# --- Keep only source code and data files ---
+# Do NOT ignore src/ (keep it in Git)
+!ADT_Assignment/src/
+
+# Do NOT ignore data and text files (keep them in Git)
+!*.dat
+!*.txt

@@ -52,6 +52,11 @@ public class Patient implements Serializable {
         if (this == o) return true;
         if (!(o instanceof Patient)) return false;
         Patient p = (Patient) o;
-        return icNumber.equals(p.icNumber);
+        return icNumber != null ? icNumber.equals(p.icNumber) : p.icNumber == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return icNumber != null ? icNumber.hashCode() : 0;
     }
 }

@@ -25,11 +25,7 @@ public interface ListInterface<T> {
     public boolean isFull();
     
     public void mergeSort(Comparator<T> comparator);
-
-    public int linearSearch(T target);
-
-    public int binarySearch(T target, Comparator<T> comparator);
-
+    
     public boolean isSorted(Comparator<T> comparator);
 
     public String toString();

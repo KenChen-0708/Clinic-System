@@ -41,7 +41,7 @@ public class PatientUI {
     public int getMenuChoice() {
         System.out.print("Enter your choice: ");
         while (!scanner.hasNextInt()) {
-            System.out.println("Please enter a valid number.");
+            System.out.println("\nPlease enter a valid number.\n");
             scanner.next(); // discard invalid input
             System.out.print("Enter your choice: ");
         }
@@ -184,13 +184,14 @@ public class PatientUI {
         System.out.println("\n--- Patient List ---\n" + output);
     }
 
-    public void displayPatient(Patient patient) {
+    public void displayPatient(Patient patient, int age) {
         System.out.println("\n--- Patient Found ---");
         System.out.println("ID        : " + patient.getId());
         System.out.println("Name      : " + patient.getName());
+        System.out.println("Gender    : " + patient.getGender());
+        System.out.println("Age       : " + age + " years old");
         System.out.println("IC Number : " + FormatUtil.formatICForDisplay(patient.getIcNumber()));
         System.out.println("Phone     : " + patient.getPhone());
-        System.out.println("Gender    : " + patient.getGender());
         System.out.println("Reg Date  : " + FormatUtil.formatDateForDisplay(patient.getRegistrationDate()));
     }
 
@@ -222,20 +223,10 @@ public class PatientUI {
         System.out.println("2. Serve Next Patient");
         System.out.println("3. View Current Queue");
         System.out.println("4. Search Patient in Queue");
-        System.out.println("5. Simulate Queue Processing");
-        System.out.println("6. Clear Queue");
+        System.out.println("5. Clear Queue");
         System.out.println("0. Back to Patient Menu");
         System.out.println("-------------------------------");
-        System.out.print("Enter your choice: ");
-
-        while (!scanner.hasNextInt()) {
-            System.out.println("Please enter a valid number.");
-            scanner.next(); // discard invalid input
-            System.out.print("Enter your choice: ");
-        }
-        int choice = scanner.nextInt();
-        scanner.nextLine(); // flush newline
-        return choice;
+        return getMenuChoice();
     }
 
     public boolean confirmClearQueue() {
@@ -279,16 +270,7 @@ public class PatientUI {
         System.out.println("2. Search by IC Number");
         System.out.println("0. Back to Queue Management");
         System.out.println("-------------------------------");
-        System.out.print("Enter your choice: ");
-
-        while (!scanner.hasNextInt()) {
-            System.out.println("Please enter a valid number.");
-            scanner.next(); // discard invalid input
-            System.out.print("Enter your choice: ");
-        }
-        int choice = scanner.nextInt();
-        scanner.nextLine(); // flush newline
-        return choice;
+        return getMenuChoice();
     }
 
     public String inputPatientName() {
@@ -330,16 +312,7 @@ public class PatientUI {
         System.out.println("5. Remove Patient");
         System.out.println("0. Back to Patient Main Menu");
         System.out.println("-------------------------------");
-        System.out.print("Enter your choice: ");
-
-        while (!scanner.hasNextInt()) {
-            System.out.println("Please enter a valid number.");
-            scanner.next(); // discard invalid input
-            System.out.print("Enter your choice: ");
-        }
-        int choice = scanner.nextInt();
-        scanner.nextLine(); // flush newline
-        return choice;
+        return getMenuChoice();
     }
 
     public int displaySearchPatientMenu() {
@@ -351,16 +324,7 @@ public class PatientUI {
         System.out.println("3. Search by IC Number");
         System.out.println("0. Back to Patient Management");
         System.out.println("-------------------------------");
-        System.out.print("Enter your choice: ");
-
-        while (!scanner.hasNextInt()) {
-            System.out.println("Please enter a valid number.");
-            scanner.next(); // discard invalid input
-            System.out.print("Enter your choice: ");
-        }
-        int choice = scanner.nextInt();
-        scanner.nextLine(); // flush newline
-        return choice;
+        return getMenuChoice();
     }
 
     public Patient inputUpdatedPatientDetails(Patient currentPatient) {
@@ -383,6 +347,28 @@ public class PatientUI {
                 }
             }
             name = nameInput;
+        }
+
+        // Gender update with validation
+        System.out.print("Gender [" + currentPatient.getGender() + "]: ");
+        String genderInput = scanner.nextLine().trim();
+        String gender;
+        if (genderInput.isEmpty()) {
+            gender = currentPatient.getGender();
+        } else {
+            String normalizedGender = maintainPatient.normalizeGender(genderInput);
+            while (normalizedGender == null) {
+                System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
+                System.out.print("Gender [" + currentPatient.getGender() + "]: ");
+                genderInput = scanner.nextLine().trim();
+                if (genderInput.isEmpty()) {
+                    normalizedGender = currentPatient.getGender();
+                    break;
+                } else {
+                    normalizedGender = maintainPatient.normalizeGender(genderInput);
+                }
+            }
+            gender = normalizedGender;
         }
 
         // IC Number update with validation
@@ -430,54 +416,44 @@ public class PatientUI {
             phone = maintainPatient.formatPhoneForStorage(phoneInput);
         }
 
-        // Gender update with validation
-        System.out.print("Gender [" + currentPatient.getGender() + "]: ");
-        String genderInput = scanner.nextLine().trim();
-        String gender;
-        if (genderInput.isEmpty()) {
-            gender = currentPatient.getGender();
-        } else {
-            String normalizedGender = maintainPatient.normalizeGender(genderInput);
-            while (normalizedGender == null) {
-                System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
-                System.out.print("Gender [" + currentPatient.getGender() + "]: ");
-                genderInput = scanner.nextLine().trim();
-                if (genderInput.isEmpty()) {
-                    normalizedGender = currentPatient.getGender();
-                    break;
-                } else {
-                    normalizedGender = maintainPatient.normalizeGender(genderInput);
-                }
-            }
-            gender = normalizedGender;
-        }
-
         // Return updated data to control layer for entity creation
         return maintainPatient.createPatientWithId(currentPatient.getId(), name, icNumber, phone, gender, currentPatient.getRegistrationDate());
     }
 
-    public void displayPatientsTable(ListInterface<Patient> patientList) {
-        System.out.println("\n=== ALL PATIENTS (Sorted by Registration Date) ===");
-        System.out.println("Total Patients: " + patientList.getNumberOfEntries());
+    public int displayViewPatientsMenu() {
+        System.out.println("\n=== VIEW PATIENTS MENU ===");
+        System.out.println("1. View All Patients (Default Order)");
+        System.out.println("2. Sort by Patient ID");
+        System.out.println("3. Sort by Name");
+        System.out.println("4. Sort by Age");
+        System.out.println("5. Sort by Registration Date");
+        System.out.println("0. Return to Main Menu");
+        System.out.println("==========================");
+        return getMenuChoice();
+    }
+
+    public void displayPatientsTableWithData(String[][] patientData, String sortType) {
+        System.out.println("\n=== ALL PATIENTS (" + sortType + ") ===");
+        System.out.println("Total Patients: " + patientData.length);
         System.out.println();
 
-        // Table header
-        System.out.printf("%-8s %-22s %-8s %-16s %-16s %-12s%n",
-                         "ID", "Name", "Gender", "IC Number", "Phone Number", "Reg Date");
-        System.out.println("======================================================================================");
+        // Table header with correct order: ID, Name, Gender, Age, IC, Phone, Reg Date
+        System.out.printf("%-8s %-20s %-8s %-4s %-16s %-14s %-12s%n",
+                         "ID", "Name", "Gender", "Age", "IC Number", "Phone", "Reg Date");
+        System.out.println("========================================================================================");
 
-        // Table rows
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            Patient p = patientList.getEntry(i);
-            System.out.printf("%-8s %-22s %-8s %-16s %-16s %-12s%n",
-                             p.getId(),
-                             FormatUtil.truncateString(p.getName(), 22),
-                             p.getGender(),
-                             FormatUtil.formatICForDisplay(p.getIcNumber()),
-                             p.getPhone(),
-                             FormatUtil.formatDateForDisplay(p.getRegistrationDate()));
+        // Table rows using prepared data from control layer
+        for (int i = 0; i < patientData.length; i++) {
+            System.out.printf("%-8s %-20s %-8s %-4s %-16s %-14s %-12s%n",
+                             patientData[i][0], // ID
+                             FormatUtil.truncateString(patientData[i][1], 20), // Name
+                             patientData[i][2], // Gender
+                             patientData[i][3], // Age (pre-calculated by control)
+                             FormatUtil.formatICForDisplay(patientData[i][4]), // IC
+                             patientData[i][5], // Phone
+                             FormatUtil.formatDateForDisplay(java.time.LocalDate.parse(patientData[i][6]))); // Reg Date
         }
-        System.out.println("======================================================================================");
+        System.out.println("========================================================================================");
     }
 
     public void displayQueueTable(QueueInterface<Patient> queue) {
@@ -499,10 +475,7 @@ public class PatientUI {
         return response.equals("y") || response.equals("yes");
     }
 
-    public void displaySimulationResult(QueueInterface<Patient> simulationQueue) {
-        String simulationData = maintainPatient.getSimulationData(simulationQueue);
-        System.out.println(simulationData);
-    }
+
 
     public void displayAgeDemographicsReport(int totalPatients, int under18, int age18to30, int age31to50, int age51to65, int over65) {
         System.out.println("\n=== AGE DEMOGRAPHICS REPORT ===");
@@ -518,7 +491,7 @@ public class PatientUI {
         askToReturnToMainMenu();
     }
 
-    public void displayRegistrationTimelineReport(ListInterface<Patient> sortedList, Patient firstPatient, Patient lastPatient,
+    public void displayRegistrationTimelineReport(String[][] patientData, Patient firstPatient, Patient lastPatient,
                                                  int maleCount, int femaleCount, MapInterface<String, Integer> monthlyCount) {
         System.out.println("\n================================================================================");
         System.out.println("                    REGISTRATION TIMELINE REPORT");
@@ -527,7 +500,7 @@ public class PatientUI {
         // Registration Statistics
         System.out.println("\nREGISTRATION STATISTICS:");
         System.out.println("--------------------------------------------------");
-        System.out.println("Total Registered Patients: " + sortedList.getNumberOfEntries());
+        System.out.println("Total Registered Patients: " + patientData.length);
         System.out.println("First Registration: " + firstPatient.getRegistrationDate().format(
             java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) + " (" + firstPatient.getName() + ")");
         System.out.println("Latest Registration: " + lastPatient.getRegistrationDate().format(
@@ -541,13 +514,15 @@ public class PatientUI {
                          "#", "Patient ID", "Name", "Gender", "Age", "IC Number", "Reg Date");
         System.out.println("--------------------------------------------------------------------------------");
 
-        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
-            Patient p = sortedList.getEntry(i);
-            int age = maintainPatient.calculateAgeFromIC(p.getIcNumber());
-            System.out.printf("%-6d %-10s %-20s %-8s %-3d %-16s %-12s%n",
-                             i, p.getId(), FormatUtil.truncateString(p.getName(), 20),
-                             p.getGender(), age, FormatUtil.formatICForDisplay(p.getIcNumber()),
-                             FormatUtil.formatDateForDisplay(p.getRegistrationDate()));
+        for (int i = 0; i < patientData.length; i++) {
+            System.out.printf("%-6d %-10s %-20s %-8s %-3s %-16s %-12s%n",
+                             i+1,
+                             patientData[i][0], // ID
+                             FormatUtil.truncateString(patientData[i][1], 20), // Name
+                             patientData[i][2], // Gender
+                             patientData[i][3], // Age (pre-calculated)
+                             FormatUtil.formatICForDisplay(patientData[i][4]), // IC
+                             FormatUtil.formatDateForDisplay(java.time.LocalDate.parse(patientData[i][6]))); // Reg Date
         }
 
         // Monthly Breakdown

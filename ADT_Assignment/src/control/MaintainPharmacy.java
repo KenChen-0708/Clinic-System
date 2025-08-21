@@ -3,31 +3,56 @@ package control;
 import adt.DoublyLinkedList;
 import adt.ListInterface;
 import boundary.PharmacyUI;
+import dao.DispenseRecordDAO;
 import dao.MedicineDAO;
 import dao.PatientDAO;
-import entity.Medicine;
-import utility.MessageUI;
 import dao.TreatmentDAO;
+import entity.DispenseRecord;
+import entity.Medicine;
 import entity.Patient;
 import entity.Treatment;
-import java.util.Comparator;
+import entity.TreatmentMedicineList;
+import utility.MessageUI;
+
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.Scanner;
 
-import entity.DispenseRecord;
-import dao.DispenseRecordDAO;
+/**
+ * Application layer (controller) for pharmacy operations. - Manages inventory
+ * list and persistence. - Drives UI flows (menus / input). - Generates text
+ * reports (no Java Collections used in core logic).
+ *
+ * DESIGN NOTES 1) Uses our custom ListInterface over a DoublyLinkedList to
+ * stick to project constraints. 2) Sorting/grouping is done via custom
+ * comparators and the list's in-place merge sort. 3) Export is plain-text with
+ * a safe filename slug.
+ */
+public class MaintainPharmacy implements Serializable {
 
-public class MaintainPharmacy {
-
+    /* =========================
+     * Data Access / State
+     * ========================= */
     private final DispenseRecordDAO dispenseDAO = new DispenseRecordDAO();
     private ListInterface<DispenseRecord> dispenseLog = dispenseDAO.retrieveFromFile();
+
+    private final MedicineDAO medicineDAO = new MedicineDAO();
     private ListInterface<Medicine> medicineList = new DoublyLinkedList<>();
-    private MedicineDAO medicineDAO = new MedicineDAO();
-    private PharmacyUI pharmacyUI = new PharmacyUI();
+
     private final TreatmentDAO treatmentDAO = new TreatmentDAO();
     private final PatientDAO patientDAO = new PatientDAO();
     private final ListInterface<Patient> patientList = patientDAO.retrieveFromFile();
 
+    private final PharmacyUI pharmacyUI = new PharmacyUI();
+
+    /* =========================
+     * Local helper model
+     * ========================= */
+    /**
+     * Simple name→total pair for grouping/aggregating quantities.
+     */
     private static class NameTotal {
 
         String name;
@@ -39,17 +64,904 @@ public class MaintainPharmacy {
         }
     }
 
-    private static class Pair<A, B> {
+    /* =========================
+     * Comparators (Inventory Sorting)
+     * ========================= */
+    // Compare by numeric part of ID: M0007 < M0100
+    private final Comparator<Medicine> BY_ID_NUM = (a, b) -> {
+        int ai = Integer.parseInt(a.getMedId().substring(1));
+        int bi = Integer.parseInt(b.getMedId().substring(1));
+        return Integer.compare(ai, bi);
+    };
 
-        A a;
-        B b;
+    // Expiry earlier first; tie-break: ID
+    private final Comparator<Medicine> BY_EXPIRY_THEN_ID = (a, b) -> {
+        int c = a.getExpiryDate().compareTo(b.getExpiryDate());
+        return (c != 0) ? c : BY_ID_NUM.compare(a, b);
+    };
 
-        Pair(A a, B b) {
-            this.a = a;
-            this.b = b;
+    // Price lower first; tie-break: ID
+    private final Comparator<Medicine> BY_PRICE_THEN_ID = (a, b) -> {
+        int c = Double.compare(a.getPrice(), b.getPrice());
+        return (c != 0) ? c : BY_ID_NUM.compare(a, b);
+    };
+
+    // Name A→Z; tie-break: ID
+    private final Comparator<Medicine> BY_NAME_THEN_ID = (a, b) -> {
+        int c = a.getName().compareToIgnoreCase(b.getName());
+        return (c != 0) ? c : BY_ID_NUM.compare(a, b);
+    };
+
+
+    /* =========================
+     * Construction
+     * ========================= */
+    public MaintainPharmacy() {
+        // refresh medicines from storage at startup
+        medicineList = medicineDAO.retrieveFromFile();
+    }
+
+    /* =========================
+     * Main Menu Flow
+     * ========================= */
+    public void runPharmacyMenu() {
+        int choice;
+        do {
+            choice = pharmacyUI.getMenuChoice();
+            switch (choice) {
+                case 1:
+                    runInventoryMenu();
+                    break;
+                case 2:
+                    MessageUI.clearConsole();
+                    pharmacyUI.runManageMedicineNames();
+                    break;
+                case 3:
+                    dispenseMedicine();
+                    break;
+                case 4:
+                    generateInventoryReport();
+                    break;
+                case 5:
+                    generateDispensedReport();
+                    break;
+                case 0:
+                    MessageUI.displayMainMenuMessage();
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
+                    break;
+            }
+        } while (choice != 0);
+    }
+
+    /* =========================
+     * Inventory Submenu
+     * ========================= */
+    public void runInventoryMenu() {
+        MessageUI.clearConsole();
+        int choice;
+        do {
+            choice = pharmacyUI.getInventoryManagementChoice();
+            switch (choice) {
+                case 1:
+                    viewAllMedicines();
+                    break;
+                case 2:
+                    addMedicine();
+                    break;
+                case 3:
+                    editMedicineStock();
+                    break;
+                case 4:
+                    removeMedicineStock();
+                    break;
+                case 5:
+                    searchMedicines();
+                    break;
+                case 0:
+                    MessageUI.clearConsole();
+                    return;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
+                    break;
+            }
+        } while (choice != 0);
+    }
+
+
+    /* =========================
+     * Inventory: View/Sort/Group
+     * ========================= */
+    /**
+     * Shows the inventory in a table and allows repeated sort/group actions
+     * until the user presses Back.
+     */
+    public void viewAllMedicines() {
+        MessageUI.clearConsole();
+
+        if (medicineList.isEmpty()) {
+            MessageUI.displayEmptyMessage();
+            MessageUI.pressEnterToContinue();
+            return;
+        }
+
+        // Always display a baseline "by ID" table first
+        DoublyLinkedList<Medicine> byId = copyList();
+        byId.mergeSort(BY_ID_NUM);
+        pharmacyUI.displayTable(
+                "== Inventory (By ID) ==",
+                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                toRowsById(byId)
+        );
+
+        // Sort/group loop (Back returns to Inventory menu)
+        while (true) {
+            int choice = pharmacyUI.getSortChoice();
+            if (choice == 0) {
+                MessageUI.clearConsole();
+                return;
+            }
+
+            String title = "== Inventory (";
+            DoublyLinkedList<Medicine> tmp;
+
+            switch (choice) {
+                case 1: { // Sort by ID
+                    int dir = pharmacyUI.getSortDirection("by ID",
+                            "ID ascending (M0001 → M9999)",
+                            "ID descending (M9999 → M0001)");
+                    MessageUI.clearConsole();
+                    if (dir == 0) {
+                        break;
+                    }
+
+                    tmp = copyList();
+                    if (dir == 1) {
+                        tmp.mergeSort(BY_ID_NUM);
+                        title += "Sorted by ID Ascending)";
+                    } else {
+                        tmp.mergeSort((a, b) -> BY_ID_NUM.compare(b, a));
+                        title += "Sorted by ID Descending)";
+                    }
+
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                            toRowsById(tmp));
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+                case 2: { // Sort by Expiry
+                    int dir = pharmacyUI.getSortDirection("by Expiry Date",
+                            "Earliest first", "Latest first");
+                    MessageUI.clearConsole();
+                    if (dir == 0) {
+                        break;
+                    }
+
+                    tmp = copyList();
+                    if (dir == 1) {
+                        tmp.mergeSort(BY_EXPIRY_THEN_ID);
+                        title += "Sorted by Expiry Date (Earliest first))";
+                    } else {
+                        tmp.mergeSort((a, b) -> BY_EXPIRY_THEN_ID.compare(b, a));
+                        title += "Sorted by Expiry Date (Latest first))";
+                    }
+
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                            toRowsByExpiryDate(tmp));
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+                case 3: { // Sort by Price
+                    int dir = pharmacyUI.getSortDirection("by Price",
+                            "Lowest first", "Highest first");
+                    MessageUI.clearConsole();
+                    if (dir == 0) {
+                        break;
+                    }
+
+                    tmp = copyList();
+                    if (dir == 1) {
+                        tmp.mergeSort(BY_PRICE_THEN_ID);
+                        title += "Sorted by Price (Lowest first))";
+                    } else {
+                        tmp.mergeSort((a, b) -> BY_PRICE_THEN_ID.compare(b, a));
+                        title += "Sorted by Price (Highest first))";
+                    }
+
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                            toRowsByPrice(tmp));
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+                case 4: { // Group by Name
+                    MessageUI.clearConsole();
+                    title += "Grouped by Name)";
+                    pharmacyUI.displayTable(title,
+                            new String[]{"Name", "Total Qty"},
+                            toRowsTotalsByName());
+                    MessageUI.pressEnterToContinue();
+                    break;
+                }
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
+                    break;
+            }
         }
     }
 
+    /* =========================
+     * Inventory: CRUD
+     * ========================= */
+    public void addMedicine() {
+        MessageUI.clearConsole();
+
+        String newId = generateNextMedicineId();
+        Medicine newMed = pharmacyUI.inputMedicineDetails(newId);
+        if (newMed == null) {
+            return; // user backed out
+        }
+        MessageUI.clearConsole();
+        while (true) {
+            int action = pharmacyUI.confirmAddMedicine(newMed);
+            switch (action) {
+                case 1: // confirm & save
+                    medicineList.add(newMed);
+                    medicineDAO.saveToFile(medicineList);
+                    return;
+                case 2: // edit then re-confirm
+                    newMed = pharmacyUI.editMedicineDetails(newMed);
+                    if (newMed == null) {
+                        return;
+                    }
+                    break;
+                case 0: // discard
+                    return;
+                default:
+                    break;
+            }
+        }
+    }
+
+    public void editMedicineStock() {
+        MessageUI.clearConsole();
+
+        if (medicineList.isEmpty()) {
+            MessageUI.displayEmptyMessage();
+            MessageUI.pressEnterToContinue();
+            return;
+        }
+
+        DoublyLinkedList<Medicine> byId = copyList();
+        byId.mergeSort(BY_ID_NUM);
+        pharmacyUI.displayTable("== Edit Inventory ==",
+                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                toRowsById(byId));
+
+        String medId = pharmacyUI.inputMedicineID();
+        if (medId == null) {
+            MessageUI.clearConsole();
+            return;
+        }
+
+        // Locate medicine by ID
+        Medicine medToEdit = null;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            Medicine m = medicineList.getEntry(i);
+            if (m.getMedId().equals(medId)) {
+                medToEdit = m;
+                break;
+            }
+        }
+
+        MessageUI.clearConsole();
+        if (medToEdit == null) {
+            pharmacyUI.displayMessage("Medicine ID not found.");
+            return;
+        }
+
+        // Let UI edit fields; if kept, persist
+        medToEdit = pharmacyUI.editMedicineDetails(medToEdit);
+        if (medToEdit != null) {
+            medicineDAO.saveToFile(medicineList);
+            pharmacyUI.displayMessage("Medicine details updated successfully.");
+        } else {
+            pharmacyUI.displayMessage("Medicine editing canceled.");
+        }
+    }
+
+    public void removeMedicineStock() {
+        MessageUI.clearConsole();
+
+        if (medicineList.isEmpty()) {
+            MessageUI.displayEmptyMessage();
+            MessageUI.pressEnterToContinue();
+            return;
+        }
+
+        DoublyLinkedList<Medicine> byId = copyList();
+        byId.mergeSort(BY_ID_NUM);
+        pharmacyUI.displayTable("== Remove Inventory ==",
+                new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
+                toRowsById(byId));
+
+        String medId = pharmacyUI.inputMedicineID();
+        if (medId == null) {
+            MessageUI.clearConsole();
+            return;
+        }
+
+        MessageUI.clearConsole();
+
+        // Find position for removal (ListInterface is 1-based)
+        int positionToRemove = -1;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            if (medicineList.getEntry(i).getMedId().equals(medId)) {
+                positionToRemove = i;
+                break;
+            }
+        }
+        if (positionToRemove == -1) {
+            pharmacyUI.displayMessage("Medicine ID not found.");
+            return;
+        }
+
+        int action = pharmacyUI.confirmRemoveMedicine(medicineList.getEntry(positionToRemove));
+        MessageUI.clearConsole();
+        if (action == 1) {
+            medicineList.remove(positionToRemove);
+            medicineDAO.saveToFile(medicineList);
+            pharmacyUI.displayMessage("Medicine removed from inventory.");
+        } else {
+            pharmacyUI.displayMessage("Medicine removal canceled.");
+        }
+    }
+
+    /**
+     * Search for a medicine by ID using linear search.
+     *
+     * @return Medicine object if found, null otherwise.
+     */
+    public Medicine searchMedicineById(String medId) {
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            Medicine m = medicineList.getEntry(i);
+            if (m.getMedId().equalsIgnoreCase(medId)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Search for medicines by Name (could be multiple matches).
+     *
+     * @return List of matching medicines.
+     */
+    public ListInterface<Medicine> searchMedicineByName(String name) {
+        DoublyLinkedList<Medicine> results = new DoublyLinkedList<>();
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            Medicine m = medicineList.getEntry(i);
+            if (m.getName().equalsIgnoreCase(name)) {
+                results.add(m);
+            }
+        }
+        return results;
+    }
+
+    public void searchMedicines() {
+        MessageUI.clearConsole();
+
+        if (medicineList.isEmpty()) {
+            MessageUI.displayEmptyMessage();
+            MessageUI.pressEnterToContinue();
+            return; // back to Inventory menu (one level)
+        }
+
+        final String[] headers = {"Med ID", "Name", "Qty", "Price/Unit", "Expiry"};
+
+        // Stay in the search flow until user chooses Back here
+        while (true) {
+            int mode = pharmacyUI.getSearchChoice();
+            if (mode == 0) {
+                MessageUI.clearConsole();
+                return; // back ONE level (to Inventory menu)
+            }
+
+            switch (mode) {
+                case 1: { // By ID (exact; UI already normalizes to M####)
+                    String medId = pharmacyUI.inputMedicineID();
+                    if (medId == null) { // user pressed Back once
+                        MessageUI.clearConsole();
+                        break; // back to search menu (NOT inventory)
+                    }
+
+                    Medicine found = searchMedicineById(medId);
+                    DoublyLinkedList<Medicine> results = new DoublyLinkedList<>();
+                    if (found != null) {
+                        results.add(found);
+                    }
+
+                    MessageUI.clearConsole();
+                    if (results.isEmpty()) {
+                        pharmacyUI.displayMessage("No medicine found with ID: " + medId);
+                    } else {
+                        results.mergeSort(BY_ID_NUM);
+                        pharmacyUI.displayTable(
+                                "== Search Results (By ID: " + medId + ") ==",
+                                headers,
+                                toRowsById(results)
+                        );
+                        MessageUI.pressEnterToContinue();
+                    }
+                    break; // show search menu again
+                }
+
+                case 2: { // By Name (contains, case-insensitive)
+                    String pat = pharmacyUI.inputNamePattern();
+                    if (pat == null) {
+                        MessageUI.clearConsole();
+                        break; // back to search menu (NOT inventory)
+                    }
+
+                    String needle = pat.toLowerCase();
+                    DoublyLinkedList<Medicine> results = new DoublyLinkedList<>();
+                    for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+                        Medicine m = medicineList.getEntry(i);
+                        if (m.getName().toLowerCase().contains(needle)) {
+                            results.add(m);
+                        }
+                    }
+
+                    MessageUI.clearConsole();
+                    if (results.isEmpty()) {
+                        pharmacyUI.displayMessage("No medicines matched: \"" + pat + "\"");
+                    } else {
+                        results.mergeSort((a, b) -> {
+                            int c = a.getName().compareToIgnoreCase(b.getName());
+                            return (c != 0) ? c : BY_ID_NUM.compare(a, b);
+                        });
+                        pharmacyUI.displayTable(
+                                "== Search Results (Name contains: \"" + pat + "\") ==",
+                                headers,
+                                toRowsById(results)
+                        );
+                        MessageUI.pressEnterToContinue();
+                    }
+                    break; // show search menu again
+                }
+
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
+                // fall through to loop; search menu will be shown again
+            }
+        }
+    }
+
+
+    /* =========================
+     * Dispensing
+     * ========================= */
+    /**
+     * Dispense per the latest prescription of the selected patient.
+     * Prescription format: "M0001:3,M0002:5"
+     */
+    public void dispenseMedicine() {
+        MessageUI.clearConsole();
+
+        // Find patients with pending treatments
+        StringBuilder patientOutput = new StringBuilder();
+        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
+            Patient p = patientList.getEntry(i);
+
+            // Check if the patient has any pending treatments
+            boolean hasPendingTreatment = false;
+            ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
+            for (int j = 1; j <= treatments.getNumberOfEntries(); j++) {
+                Treatment treatment = treatments.getEntry(j);
+                if (treatment.getPatientId().equalsIgnoreCase(p.getId())
+                        && treatment.getStatus().equalsIgnoreCase("Pending")
+                        && treatment.getMedicineList() != null && !treatment.getMedicineList().isEmpty()) {
+                    hasPendingTreatment = true;
+                    break;
+                }
+            }
+
+            if (hasPendingTreatment) {
+                patientOutput.append(i).append(". ")
+                        .append(p.getId()).append(" - ")
+                        .append(p.getName()).append("\n");
+            }
+        }
+
+        if (patientOutput.length() == 0) {
+            pharmacyUI.displayMessage("No patients with pending treatments found.");
+            return;
+        }
+
+        pharmacyUI.displayMessage("Select a patient with pending treatments:\n" + patientOutput);
+
+        // Get patient selection (0 = Back ONE level)
+        int selectedIndex = pharmacyUI.inputPatientSelection();
+        if (selectedIndex == 0) { // <-- back one level
+            MessageUI.clearConsole();
+            return;
+        }
+        MessageUI.clearConsole();
+        if (selectedIndex < 1 || selectedIndex > patientList.getNumberOfEntries()) {
+            pharmacyUI.displayMessage("Invalid selection.");
+            return;
+        }
+
+        Patient selectedPatient = patientList.getEntry(selectedIndex);
+        pharmacyUI.displayMessage("Selected Patient: " + selectedPatient.getName() + " (ID: " + selectedPatient.getId() + ")");
+
+        // Get all treatments for the selected patient
+        ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
+        DoublyLinkedList<Treatment> patientTreatments = new DoublyLinkedList<>();
+
+        for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
+            Treatment treatment = treatments.getEntry(i);
+            if (treatment.getPatientId().equalsIgnoreCase(selectedPatient.getId())) {
+                patientTreatments.add(treatment);
+            }
+        }
+
+        if (patientTreatments.isEmpty()) {
+            pharmacyUI.displayMessage("\nNo treatments found for this patient.");
+            return;
+        }
+
+        // Find the most recent treatment with "Pending" status and medicines
+        Treatment treatmentToDispense = null;
+        for (int i = patientTreatments.getNumberOfEntries(); i >= 1; i--) {
+            Treatment treatment = patientTreatments.getEntry(i);
+
+            // Only process treatments with "Pending" status
+            if (treatment.getStatus().equalsIgnoreCase("Pending")
+                    && treatment.getMedicineList() != null
+                    && !treatment.getMedicineList().isEmpty()) {
+                treatmentToDispense = treatment;
+                break;
+            }
+        }
+
+        if (treatmentToDispense == null) {
+            pharmacyUI.displayMessage("\nNo pending treatments with prescribed medicines found for this patient.");
+
+            // Check if there are completed treatments
+            boolean hasCompletedTreatments = false;
+            for (int i = 1; i <= patientTreatments.getNumberOfEntries(); i++) {
+                Treatment treatment = patientTreatments.getEntry(i);
+                if (treatment.getStatus().equalsIgnoreCase("Completed")) {
+                    hasCompletedTreatments = true;
+                    break;
+                }
+            }
+
+            if (hasCompletedTreatments) {
+                pharmacyUI.displayMessage("Note: This patient has completed treatments that don't require medicine dispensing.");
+            }
+            return;
+        }
+
+        // Display treatment information
+        pharmacyUI.displayMessage("\nTreatment ID: " + treatmentToDispense.getTreatmentId());
+        pharmacyUI.displayMessage("Treatment Date: " + treatmentToDispense.getTreatmentDate());
+        pharmacyUI.displayMessage("Status: " + treatmentToDispense.getStatus());
+
+        // Get the medicine list from treatment
+        DoublyLinkedList<TreatmentMedicineList> prescribedMedicines = treatmentToDispense.getMedicineList();
+
+        pharmacyUI.displayMessage("\n=== PRESCRIBED MEDICINES ===");
+        for (int i = 1; i <= prescribedMedicines.getNumberOfEntries(); i++) {
+            TreatmentMedicineList prescribedMed = prescribedMedicines.getEntry(i);
+            pharmacyUI.displayMessage(i + ". Medicine: " + prescribedMed.getPrescription());
+            pharmacyUI.displayMessage("   Tablets per dose: " + prescribedMed.getTablets());
+            pharmacyUI.displayMessage("   Times per day: " + prescribedMed.getTimesPerDay());
+            pharmacyUI.displayMessage("   Total days: " + prescribedMed.getTotalDay());
+            pharmacyUI.displayMessage("   Meal timing: " + prescribedMed.getMealTiming());
+
+            // Calculate total tablets needed
+            int totalTabletsNeeded = prescribedMed.getTablets() * prescribedMed.getTimesPerDay() * prescribedMed.getTotalDay();
+            pharmacyUI.displayMessage("   Total tablets needed: " + totalTabletsNeeded);
+            pharmacyUI.displayMessage("");
+        }
+
+        // Ask for confirmation before dispensing
+        pharmacyUI.displayMessage("1. Dispense all medicines");
+        pharmacyUI.displayMessage("0. Discard");
+        pharmacyUI.displayMessage("--------------------------------");
+        System.out.print("Enter your choice: ");
+
+        int confirmDispense = 0;
+        try {
+            confirmDispense = new Scanner(System.in).nextInt();
+        } catch (Exception e) {
+            confirmDispense = 2; // Default to cancel
+        }
+
+        if (confirmDispense != 1) {
+            MessageUI.clearConsole();
+            pharmacyUI.displayMessage("Dispensing cancelled.");
+            return;
+        }
+
+        // Process each prescribed medicine
+        boolean allDispensed = true;
+        StringBuilder dispensingReport = new StringBuilder();
+        dispensingReport.append("\n=== DISPENSING REPORT ===\n");
+
+        for (int i = 1; i <= prescribedMedicines.getNumberOfEntries(); i++) {
+            TreatmentMedicineList prescribedMed = prescribedMedicines.getEntry(i);
+            String medicineName = prescribedMed.getPrescription();
+            int totalTabletsNeeded = prescribedMed.getTablets() * prescribedMed.getTimesPerDay() * prescribedMed.getTotalDay();
+
+            // Find medicine in inventory by name
+            Medicine foundMedicine = null;
+            for (int j = 1; j <= medicineList.getNumberOfEntries(); j++) {
+                Medicine m = medicineList.getEntry(j);
+                if (m.getName().equalsIgnoreCase(medicineName)) {
+                    foundMedicine = m;
+                    break;
+                }
+            }
+
+            if (foundMedicine == null) {
+                dispensingReport.append(medicineName).append(" - NOT FOUND in inventory\n");
+                allDispensed = false;
+                continue;
+            }
+
+            // Check stock availability
+            if (foundMedicine.getStock() >= totalTabletsNeeded) {
+                // Dispense medicine
+                foundMedicine.setStock(foundMedicine.getStock() - totalTabletsNeeded);
+
+                dispensingReport.append(medicineName)
+                        .append(" - Dispensed ").append(totalTabletsNeeded).append(" tablets")
+                        .append(" (Remaining stock: ").append(foundMedicine.getStock()).append(")\n");
+
+                // Create dispense record
+                DispenseRecord rec = new DispenseRecord(
+                        selectedPatient.getId(),
+                        selectedPatient.getName(),
+                        foundMedicine.getMedId(),
+                        foundMedicine.getName(),
+                        totalTabletsNeeded,
+                        LocalDateTime.now()
+                );
+                dispenseLog.add(rec);
+            } else {
+                dispensingReport.append(medicineName)
+                        .append(" - INSUFFICIENT STOCK (Need: ").append(totalTabletsNeeded)
+                        .append(", Available: ").append(foundMedicine.getStock()).append(")\n");
+                allDispensed = false;
+            }
+        }
+
+        // Display dispensing report
+        pharmacyUI.displayMessage(dispensingReport.toString());
+
+        if (allDispensed) {
+            // Update treatment status to "Completed" since all medicines were dispensed
+            for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
+                Treatment treatment = treatments.getEntry(i);
+                if (treatment.getTreatmentId().equals(treatmentToDispense.getTreatmentId())) {
+                    treatment.setStatus("Completed");
+                    break;
+                }
+            }
+            treatmentDAO.saveToFile(treatments);
+
+            pharmacyUI.displayMessage("All medicines dispensed successfully!");
+        } else {
+            pharmacyUI.displayMessage("Some medicines could not be dispensed due to insufficient stock or unavailability.");
+        }
+
+        // Save updated data
+        medicineDAO.saveToFile(medicineList);
+        dispenseDAO.saveToFile(dispenseLog);
+
+        MessageUI.pressEnterToContinue();
+    }
+
+    /* =========================
+     * Reports: Inventory
+     * ========================= */
+    public void generateInventoryReport() {
+        MessageUI.clearConsole();
+
+        if (medicineList.isEmpty()) {
+            pharmacyUI.displayReport("Inventory Report", "(No inventory items)");
+            MessageUI.pressEnterToContinue();
+            return;
+        }
+
+        int choice;
+        do {
+            choice = pharmacyUI.getInventoryReportChoice();
+            switch (choice) {
+                case 0:
+                    MessageUI.clearConsole();
+                    break;
+
+                case 1: { // KPI Snapshot
+                    MessageUI.clearConsole();
+                    String[] headers = {"Metric", "Value"};
+                    String[][] rows = toRowsKpis();
+                    pharmacyUI.displayTable("== KPIs ==", headers, rows);
+
+                    String tableText = buildTableText("KPIs", headers, rows);
+                    offerExportAfterDisplay("Inventory Report - KPI Snapshot", tableText);
+                    break;
+                }
+
+                case 2: { // Low-stock
+                    int threshold = pharmacyUI.inputLowStockThreshold();
+                    if (threshold == -1) {
+                        MessageUI.clearConsole();
+                        break;
+                    }
+
+                    MessageUI.clearConsole();
+                    String[] headers = {"Med ID", "Name", "Qty", "Price/Unit", "Expiry"};
+                    String[][] rows = toRowsLowStock(threshold);
+
+                    if (rows.length == 0) {
+                        String body = "(No items at or below threshold)";
+                        pharmacyUI.displayReport("Inventory Report (Low-stock)", body);
+                        // Do NOT offer export when there are no items
+                        MessageUI.pressEnterToContinue();
+                    } else {
+                        String title = "== Low-stock (<= " + threshold + ") ==";
+                        pharmacyUI.displayTable(title, headers, rows);
+                        String tableText = buildTableText(title, headers, rows);
+                        offerExportAfterDisplay("Inventory Report - Low Stock (<= " + threshold + ")", tableText);
+                    }
+                    break;
+                }
+
+                case 3: { // Near-expiry
+                    int days = pharmacyUI.inputNearExpiryDays();
+                    if (days == -1) {
+                        MessageUI.clearConsole();
+                        break;
+                    }
+
+                    MessageUI.clearConsole();
+                    String[] headers = {"Med ID", "Name", "Qty", "Price/Unit", "Expiry"};
+                    String[][] rows = toRowsNearExpiry(days);
+
+                    if (rows.length == 0) {
+                        String body = "(No items expiring within " + days + " days)";
+                        pharmacyUI.displayReport("Inventory Report (Near-expiry)", body);
+                        // Do NOT offer export when there are no items
+                        MessageUI.pressEnterToContinue();
+                    } else {
+                        String title = "== Near-expiry (within " + days + " days) ==";
+                        pharmacyUI.displayTable(title, headers, rows);
+                        String tableText = buildTableText(title, headers, rows);
+                        offerExportAfterDisplay("Inventory Report - Near Expiry (within " + days + " days)", tableText);
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        } while (choice != 0);
+    }
+
+
+    /* =========================
+     * Reports: Dispensed Log
+     * ========================= */
+    public void generateDispensedReport() {
+        MessageUI.clearConsole();
+
+        dispenseLog = dispenseDAO.retrieveFromFile();
+
+        if (dispenseLog.isEmpty()) {
+            pharmacyUI.displayReport("Dispensed Medicines Report", "(No records)");
+            MessageUI.pressEnterToContinue();
+            return;
+        }
+
+        int choice;
+        do {
+            choice = pharmacyUI.getDispensedReportChoice();
+            MessageUI.clearConsole();
+
+            if (choice == 0) {
+                break;
+            }
+
+            // Get the date range choice from the user
+            int dateRangeChoice = pharmacyUI.getDateRangeChoice();
+            MessageUI.clearConsole();
+            LocalDate startDate = null;
+            LocalDate endDate = null;
+
+            // Handling date range options
+            switch (dateRangeChoice) {
+                case 1: // All (no date filter)
+                    // If "All" is selected, we want to include all records
+                    startDate = null;
+                    endDate = null;
+                    break;
+                case 2: // Today
+                    startDate = LocalDate.now();
+                    endDate = LocalDate.now();
+                    break;
+                case 3: // This Week
+                    startDate = LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1); // Start of the week
+                    endDate = LocalDate.now().plusDays(7 - LocalDate.now().getDayOfWeek().getValue()); // End of the week
+                    break;
+                case 4: // Last 30 Days
+                    startDate = LocalDate.now().minusDays(30);
+                    endDate = LocalDate.now();
+                    break;
+                case 5: // Custom Range
+                    startDate = pharmacyUI.inputDate("Start date");
+                    if (startDate == null) {
+                        break;
+                    }
+                    endDate = pharmacyUI.inputDate("End date");
+                    if (endDate == null) {
+                        break;
+                    }
+                    break;
+                case 0:
+                    break;
+            }
+
+            // If "All" is selected, we do not filter by date, so we pass all records
+            ListInterface<DispenseRecord> filteredRecords = (startDate == null && endDate == null)
+                    ? dispenseLog // No filter, all records
+                    : filterByDateRange(startDate, endDate);
+
+            switch (choice) {
+                case 1: { // Detail Report
+                    String title = "Dispensed (Detail) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
+                    String body = renderDispenseDetail(filteredRecords);
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+
+                case 2: { // By Medicine
+                    String title = "Dispensed (By Medicine) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
+                    String body = renderDispenseSummaryByMedicine(filteredRecords);
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+
+                case 3: { // By Patient
+                    String title = "Dispensed (By Patient) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
+                    String body = renderDispenseSummaryByPatient(filteredRecords);
+                    pharmacyUI.displayReport(title, body);
+                    offerExportAfterDisplay(title, body);
+                    break;
+                }
+
+                default:
+                    MessageUI.clearConsole();
+                    break;
+            }
+        } while (choice != 0);
+    }
+
+    /* =========================
+     * Utility: Copy/Build/Format
+     * ========================= */
+    /**
+     * Make a shallow copy of the medicine list (for sorting/transforming
+     * without touching the live list).
+     */
     private DoublyLinkedList<Medicine> copyList() {
         DoublyLinkedList<Medicine> copy = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
@@ -58,33 +970,22 @@ public class MaintainPharmacy {
         return copy;
     }
 
-    private String renderList(ListInterface<Medicine> list) {
-        StringBuilder sb = new StringBuilder();
+    /**
+     * Find index of a name (case-insensitive) in a NameTotal list; returns -1
+     * when not found.
+     */
+    private int indexOfName(ListInterface<NameTotal> list, String name) {
         for (int i = 1; i <= list.getNumberOfEntries(); i++) {
-            sb.append(list.getEntry(i).toString()).append("\n");
+            if (list.getEntry(i).name.equalsIgnoreCase(name)) {
+                return i;
+            }
         }
-        return sb.toString();
+        return -1;
     }
 
-    private final Comparator<Medicine> BY_ID_NUM = (a, b) -> {
-        int ai = Integer.parseInt(a.getMedId().substring(1));
-        int bi = Integer.parseInt(b.getMedId().substring(1));
-        return Integer.compare(ai, bi);
-    };
-
-    private final Comparator<Medicine> BY_EXPIRY_THEN_ID = (a, b) -> {
-        int c = a.getExpiryDate().compareTo(b.getExpiryDate());
-        return (c != 0) ? c : BY_ID_NUM.compare(a, b);
-    };
-
-    private final Comparator<Medicine> BY_PRICE_THEN_ID = (a, b) -> {
-        int c = Double.compare(a.getPrice(), b.getPrice());
-        if (c != 0) {
-            return c;
-        }
-        return BY_ID_NUM.compare(a, b);
-    };
-
+    /**
+     * Group totals by medicine name (for a summary table text).
+     */
     private String buildGroupedTotalsText() {
         DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
@@ -110,55 +1011,9 @@ public class MaintainPharmacy {
         return sb.toString();
     }
 
-    private int indexOfName(ListInterface<NameTotal> list, String name) {
-        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
-            if (list.getEntry(i).name.equalsIgnoreCase(name)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private String renderLowStock(int threshold) {
-        // collect matches into temp list then sort by stock asc, then ID
-        DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            if (m.getStock() <= threshold) {
-                tmp.add(m);
-            }
-        }
-        if (tmp.isEmpty()) {
-            return "(No items at or below threshold)";
-        }
-        tmp.mergeSort((a, b) -> {
-            int c = Integer.compare(a.getStock(), b.getStock());
-            if (c != 0) {
-                return c;
-            }
-            return BY_ID_NUM.compare(a, b);
-        });
-        return renderList(tmp);
-    }
-
-    private String renderNearExpiry(int days) {
-        java.time.LocalDate today = java.time.LocalDate.now();
-        java.time.LocalDate cutoff = today.plusDays(days);
-
-        DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            if (!m.getExpiryDate().isAfter(cutoff)) {
-                tmp.add(m);
-            }
-        }
-        if (tmp.isEmpty()) {
-            return "(No items expiring within " + days + " days)";
-        }
-        tmp.mergeSort(BY_EXPIRY_THEN_ID);
-        return renderList(tmp);
-    }
-
+    /**
+     * Filter dispense records within [start, end] dates (inclusive).
+     */
     private ListInterface<DispenseRecord> filterByDateRange(LocalDate start, LocalDate end) {
         DoublyLinkedList<DispenseRecord> out = new DoublyLinkedList<>();
         for (int i = 1; i <= dispenseLog.getNumberOfEntries(); i++) {
@@ -171,12 +1026,17 @@ public class MaintainPharmacy {
         return out;
     }
 
+    /**
+     * Detail view: sort by timestamp, then patient, then medicine, with better
+     * formatting.
+     */
     private String renderDispenseDetail(ListInterface<DispenseRecord> list) {
-        // sort by timestamp asc, then patient, then med
         DoublyLinkedList<DispenseRecord> tmp = new DoublyLinkedList<>();
         for (int i = 1; i <= list.getNumberOfEntries(); i++) {
             tmp.add(list.getEntry(i));
         }
+
+        // Sorting by timestamp, patient name, and medicine name
         tmp.mergeSort((a, b) -> {
             int c = a.getTimestamp().compareTo(b.getTimestamp());
             if (c != 0) {
@@ -190,25 +1050,32 @@ public class MaintainPharmacy {
         });
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-20s %-20s %-12s %-25s %8s%n",
-                "DateTime", "Patient", "Med ID", "Medicine", "Qty"));
-        sb.append("-------------------------------------------------------------------------------\n");
+        sb.append("==== DISPENSE DETAILS REPORT ====\n\n");
 
-        java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
+        // Header for the report
+        sb.append(String.format("%-25s %-30s %-15s %-30s %10s%n",
+                "DateTime", "Patient", "Med ID", "Medicine", "Qty"));
+        sb.append("---------------------------------------------------------------"
+                + "---------------------------------------------------------------\n");
+
+        var dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
         for (int i = 1; i <= tmp.getNumberOfEntries(); i++) {
             DispenseRecord r = tmp.getEntry(i);
-            sb.append(String.format("%-20s %-20s %-12s %-25s %8d%n",
-                    r.getTimestamp().format(dtf),
-                    r.getPatientName(),
-                    r.getMedId(),
-                    r.getMedName(),
-                    r.getQuantity()));
+            sb.append(String.format("%-25s %-30s %-15s %-30s %10d%n",
+                    r.getTimestamp().format(dtf), r.getPatientName(), r.getMedId(), r.getMedName(), r.getQuantity()));
         }
+
+        // Footer with total count
+        sb.append("\nTotal Records: ").append(tmp.getNumberOfEntries()).append(" dispensations\n");
+
         return sb.toString();
     }
 
+    /**
+     * Summary by medicine: totals (desc), tie-breaker by name (asc), enhanced
+     * layout.
+     */
     private String renderDispenseSummaryByMedicine(ListInterface<DispenseRecord> list) {
-        // accumulate into NameTotal list (by medName)
         DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
         for (int i = 1; i <= list.getNumberOfEntries(); i++) {
             DispenseRecord r = list.getEntry(i);
@@ -224,27 +1091,34 @@ public class MaintainPharmacy {
         if (totals.isEmpty()) {
             return "(No records)";
         }
-        // sort by total desc, then name asc
+
+        // Sorting by total quantity descending, and by name ascending
         totals.mergeSort((a, b) -> {
             int c = Integer.compare(b.total, a.total);
-            if (c != 0) {
-                return c;
-            }
-            return a.name.compareToIgnoreCase(b.name);
+            return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
         });
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-30s %10s%n", "Medicine", "Total Qty"));
-        sb.append("-----------------------------------------------\n");
+        sb.append("==== MEDICINE DISPENSE SUMMARY ====\n\n");
+        sb.append(String.format("%-30s %15s%n", "Medicine", "Total Qty"));
+        sb.append("---------------------------------------------------------------\n");
+
         for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
             NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %10d%n", nt.name, nt.total));
+            sb.append(String.format("%-30s %15d%n", nt.name, nt.total));
         }
+
+        // Footer with total count of medicines
+        sb.append("\nTotal Medicines: ").append(totals.getNumberOfEntries()).append(" unique medicines\n");
+
         return sb.toString();
     }
 
+    /**
+     * Summary by patient: totals (desc), tie-breaker by name (asc), enhanced
+     * layout.
+     */
     private String renderDispenseSummaryByPatient(ListInterface<DispenseRecord> list) {
-        // accumulate by patientName
         DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
         for (int i = 1; i <= list.getNumberOfEntries(); i++) {
             DispenseRecord r = list.getEntry(i);
@@ -260,25 +1134,33 @@ public class MaintainPharmacy {
         if (totals.isEmpty()) {
             return "(No records)";
         }
+
+        // Sorting by total quantity descending, and by name ascending
         totals.mergeSort((a, b) -> {
             int c = Integer.compare(b.total, a.total);
-            if (c != 0) {
-                return c;
-            }
-            return a.name.compareToIgnoreCase(b.name);
+            return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
         });
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-30s %10s%n", "Patient", "Total Qty"));
-        sb.append("-----------------------------------------------\n");
+        sb.append("==== PATIENT DISPENSE SUMMARY ====\n\n");
+        sb.append(String.format("%-30s %15s%n", "Patient", "Total Qty"));
+        sb.append("---------------------------------------------------------------\n");
+
         for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
             NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %10d%n", nt.name, nt.total));
+            sb.append(String.format("%-30s %15d%n", nt.name, nt.total));
         }
+
+        // Footer with total count of patients
+        sb.append("\nTotal Patients: ").append(totals.getNumberOfEntries()).append(" unique patients\n");
+
         return sb.toString();
     }
 
-    // --- Helpers for KPIs (no Java Collections) ---
+
+    /* =========================
+     * KPIs
+     * ========================= */
     private int countSkus() {
         return medicineList.getNumberOfEntries();
     }
@@ -328,66 +1210,106 @@ public class MaintainPharmacy {
         return best;
     }
 
-// --- Build a report snapshot text ---
-    private String buildInventorySnapshotText() {
+    /* =========================
+     * Table Builders / Export
+     * ========================= */
+    /**
+     * Build a plain-text table (no dependency on TablePrinter) for exporting.
+     */
+    private String buildTableText(String title, String[] headers, String[][] rows) {
         StringBuilder sb = new StringBuilder();
-
-        java.time.format.DateTimeFormatter dtf
-                = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
-
-        sb.append("INVENTORY SNAPSHOT\n");
-        sb.append("Generated: ").append(java.time.LocalDateTime.now().format(dtf)).append("\n\n");
-
-        // KPIs
-        sb.append("== KPIs ==\n");
-        sb.append(String.format("Total SKUs     : %d%n", countSkus()));
-        sb.append(String.format("Total Units    : %d%n", sumUnits()));
-        sb.append(String.format("Total Valuation: RM %.2f%n", totalValuation()));
-
-        Medicine earliest = getEarliestExpiry();
-        Medicine latest = getLatestExpiry();
-        if (earliest != null) {
-            sb.append(String.format("Earliest Expiry: %s (ID %s, %s)%n",
-                    earliest.getExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu")),
-                    earliest.getMedId(), earliest.getName()));
+        if (title != null && !title.isEmpty()) {
+            sb.append(title).append("\n\n");
         }
-        if (latest != null) {
-            sb.append(String.format("Latest Expiry  : %s (ID %s, %s)%n",
-                    latest.getExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu")),
-                    latest.getMedId(), latest.getName()));
+
+        // Column widths
+        int cols = headers.length;
+        int[] w = new int[cols];
+        for (int c = 0; c < cols; c++) {
+            w[c] = headers[c].length();
+        }
+        for (String[] r : rows) {
+            for (int c = 0; c < cols; c++) {
+                if (r[c] != null && r[c].length() > w[c]) {
+                    w[c] = r[c].length();
+                }
+            }
+        }
+
+        // Header
+        for (int c = 0; c < cols; c++) {
+            sb.append(String.format("%-" + (w[c] + 2) + "s", headers[c]));
         }
         sb.append("\n");
 
-        // By ID section (fixed order to keep report consistent)
-        DoublyLinkedList<Medicine> byId = copyList();
-        byId.mergeSort(BY_ID_NUM);
-        sb.append("== Inventory (By ID) ==\n");
-        sb.append(renderList(byId)).append("\n");
+        // Separator
+        for (int c = 0; c < cols; c++) {
+            sb.append("-".repeat(w[c])).append("  ");
+        }
+        sb.append("\n");
 
-        // Totals by Name
-        sb.append("== Totals By Name ==\n");
-        sb.append(buildGroupedTotalsText()).append("\n");
-
+        // Rows
+        for (String[] r : rows) {
+            for (int c = 0; c < cols; c++) {
+                String cell = (r[c] == null) ? "" : r[c];
+                sb.append(String.format("%-" + (w[c] + 2) + "s", cell));
+            }
+            sb.append("\n");
+        }
         return sb.toString();
     }
 
+    /**
+     * After displaying a report/table, optionally export as text file.
+     */
+    private void offerExportAfterDisplay(String exportTitle, String exportBody) {
+        int act = pharmacyUI.getPostReportAction();
+        if (act == 1) {
+            String path = exportReportToFile(exportTitle, exportBody);
+            if (path == null) {
+                pharmacyUI.displayMessage("\nFailed to export report.\n");
+            } else {
+                pharmacyUI.displayExportResult(path);
+            }
+            MessageUI.pressEnterToContinue();
+        } else {
+            MessageUI.clearConsole();
+        }
+    }
+
+    /**
+     * Export the given title/body to a filesystem-safe .txt; returns absolute
+     * path or null on failure.
+     */
     private String exportReportToFile(String title, String body) {
-        java.time.format.DateTimeFormatter fnf = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
-        String filename = title.toLowerCase().replace(' ', '_') + "_"
-                + java.time.LocalDateTime.now().format(fnf) + ".txt";
+        var fnf = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+
+        // Make a safe filename slug from the title
+        String safeTitle = title
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replaceAll("\\s+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_+|_+$", "");
+
+        String filename = safeTitle.toLowerCase() + "_" + java.time.LocalDateTime.now().format(fnf) + ".txt";
         java.io.File file = new java.io.File(filename);
-        try (java.io.PrintWriter pw = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
+
+        try (java.io.PrintWriter pw
+                = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
             pw.println(title);
             pw.println();
             pw.println(body);
         } catch (java.io.IOException e) {
-            return null; // signal failure
+            return null;
         }
         return file.getAbsolutePath();
     }
 
+    /* =========================
+     * Row Mappers (for TablePrinter)
+     * ========================= */
     private String[][] toRowsById(ListInterface<Medicine> list) {
-        java.time.format.DateTimeFormatter df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
+        var df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
         String[][] rows = new String[list.getNumberOfEntries()][5];
         for (int i = 1; i <= list.getNumberOfEntries(); i++) {
             Medicine m = list.getEntry(i);
@@ -401,9 +1323,9 @@ public class MaintainPharmacy {
     }
 
     private String[][] toRowsKpis() {
+        var df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
         Medicine earliest = getEarliestExpiry();
         Medicine latest = getLatestExpiry();
-        java.time.format.DateTimeFormatter df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
 
         String[][] rows = new String[5][2];
         rows[0][0] = "Total SKUs";
@@ -422,7 +1344,7 @@ public class MaintainPharmacy {
     }
 
     private String[][] toRowsTotalsByName() {
-        // Build totals (reuse your existing NameTotal logic)
+        // Build totals by name
         DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             Medicine m = medicineList.getEntry(i);
@@ -459,6 +1381,7 @@ public class MaintainPharmacy {
         if (tmp.isEmpty()) {
             return new String[0][0];
         }
+
         tmp.mergeSort((a, b) -> {
             int c = Integer.compare(a.getStock(), b.getStock());
             return (c != 0) ? c : BY_ID_NUM.compare(a, b);
@@ -467,87 +1390,47 @@ public class MaintainPharmacy {
     }
 
     private String[][] toRowsNearExpiry(int days) {
-        java.time.LocalDate cutoff = java.time.LocalDate.now().plusDays(days);
+        LocalDate today = LocalDate.now();
+        LocalDate cutoff = today.plusDays(days);
+
         DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             Medicine m = medicineList.getEntry(i);
-            if (!m.getExpiryDate().isAfter(cutoff)) {
+            LocalDate d = m.getExpiryDate();
+            // Include date range [today .. cutoff]
+            if (!d.isBefore(today) && !d.isAfter(cutoff)) {
                 tmp.add(m);
             }
         }
         if (tmp.isEmpty()) {
             return new String[0][0];
         }
+
         tmp.mergeSort(BY_EXPIRY_THEN_ID);
         return toRowsById(tmp);
     }
 
-    public MaintainPharmacy() {
-        medicineList = medicineDAO.retrieveFromFile();
+    private String[][] toRowsByExpiryDate(ListInterface<Medicine> list) {
+        // identical to toRowsById, just keeping method for readability/semantics
+        return toRowsById(list);
     }
 
-    public void runPharmacyMenu() {
-        int choice = -1;
-        do {
-            choice = pharmacyUI.getMenuChoice();
-            switch (choice) {
-                case 1:
-                    viewAllMedicines();
-                    break;
-                case 2:
-                    addMedicine();
-                    break;
-                case 3:
-                    dispenseMedicine();
-                    break;
-                case 4:
-                    generateInventoryReport();
-                    break;
-                case 5:
-                    generateDispensedReport();
-                    break;
-                case 0:
-                    MessageUI.displayMainMenuMessage();
-                    break;
-                default:
-                    MessageUI.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
+    private String[][] toRowsByPrice(ListInterface<Medicine> list) {
+        // identical to toRowsById, just keeping method for readability/semantics
+        return toRowsById(list);
     }
 
-    public void addMedicine() {
-        MessageUI.clearConsole();
-        String newId = generateNextMedicineId();
-        Medicine newMed = pharmacyUI.inputMedicineDetails(newId);
-        if (newMed == null) {
-            return;
-        }
-
-        MessageUI.clearConsole();
-
-        while (true) {
-            int action = pharmacyUI.confirmAddMedicine(newMed);
-
-            if (action == 1) { // Confirm
-                medicineList.add(newMed);
-                medicineDAO.saveToFile(medicineList);
-                return;
-            } else if (action == 2) { // Edit
-                newMed = pharmacyUI.editMedicineDetails(newMed);
-                if (newMed == null) {
-                    return; // Cancelled while editing
-                }
-            } else if (action == 3) { // Discard
-                return;
-            }
-        }
-    }
-
+    /* =========================
+     * IDs
+     * ========================= */
+    /**
+     * Generate next medicine ID in the format M#### (1-based, padded to 4).
+     */
     private String generateNextMedicineId() {
         int max = 0;
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            String id = medicineList.getEntry(i).getMedId().substring(1); // skip 'M'
-            int num = Integer.parseInt(id);
+            String idNum = medicineList.getEntry(i).getMedId().substring(1); // skip 'M'
+            int num = Integer.parseInt(idNum);
             if (num > max) {
                 max = num;
             }
@@ -555,275 +1438,9 @@ public class MaintainPharmacy {
         return String.format("M%04d", max + 1);
     }
 
-    public void viewAllMedicines() {
-        MessageUI.clearConsole();
-
-        if (medicineList.isEmpty()) {
-            MessageUI.displayEmptyMessage();
-            MessageUI.pressEnterToContinue();
-            return;
-        }
-
-        int choice = pharmacyUI.getViewChoice();
-        switch (choice) {
-            case 0:
-                return;
-
-            case 1: { // ID
-                int dir = pharmacyUI.getSortDirection("by ID",
-                        "ID ascending (M0001 → M9999)",
-                        "ID descending (M9999 → M0001)");
-                DoublyLinkedList<Medicine> tmp = copyList();
-                if (dir == 1) {
-                    tmp.mergeSort(BY_ID_NUM);
-                } else {
-                    tmp.mergeSort((a, b) -> BY_ID_NUM.compare(b, a)); // DESC
-                }
-                pharmacyUI.displayMedicineInventory(renderList(tmp));
-                break;
-            }
-
-            case 2: { // Expiry
-                int dir = pharmacyUI.getSortDirection("by Expiry Date",
-                        "Earliest first",
-                        "Latest first");
-                DoublyLinkedList<Medicine> tmp = copyList();
-                if (dir == 1) {
-                    tmp.mergeSort(BY_EXPIRY_THEN_ID);
-                } else {
-                    tmp.mergeSort((a, b) -> BY_EXPIRY_THEN_ID.compare(b, a)); // DESC
-                }
-                pharmacyUI.displayMedicineInventory(renderList(tmp));
-                break;
-            }
-
-            case 3: { // Price
-                int dir = pharmacyUI.getSortDirection("by Price",
-                        "Lowest first",
-                        "Highest first");
-                DoublyLinkedList<Medicine> tmp = copyList();
-                if (dir == 1) {
-                    tmp.mergeSort(BY_PRICE_THEN_ID);
-                } else {
-                    tmp.mergeSort((a, b) -> BY_PRICE_THEN_ID.compare(b, a)); // DESC
-                }
-                pharmacyUI.displayMedicineInventory(renderList(tmp));
-                break;
-            }
-
-            case 4: { // Group by name: total qty
-                String totalsText = buildGroupedTotalsText();
-                pharmacyUI.displayGroupedTotals(totalsText);
-                break;
-            }
-        }
-        MessageUI.pressEnterToContinue();
-    }
-
-    public void dispenseMedicine() {
-        MessageUI.clearConsole();
-        StringBuilder patientOutput = new StringBuilder();
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            Patient p = patientList.getEntry(i);
-            patientOutput.append(i).append(". ")
-                    .append(p.getId()).append(" - ")
-                    .append(p.getName()).append("\n");
-        }
-        pharmacyUI.displayMessage("Select a patient:\n" + patientOutput);
-
-        int selectedIndex = pharmacyUI.inputPatientSelection();
-        if (selectedIndex < 1 || selectedIndex > patientList.getNumberOfEntries()) {
-            pharmacyUI.displayMessage("Invalid selection.");
-            return;
-        }
-
-        Patient selectedPatient = patientList.getEntry(selectedIndex);
-
-        ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
-        String prescription = "";
-        for (int i = treatments.getNumberOfEntries(); i >= 1; i--) {
-            Treatment t = treatments.getEntry(i);
-            if (t.getPatientId().equals(selectedPatient.getId())) {
-                prescription = t.getPrescription();
-                break;
-            }
-        }
-
-        if (prescription.isEmpty()) {
-            pharmacyUI.displayMessage("\nNo prescription found for this patient.");
-            return;
-        }
-
-        String[] meds = prescription.split(",");
-        for (String med : meds) {
-            String[] parts = med.split(":");
-            String medId = parts[0].trim();
-            int qty = Integer.parseInt(parts[1].trim());
-
-            boolean found = false;
-            for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-                Medicine m = medicineList.getEntry(i);
-                if (m.getMedId().equals(medId)) {
-                    found = true;
-                    if (m.getStock() >= qty) {
-                        m.setStock(m.getStock() - qty);
-                        pharmacyUI.displayMessage("Dispensed " + qty + " units of " + m.getName());
-                        DispenseRecord rec = new DispenseRecord(
-                                selectedPatient.getId(),
-                                selectedPatient.getName(),
-                                m.getMedId(),
-                                m.getName(),
-                                qty,
-                                LocalDateTime.now()
-                        );
-                        dispenseLog.add(rec);
-                    } else {
-                        pharmacyUI.displayMessage("Insufficient stock for " + m.getName());
-                    }
-                    break;
-                }
-            }
-
-            if (!found) {
-                pharmacyUI.displayMessage("Medicine " + medId + " not found in inventory.");
-            }
-        }
-
-        medicineDAO.saveToFile(medicineList);
-        dispenseDAO.saveToFile(dispenseLog);
-    }
-
-    public void generateInventoryReport() {
-        MessageUI.clearConsole();
-        if (medicineList.isEmpty()) {
-            pharmacyUI.displayReport("Inventory Report", "");
-            MessageUI.pressEnterToContinue();
-            return;
-        }
-
-        int choice = pharmacyUI.getInventoryReportChoice();
-        switch (choice) {
-            case 0:
-                return;
-
-            case 1: { // Snapshot (tables)
-                // KPIs table
-                pharmacyUI.displayTable("== KPIs ==", new String[]{"Metric", "Value"}, toRowsKpis());
-
-                // Inventory by ID table (stable ascending)
-                DoublyLinkedList<Medicine> byId = copyList();
-                byId.mergeSort(BY_ID_NUM);
-                pharmacyUI.displayTable("== Inventory (By ID) ==",
-                        new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                        toRowsById(byId));
-
-                // Totals by Name table
-                pharmacyUI.displayTable("== Totals By Name ==",
-                        new String[]{"Medicine Name", "Total Qty"},
-                        toRowsTotalsByName());
-                break;
-            }
-
-            case 2: { // Low-stock table
-                int threshold = pharmacyUI.inputLowStockThreshold();
-                String[][] rows = toRowsLowStock(threshold);
-                if (rows.length == 0) {
-                    pharmacyUI.displayReport("Inventory Report (Low-stock)", "(No items at or below threshold)");
-                } else {
-                    pharmacyUI.displayTable("== Low-stock (<= " + threshold + ") ==",
-                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                            rows);
-                }
-                break;
-            }
-
-            case 3: { // Near-expiry table
-                int days = pharmacyUI.inputNearExpiryDays();
-                String[][] rows = toRowsNearExpiry(days);
-                if (rows.length == 0) {
-                    pharmacyUI.displayReport("Inventory Report (Near-expiry)", "(No items expiring within " + days + " days)");
-                } else {
-                    pharmacyUI.displayTable("== Near-expiry (within " + days + " days) ==",
-                            new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                            rows);
-                }
-                break;
-            }
-
-            case 4: { // Snapshot + export (still export your existing text version)
-                String body = buildInventorySnapshotText(); // keep your text snapshot for file
-                String path = exportReportToFile("Inventory Report (Snapshot)", body);
-
-                // On-screen: also show the tables for a nicer UI
-                pharmacyUI.displayTable("== KPIs ==", new String[]{"Metric", "Value"}, toRowsKpis());
-                DoublyLinkedList<Medicine> byId = copyList();
-                byId.mergeSort(BY_ID_NUM);
-                pharmacyUI.displayTable("== Inventory (By ID) ==",
-                        new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
-                        toRowsById(byId));
-                pharmacyUI.displayTable("== Totals By Name ==",
-                        new String[]{"Medicine Name", "Total Qty"},
-                        toRowsTotalsByName());
-
-                if (path == null) {
-                    pharmacyUI.displayMessage("\nFailed to export report.\n");
-                } else {
-                    pharmacyUI.displayExportResult(path);
-                }
-                break;
-            }
-        }
-        MessageUI.pressEnterToContinue();
-    }
-
-    public void generateDispensedReport() {
-        MessageUI.clearConsole();
-
-        // refresh log from file in case other ops wrote
-        dispenseLog = dispenseDAO.retrieveFromFile();
-        if (dispenseLog.isEmpty()) {
-            pharmacyUI.displayReport("Dispensed Medicines Report", "");
-            MessageUI.pressEnterToContinue();
-            return;
-        }
-
-        int choice = pharmacyUI.getDispensedReportChoice();
-        if (choice == 0) {
-            return;
-        }
-
-        switch (choice) {
-            case 1: { // all time detail
-                pharmacyUI.displayReport("Dispensed (All Time - Detail)", renderDispenseDetail(dispenseLog));
-                break;
-            }
-            case 2: { // today summary by medicine
-                LocalDate today = LocalDate.now();
-                pharmacyUI.displayReport("Dispensed Today (By Medicine)", renderDispenseSummaryByMedicine(filterByDateRange(today, today)));
-                break;
-            }
-            case 3: { // last 7 days summary by medicine
-                LocalDate end = LocalDate.now();
-                LocalDate start = end.minusDays(6);
-                pharmacyUI.displayReport("Dispensed Last 7 Days (By Medicine)", renderDispenseSummaryByMedicine(filterByDateRange(start, end)));
-                break;
-            }
-            case 4: { // custom range by medicine
-                LocalDate start = pharmacyUI.inputDate("Start date");
-                LocalDate end = pharmacyUI.inputDate("End date");
-                pharmacyUI.displayReport("Dispensed (" + start + " to " + end + ") (By Medicine)", renderDispenseSummaryByMedicine(filterByDateRange(start, end)));
-                break;
-            }
-            case 5: { // custom range by patient
-                LocalDate start = pharmacyUI.inputDate("Start date");
-                LocalDate end = pharmacyUI.inputDate("End date");
-                pharmacyUI.displayReport("Dispensed (" + start + " to " + end + ") (By Patient)", renderDispenseSummaryByPatient(filterByDateRange(start, end)));
-                break;
-            }
-        }
-        MessageUI.pressEnterToContinue();
-    }
-
+    /* =========================
+     * Entry point (manual run)
+     * ========================= */
     public static void main(String[] args) {
         MaintainPharmacy pharmacy = new MaintainPharmacy();
         pharmacy.runPharmacyMenu();

@@ -7,7 +7,7 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         K key;
         V value;
         Entry<K, V> next;
-        
+
         Entry(K key, V value) {
             this.key = key;
             this.value = value;
@@ -30,6 +30,9 @@ public class HashMap<K, V> implements MapInterface<K, V> {
 
     @SuppressWarnings("unchecked")
     public HashMap(int initialCapacity) {
+        if (initialCapacity <= 0) {
+            throw new IllegalArgumentException("Initial capacity must be positive");
+        }
         this.capacity = initialCapacity;
         this.buckets = new Entry[capacity];
         this.size = 0;
@@ -40,48 +43,54 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         if (key == null) {
             return 0;
         }
-        return Math.abs(key.hashCode()) % capacity;
+        return (key.hashCode() & 0x7FFFFFFF) % capacity;
     }
 
     @Override
-    public void put(K key, V value) {
-        int index = hash(key);
-        Entry<K, V> current = buckets[index];
-        
-        // Check if key already exists
-        while (current != null) {
-            if (current.key != null && current.key.equals(key)) {
-                current.value = value; // Update existing value
-                return;
-            }
-            current = current.next;
+    public V put(K key, V value) {
+    int index = hash(key);
+    Entry<K, V> current = buckets[index];
+
+    // 1) Check if key exists → update value
+    while (current != null) {
+        if ((key == null && current.key == null) ||
+            (key != null && key.equals(current.key))) {
+            V oldValue = current.value;
+            current.value = value;
+            return oldValue; // Return previous value
         }
-        
-        // Add new entry at the beginning of the bucket
-        Entry<K, V> newEntry = new Entry<>(key, value);
-        newEntry.next = buckets[index];
-        buckets[index] = newEntry;
-        size++;
-        
-        // Resize if load factor exceeded
-        if (size > capacity * LOAD_FACTOR) {
-            resize();
-        }
+        current = current.next;
     }
+
+    // 2) Ensure capacity before adding new key
+    if (size + 1 > capacity * LOAD_FACTOR) {
+        resize();
+        index = hash(key); // Recompute index after resize
+    }
+
+    // 3) Insert new entry at head of bucket
+    Entry<K, V> newEntry = new Entry<>(key, value);
+    newEntry.next = buckets[index];
+    buckets[index] = newEntry;
+    size++;
+
+    return null; // No previous value
+}
+
 
     @Override
     public V get(K key) {
         int index = hash(key);
         Entry<K, V> current = buckets[index];
-        
+
         while (current != null) {
-            if (current.key != null && current.key.equals(key)) {
+            if ((key == null && current.key == null) ||
+                (key != null && key.equals(current.key))) {
                 return current.value;
             }
             current = current.next;
         }
-        
-        return null; // Key not found
+        return null;
     }
 
     @Override
@@ -89,31 +98,37 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         int index = hash(key);
         Entry<K, V> current = buckets[index];
         Entry<K, V> previous = null;
-        
+
         while (current != null) {
-            if (current.key != null && current.key.equals(key)) {
+            if ((key == null && current.key == null) ||
+                (key != null && key.equals(current.key))) {
                 V removedValue = current.value;
-                
                 if (previous == null) {
-                    // Removing first entry in bucket
                     buckets[index] = current.next;
                 } else {
                     previous.next = current.next;
                 }
-                
                 size--;
                 return removedValue;
             }
             previous = current;
             current = current.next;
         }
-        
-        return null; // Key not found
+        return null;
     }
 
     @Override
     public boolean containsKey(K key) {
-        return get(key) != null;
+        int index = hash(key);
+        Entry<K, V> current = buckets[index];
+        while (current != null) {
+            if ((key == null && current.key == null) ||
+                (key != null && key.equals(current.key))) {
+                return true;
+            }
+            current = current.next;
+        }
+        return false;
     }
 
     @Override
@@ -121,7 +136,8 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         for (int i = 0; i < capacity; i++) {
             Entry<K, V> current = buckets[i];
             while (current != null) {
-                if (current.value != null && current.value.equals(value)) {
+                if ((value == null && current.value == null) ||
+                    (value != null && value.equals(current.value))) {
                     return true;
                 }
                 current = current.next;
@@ -174,24 +190,24 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         return values;
     }
 
-    // Resize the hash table when load factor is exceeded
+    // Efficient O(n) resize
     @SuppressWarnings("unchecked")
     private void resize() {
         Entry<K, V>[] oldBuckets = buckets;
-        int oldCapacity = capacity;
-        
         capacity *= 2;
         buckets = new Entry[capacity];
-        size = 0;
-        
-        // Rehash all entries
-        for (int i = 0; i < oldCapacity; i++) {
+
+        for (int i = 0; i < oldBuckets.length; i++) {
             Entry<K, V> current = oldBuckets[i];
             while (current != null) {
-                put(current.key, current.value);
-                current = current.next;
+                Entry<K, V> next = current.next;
+                int newIndex = hash(current.key); // Reuse hash()
+                current.next = buckets[newIndex];
+                buckets[newIndex] = current;
+                current = next;
             }
         }
+        // size remains unchanged
     }
 
     @Override
@@ -199,11 +215,9 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         if (isEmpty()) {
             return "{}";
         }
-        
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         boolean first = true;
-        
         for (int i = 0; i < capacity; i++) {
             Entry<K, V> current = buckets[i];
             while (current != null) {
@@ -215,8 +229,72 @@ public class HashMap<K, V> implements MapInterface<K, V> {
                 current = current.next;
             }
         }
-        
         sb.append("}");
         return sb.toString();
+    }
+
+    // Optional/Advanced methods implementation
+    @Override
+    public void putAll(MapInterface<K, V> otherMap) {
+        if (otherMap == null) {
+            return;
+        }
+        ListInterface<K> keys = otherMap.getKeys();
+        for (int i = 1; i <= keys.getNumberOfEntries(); i++) {
+            K key = keys.getEntry(i);
+            V value = otherMap.get(key);
+            put(key, value);
+        }
+    }
+
+    @Override
+    public V replace(K key, V newValue) {
+        if (!containsKey(key)) {
+            return null; // Key doesn't exist, no replacement
+        }
+        return put(key, newValue); // Use existing put method which returns old value
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MapInterface)) return false;
+
+        @SuppressWarnings("unchecked")
+        MapInterface<K, V> otherMap = (MapInterface<K, V>) o;
+
+        if (size() != otherMap.size()) {
+            return false;
+        }
+
+        // Check if all key-value pairs match
+        ListInterface<K> keys = getKeys();
+        for (int i = 1; i <= keys.getNumberOfEntries(); i++) {
+            K key = keys.getEntry(i);
+            V thisValue = get(key);
+            V otherValue = otherMap.get(key);
+
+            if ((thisValue == null && otherValue != null) ||
+                (thisValue != null && !thisValue.equals(otherValue))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 0;
+        for (int i = 0; i < capacity; i++) {
+            Entry<K, V> current = buckets[i];
+            while (current != null) {
+                // Combine key and value hash codes
+                int keyHash = (current.key == null) ? 0 : current.key.hashCode();
+                int valueHash = (current.value == null) ? 0 : current.value.hashCode();
+                hash += keyHash ^ valueHash; // XOR for better distribution
+                current = current.next;
+            }
+        }
+        return hash;
     }
 }
