@@ -422,11 +422,10 @@ public class PatientUI {
 
     public int displayViewPatientsMenu() {
         System.out.println("\n=== VIEW PATIENTS MENU ===");
-        System.out.println("1. View All Patients (Default Order)");
-        System.out.println("2. Sort by Patient ID");
-        System.out.println("3. Sort by Name");
-        System.out.println("4. Sort by Age");
-        System.out.println("5. Sort by Registration Date");
+        System.out.println("1. Sort by Patient ID");
+        System.out.println("2. Sort by Name");
+        System.out.println("3. Sort by Age");
+        System.out.println("4. Sort by Registration Date");
         System.out.println("0. Return to Main Menu");
         System.out.println("==========================");
         return getMenuChoice();

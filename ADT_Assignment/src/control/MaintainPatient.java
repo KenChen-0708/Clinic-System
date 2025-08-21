@@ -418,21 +418,18 @@ public class MaintainPatient {
 
             switch (choice) {
                 case 1:
-                    displayPatientsTableWithAges(patientList, "Default Order");
-                    break;
-                case 2:
                     ListInterface<Patient> sortedById = sortPatientsByID();
                     displayPatientsTableWithAges(sortedById, "Sorted by ID");
                     break;
-                case 3:
+                case 2:
                     ListInterface<Patient> sortedByName = sortPatientsByName();
                     displayPatientsTableWithAges(sortedByName, "Sorted by Name");
                     break;
-                case 4:
+                case 3:
                     ListInterface<Patient> sortedByAge = sortPatientsByAge();
                     displayPatientsTableWithAges(sortedByAge, "Sorted by Age");
                     break;
-                case 5:
+                case 4:
                     ListInterface<Patient> sortedByDate = sortPatientsByRegistrationDate();
                     displayPatientsTableWithAges(sortedByDate, "Sorted by Registration Date");
                     break;
@@ -444,7 +441,7 @@ public class MaintainPatient {
                     continue;
             }
 
-            if (choice >= 1 && choice <= 5) {
+            if (choice >= 1 && choice <= 4) {
                 patientUI.askToContinueOrReturnToMenu();
             }
         }
