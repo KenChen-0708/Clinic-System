@@ -139,7 +139,10 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         return getNodeAt(givenPosition).data;
     }
 
-    // Check if a value exists in the list
+    // ================================
+    // Searching methods
+    // ================================
+    // Check if a value exists in the list (linearSearch)
     @Override
     public boolean contains(T anEntry) {
         Node current = head;
@@ -274,23 +277,6 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
             newHead.prev = null;
         }
         return newHead;
-    }
-
-    // ================================
-    // Searching methods
-    // ================================
-    @Override
-    public int linearSearch(T target) {
-        Node current = head;
-        int position = 1;
-        while (current != null) {
-            if (current.data.equals(target)) {
-                return position; // Found
-            }
-            current = current.next;
-            position++;
-        }
-        return -1; // Not found
     }
 
     // Check if the list is sorted according to a comparator
