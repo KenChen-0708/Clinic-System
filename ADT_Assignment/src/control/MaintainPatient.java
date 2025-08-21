@@ -454,19 +454,8 @@ public class MaintainPatient {
             sortedList.add(patientList.getEntry(i));
         }
 
-        // Simple bubble sort by registration date (earliest first)
-        for (int i = 1; i <= sortedList.getNumberOfEntries() - 1; i++) {
-            for (int j = 1; j <= sortedList.getNumberOfEntries() - i; j++) {
-                Patient current = sortedList.getEntry(j);
-                Patient next = sortedList.getEntry(j + 1);
-
-                // Compare registration dates (earlier dates come first)
-                if (current.getRegistrationDate().isAfter(next.getRegistrationDate())) {
-                    sortedList.replace(j, next);
-                    sortedList.replace(j + 1, current);
-                }
-            }
-        }
+        // Sort by Registration Date using List ADT sorting function (earliest first)
+        sortedList.mergeSort((p1, p2) -> p1.getRegistrationDate().compareTo(p2.getRegistrationDate()));
 
         return sortedList;
     }
@@ -1072,17 +1061,9 @@ public class MaintainPatient {
             sortedList.add(patientList.getEntry(i));
         }
 
-        // Bubble sort by registration date (oldest first)
-        for (int i = 1; i <= sortedList.getNumberOfEntries() - 1; i++) {
-            for (int j = 1; j <= sortedList.getNumberOfEntries() - i; j++) {
-                if (sortedList.getEntry(j).getRegistrationDate().isAfter(
-                        sortedList.getEntry(j + 1).getRegistrationDate())) {
-                    Patient temp = sortedList.getEntry(j);
-                    sortedList.replace(j, sortedList.getEntry(j + 1));
-                    sortedList.replace(j + 1, temp);
-                }
-            }
-        }
+        // Sort by registration date using List ADT sorting function (oldest first)
+        sortedList.mergeSort((p1, p2) -> p1.getRegistrationDate().compareTo(p2.getRegistrationDate()));
+
         return sortedList;
     }
 
