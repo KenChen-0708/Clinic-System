@@ -1,7 +1,15 @@
 package utility;
 
+/**
+ * Utility class for validation operations
+ * ECB-compliant: Contains only static methods, no state
+ */
+public final class ValidationUtil {
 
-public class ValidationUtil {
+    // Private constructor to prevent instantiation
+    private ValidationUtil() {
+        throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    }
     
     /**
      * Validates patient name format

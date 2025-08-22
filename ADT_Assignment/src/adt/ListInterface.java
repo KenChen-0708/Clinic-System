@@ -25,8 +25,10 @@ public interface ListInterface<T> {
     public boolean isFull();
     
     public void mergeSort(Comparator<T> comparator);
-    
+
     public boolean isSorted(Comparator<T> comparator);
+
+    public void reverse();  
 
     public String toString();
 }
