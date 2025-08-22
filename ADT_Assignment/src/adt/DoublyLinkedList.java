@@ -297,6 +297,53 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
     }
 
     // ================================
+    // Reverse operation
+    // ================================
+    /**
+     * Reverses the order of elements in the doubly linked list
+     *
+     * Algorithm:
+     * 1. Store original head and tail references for O(1) swapping
+     * 2. Traverse the list once, swapping next/prev pointers for each node
+     * 3. Swap head and tail references to complete the reversal
+     *
+     * Time Complexity: O(n) - single pass through the list
+     * Space Complexity: O(1) - only uses a few temporary variables
+     *
+     * This implementation fixes two key issues:
+     * - Efficiency: No unnecessary second traversal to find new tail
+     * - Logic clarity: Direct head/tail swapping instead of relying on loop side effects
+     */
+    @Override
+    public void reverse() {
+        if (numberOfEntries <= 1) {
+            return; // Nothing to reverse for empty list or single element
+        }
+
+        // Store original head and tail for efficient O(1) swapping at the end
+        Node originalHead = head;
+        Node originalTail = tail;
+
+        Node current = head;
+
+        // Single pass: swap next and prev pointers for all nodes
+        while (current != null) {
+            Node nextNode = current.next; // Store next before we modify pointers
+
+            // Swap the next and prev pointers for current node
+            Node temp = current.prev;
+            current.prev = current.next;
+            current.next = temp;
+
+            current = nextNode; // Move to next node using original direction
+        }
+
+        // Complete the reversal: swap head and tail references (O(1) operation)
+        head = originalTail;
+        tail = originalHead;
+    }
+
+    // ================================
     // String representation
     // ================================
     @Override

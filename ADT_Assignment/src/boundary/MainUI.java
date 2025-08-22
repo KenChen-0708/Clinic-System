@@ -7,7 +7,7 @@ import control.MaintainPharmacy;
 import control.SummaryReport;
 import utility.MessageUI;
 
-import java.util.Scanner;
+import java.util.Scanner;         // ECB: User input
 
 public class MainUI {
 
