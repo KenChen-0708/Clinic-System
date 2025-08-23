@@ -3,11 +3,54 @@ package control;
 import adt.DoublyLinkedList;
 import dao.DiagnosisDAO;
 import entity.Diagnosis;
+import entity.TreatmentMedicineList;
+import boundary.PharmacyUI;
+import adt.ListInterface;
 
 public class MaintainDiagnosis {
 
     private DoublyLinkedList<Diagnosis> diagnosisList = new DoublyLinkedList<>();
     private final DiagnosisDAO diagnosisDao = new DiagnosisDAO();
+    
+    // ADT for caching frequently used data
+    private DoublyLinkedList<String> statusOptions;
+    private DoublyLinkedList<String> mealTimingOptions;
+    private DoublyLinkedList<String> availableMedicines;
+    
+    public MaintainDiagnosis() {
+        initializeOptions();
+    }
+
+    // Initialize common options using ADT for better performance
+    private void initializeOptions() {
+        // Status options
+        statusOptions = new DoublyLinkedList<>();
+        statusOptions.add("Pending");
+        statusOptions.add("Completed");
+
+        // Meal timing options
+        mealTimingOptions = new DoublyLinkedList<>();
+        mealTimingOptions.add("Before meal");
+        mealTimingOptions.add("After meal");
+
+        // Load available medicines (cache for better performance)
+        loadAvailableMedicines();
+    }
+
+    private void loadAvailableMedicines() {
+        availableMedicines = new DoublyLinkedList<>();
+        try {
+            PharmacyUI pharmacyUI = new PharmacyUI();
+            ListInterface<String> medicineNames = pharmacyUI.getMedicineNames();
+
+            // Copy to our cached list
+            for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
+                availableMedicines.add(medicineNames.getEntry(i));
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not load medicines from pharmacy.");
+        }
+    }
     
     // CREATE - Add new diagnosis
     public boolean addDiagnosis(Diagnosis newDiagnosis) {
@@ -157,8 +200,106 @@ public class MaintainDiagnosis {
         return report.toString();
     }
     
-    // PRIVATE HELPER METHODS - Eliminate code duplication
+    // MEDICINE MANAGEMENT - Get cached options
+    public DoublyLinkedList<String> getStatusOptions() {
+        return statusOptions;
+    }
     
+    public DoublyLinkedList<String> getMealTimingOptions() {
+        return mealTimingOptions;
+    }
+    
+    public DoublyLinkedList<String> getAvailableMedicines() {
+        return availableMedicines;
+    }
+    
+    public void refreshMedicineCache() {
+        loadAvailableMedicines();
+    }
+    
+    // MEDICINE MANAGEMENT - Create medicine list
+    public DoublyLinkedList<TreatmentMedicineList> createMedicineList(
+            DoublyLinkedList<String> prescriptions,
+            DoublyLinkedList<Integer> tablets,
+            DoublyLinkedList<String> mealTimings,
+            DoublyLinkedList<Integer> timesPerDay,
+            DoublyLinkedList<Integer> totalDays) {
+        
+        DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
+        
+        // Validate input lists have same size
+        int size = prescriptions.getNumberOfEntries();
+        if (tablets.getNumberOfEntries() != size || 
+            mealTimings.getNumberOfEntries() != size ||
+            timesPerDay.getNumberOfEntries() != size ||
+            totalDays.getNumberOfEntries() != size) {
+            return medicines; // Return empty list if sizes don't match
+        }
+        
+        // Create medicine objects
+        for (int i = 1; i <= size; i++) {
+            TreatmentMedicineList medicine = new TreatmentMedicineList(
+                "", // Treatment ID will be set later
+                prescriptions.getEntry(i),
+                tablets.getEntry(i),
+                mealTimings.getEntry(i),
+                timesPerDay.getEntry(i),
+                totalDays.getEntry(i)
+            );
+            medicines.add(medicine);
+        }
+        
+        return medicines;
+    }
+    
+    // VALIDATION METHODS - Data validation logic
+    public boolean isValidMedicineChoice(int choice) {
+        return choice >= 1 && choice <= availableMedicines.getNumberOfEntries();
+    }
+    
+    public String getMedicineByChoice(int choice) {
+        if (isValidMedicineChoice(choice)) {
+            return availableMedicines.getEntry(choice);
+        }
+        return null;
+    }
+    
+    public boolean isValidStatusChoice(int choice) {
+        return choice >= 1 && choice <= statusOptions.getNumberOfEntries();
+    }
+    
+    public String getStatusByChoice(int choice) {
+        if (isValidStatusChoice(choice)) {
+            return statusOptions.getEntry(choice);
+        }
+        return null;
+    }
+    
+    public boolean isValidMealTimingChoice(int choice) {
+        return choice >= 1 && choice <= mealTimingOptions.getNumberOfEntries();
+    }
+    
+    public String getMealTimingByChoice(int choice) {
+        if (isValidMealTimingChoice(choice)) {
+            return mealTimingOptions.getEntry(choice);
+        }
+        return null;
+    }
+    
+    // DATA PROCESSING - Business logic for data processing
+    public DoublyLinkedList<String> processSymptoms(String symptomInput) {
+        DoublyLinkedList<String> symptoms = new DoublyLinkedList<>();
+        if (symptomInput != null && !symptomInput.trim().isEmpty()) {
+            symptoms.add(symptomInput.trim());
+        }
+        return symptoms;
+    }
+    
+    public boolean isValidInput(String input) {
+        return input != null && !input.trim().isEmpty();
+    }
+    
+    // PRIVATE HELPER METHODS - Eliminate code duplication
     private void refreshData() {
         diagnosisList = (DoublyLinkedList<Diagnosis>) diagnosisDao.retrieveFromFile();
     }

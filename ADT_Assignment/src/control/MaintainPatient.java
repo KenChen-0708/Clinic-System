@@ -9,6 +9,7 @@ import adt.HashMap;
 import adt.MapInterface;
 import boundary.PatientUI;
 import dao.PatientDAO;
+import entity.Doctor;
 import entity.Patient;
 import utility.ValidationUtil;
 import java.util.Comparator;
@@ -238,15 +239,35 @@ public class MaintainPatient {
         // Use the helper method that properly cleans up all tracking maps
         Patient nextPatient = dequeuePatient();
         if (nextPatient != null) {
-            // Set serving patient for treatment module
-            if (maintainTreatment != null) {
-                maintainTreatment.setServingPatient(nextPatient);
+            //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+            MaintainDoctor maintainDoctor = new MaintainDoctor();
+            //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+            Doctor availableDoctor = maintainDoctor.findAvailableDoctor();
+
+            //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+            if (availableDoctor != null) {
+                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+                availableDoctor.setAvailability("On Duty");
+                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+                maintainDoctor.updateDoctorInList(availableDoctor);
+
+                // Set serving patient for treatment module
+                if (maintainTreatment != null) {
+                    //Siuyee new changes - use new ADT queue system to store multiple serving patients and doctors
+                    maintainTreatment.addServingPatientDoctorPair(nextPatient, availableDoctor);
+                }
+
+                String queueNum = patientQueue.getQueueNumber(nextPatient);
+                return new QueueOperationResult(true, "PATIENT_SERVED", nextPatient, queueNum, patientQueue.size());
+
+                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+            } else {
+                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+                enqueuePatient(nextPatient);
+                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+                return new QueueOperationResult(false, "NO_AVAILABLE_DOCTOR", null, null, patientQueue.size());
             }
-
-            String queueNum = patientQueue.getQueueNumber(nextPatient);
-            return new QueueOperationResult(true, "PATIENT_SERVED", nextPatient, queueNum, patientQueue.size());
         }
-
         return new QueueOperationResult(false, "OPERATION_FAILED", null, null, patientQueue.size());
     }
 
