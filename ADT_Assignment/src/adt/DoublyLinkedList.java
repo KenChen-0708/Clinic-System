@@ -2,6 +2,7 @@ package adt;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.Iterator;
 
 public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
 
@@ -16,6 +17,37 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
 
         Node(T data) {
             this.data = data;
+        }
+    }
+    
+    // ================================
+    // Inner Iterator class
+    // ================================
+    private class ListIterator implements Iterator<T> {
+        private Node currentNode;
+
+        public ListIterator() {
+            currentNode = head;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return currentNode != null;
+        }
+
+        @Override
+        public T next() {
+            if (!hasNext()) {
+                throw new java.util.NoSuchElementException();
+            }
+            T data = currentNode.data;
+            currentNode = currentNode.next;
+            return data;
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("Remove not supported by this iterator.");
         }
     }
 
@@ -341,6 +373,14 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         // Complete the reversal: swap head and tail references (O(1) operation)
         head = originalTail;
         tail = originalHead;
+    }
+    
+    // ================================
+    // Iterator method
+    // ================================
+    @Override
+    public Iterator<T> iterator() {
+        return new ListIterator();
     }
 
     // ================================
