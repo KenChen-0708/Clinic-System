@@ -195,6 +195,30 @@ public class MaintainDoctor {
         }
     }
 
+    //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+    public Doctor findAvailableDoctor() {
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor doc = doctorList.getEntry(i);
+            if (doc.getAvailability() != null
+                    && doc.getAvailability().equalsIgnoreCase("Available")) {
+                return doc;
+            }
+        }
+        return null; // No available doctors
+    }
+
+    //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+    public void updateDoctorInList(Doctor updatedDoctor) {
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor doc = doctorList.getEntry(i);
+            if (doc.getId().equals(updatedDoctor.getId())) {
+                doctorList.replace(i, updatedDoctor);
+                save();
+                break;
+            }
+        }
+    }
+
     // =========================
     // Statistics using custom HashMap
     // =========================
