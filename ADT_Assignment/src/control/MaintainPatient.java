@@ -68,9 +68,8 @@ public class MaintainPatient {
     }
 
     /**
-     * Unified method to update all data structures consistently Ensures data
-     * integrity across list, maps, and file storage
-     *
+     * Unified method to update all data structures consistently
+     * Ensures data integrity across list, maps, and file storage
      * @param oldPatient the patient to be updated
      * @param newPatient the updated patient data
      * @return true if update successful, false if IC conflict detected
@@ -192,8 +191,10 @@ public class MaintainPatient {
         queueIcMap.clear(); // O(1) clear IC map
     }
 
+
+
     /**
-     * Run patient menu
+     * Run patient menu 
      */
     public void runPatientMenu() {
         patientUI.run();
@@ -201,7 +202,6 @@ public class MaintainPatient {
 
     /**
      * Add patient to queue by ID
-     *
      * @param patientId ID of patient to add
      * @return QueueOperationResult with status and data
      */
@@ -229,7 +229,6 @@ public class MaintainPatient {
 
     /**
      * Serve next patient in queue
-     *
      * @return QueueOperationResult with served patient data
      */
     public QueueOperationResult serveNextPatient() {
@@ -274,7 +273,6 @@ public class MaintainPatient {
 
     /**
      * Get current queue status
-     *
      * @return QueueStatusData with queue information
      */
     public QueueStatusData getCurrentQueueStatus() {
@@ -292,7 +290,6 @@ public class MaintainPatient {
      * Queue status data transfer object
      */
     public static class QueueStatusData {
-
         private final int totalWaiting;
         private final Patient nextPatient;
         private final String nextQueueNumber;
@@ -303,26 +300,14 @@ public class MaintainPatient {
             this.nextQueueNumber = nextQueueNumber;
         }
 
-        public int getTotalWaiting() {
-            return totalWaiting;
-        }
-
-        public Patient getNextPatient() {
-            return nextPatient;
-        }
-
-        public String getNextQueueNumber() {
-            return nextQueueNumber;
-        }
-
-        public boolean isEmpty() {
-            return totalWaiting == 0;
-        }
+        public int getTotalWaiting() { return totalWaiting; }
+        public Patient getNextPatient() { return nextPatient; }
+        public String getNextQueueNumber() { return nextQueueNumber; }
+        public boolean isEmpty() { return totalWaiting == 0; }
     }
 
     /**
-     * Search patient in queue by name
-     *
+     * Search patient in queue by name 
      * @param name Patient name to search
      * @return SearchResult with patient data
      */
@@ -343,8 +328,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Search patient in queue by IC
-     *
+     * Search patient in queue by IC 
      * @param ic Patient IC to search
      * @return SearchResult with patient data
      */
@@ -366,7 +350,6 @@ public class MaintainPatient {
 
     /**
      * Clear queue
-     *
      * @return QueueOperationResult with clear operation data
      */
     public QueueOperationResult clearQueueLogic() {
@@ -426,8 +409,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if queue is empty
-     *
+     * Check if queue is empty 
      * @return true if queue is empty, false otherwise
      */
     public boolean isQueueEmpty() {
@@ -487,11 +469,13 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if patients exist for viewing returns boolean for UI to handle
+     * Check if patients exist for viewing
+     * returns boolean for UI to handle
      */
     public boolean hasPatients() {
         return patientList.getNumberOfEntries() > 0;
     }
+
 
     /**
      * Handle Patient ID sorting submenu with ascending/descending options
@@ -509,8 +493,8 @@ public class MaintainPatient {
     }
 
     /**
-     * Handle Registration Date sorting submenu with ascending/descending
-     * options Returns the sorted list for UI to display
+     * Handle Registration Date sorting submenu with ascending/descending options
+     * Returns the sorted list for UI to display
      */
     public ListInterface<Patient> handleSortByDateChoice(int choice) {
         switch (choice) {
@@ -522,6 +506,7 @@ public class MaintainPatient {
                 return null; // Invalid choice
         }
     }
+
 
     /**
      * Get sorted patients by name (ascending only)
@@ -564,8 +549,8 @@ public class MaintainPatient {
         return patientData;
     }
 
-    public static class ValidationResult {
 
+    public static class ValidationResult {
         private final boolean valid;
         private final String errorMessage;
 
@@ -574,20 +559,14 @@ public class MaintainPatient {
             this.errorMessage = errorMessage;
         }
 
-        public boolean isValid() {
-            return valid;
-        }
-
-        public String getErrorMessage() {
-            return errorMessage;
-        }
+        public boolean isValid() { return valid; }
+        public String getErrorMessage() { return errorMessage; }
     }
 
     /**
-     * Queue operation result class
+     * Queue operation result class 
      */
     public static class QueueOperationResult {
-
         private final boolean success;
         private final String statusCode;
         private final Patient patient;
@@ -602,32 +581,27 @@ public class MaintainPatient {
             this.totalInQueue = totalInQueue;
         }
 
-        public boolean isSuccess() {
-            return success;
+        public boolean isSuccess() { 
+            return success; 
         }
-
-        public String getStatusCode() {
-            return statusCode;
+        public String getStatusCode() { 
+            return statusCode; 
         }
-
-        public Patient getPatient() {
-            return patient;
+        public Patient getPatient() { 
+            return patient; 
         }
-
-        public String getQueueNumber() {
-            return queueNumber;
+        public String getQueueNumber() { 
+            return queueNumber; 
         }
-
-        public int getTotalInQueue() {
-            return totalInQueue;
+        public int getTotalInQueue() { 
+            return totalInQueue; 
         }
     }
 
     /**
-     * Search result class
+     * Search result class 
      */
     public static class SearchResult {
-
         private final boolean found;
         private final Patient patient;
         private final String queueNumber;
@@ -640,26 +614,14 @@ public class MaintainPatient {
             this.queuePosition = queuePosition;
         }
 
-        public boolean isFound() {
-            return found;
-        }
-
-        public Patient getPatient() {
-            return patient;
-        }
-
-        public String getQueueNumber() {
-            return queueNumber;
-        }
-
-        public int getQueuePosition() {
-            return queuePosition;
-        }
+        public boolean isFound() { return found; }
+        public Patient getPatient() { return patient; }
+        public String getQueueNumber() { return queueNumber; }
+        public int getQueuePosition() { return queuePosition; }
     }
 
     /**
      * Validate IC number format
-     *
      * @param icNumber IC number to validate
      * @return ValidationResult with status and error message
      */
@@ -682,7 +644,6 @@ public class MaintainPatient {
 
     /**
      * Validate name format
-     *
      * @param name Name to validate
      * @return ValidationResult with status and error message
      */
@@ -700,7 +661,6 @@ public class MaintainPatient {
 
     /**
      * Validate phone number format
-     *
      * @param phone Phone number to validate
      * @return ValidationResult with status and error message
      */
@@ -718,8 +678,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Format phone for storage
-     *
+     * Format phone for storage 
      * @param phone Phone number to format
      * @return formatted phone number
      */
@@ -741,8 +700,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Find patients by name
-     *
+     * Find patients by name 
      * @param name Patient name to search for
      * @return List of patients with matching names
      */
@@ -812,8 +770,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Calculate age from IC number
-     *
+     * Calculate age from IC number 
      * @param icNumber Malaysian IC number
      * @return calculated age
      */
@@ -822,8 +779,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if IC number already exists
-     *
+     * Check if IC number already exists 
      * @param icNumber IC number to check
      * @return existing Patient if found, null otherwise
      */
@@ -836,8 +792,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Register new patient
-     *
+     * Register new patient 
      * @param name Patient name
      * @param icNumber Patient IC number
      * @param phone Patient phone number
@@ -858,8 +813,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if patient is already in queue
-     *
+     * Check if patient is already in queue 
      * @param patient Patient to check
      * @return true if patient is in queue, false otherwise
      */
@@ -868,8 +822,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Add patient to queue
-     *
+     * Add patient to queue 
      * @param patient Patient to add to queue
      * @return queue number assigned to patient
      */
@@ -883,17 +836,15 @@ public class MaintainPatient {
     }
 
     /**
-     * Get current queue size
-     *
+     * Get current queue size 
      * @return number of patients in queue
      */
     public int getQueueSize() {
         return patientQueue.size();
     }
-
+    
     /**
-     * Update patient information
-     *
+     * Update patient information 
      * @param currentPatient Patient to update
      * @param updatedPatient New patient data
      * @return true if update successful, false if IC conflict
@@ -907,8 +858,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Remove patient
-     *
+     * Remove patient 
      * @param patient Patient to remove
      * @return true if removal successful
      */
@@ -928,9 +878,7 @@ public class MaintainPatient {
 
     /**
      * Sort patients by Registration Date with order option
-     *
-     * @param ascending true for ascending (oldest first), false for descending
-     * (newest first)
+     * @param ascending true for ascending (oldest first), false for descending (newest first)
      * @return sorted list of patients
      */
     private ListInterface<Patient> sortPatientsByRegistrationDate(boolean ascending) {
@@ -950,7 +898,6 @@ public class MaintainPatient {
 
     /**
      * Sort patients by ID with order option
-     *
      * @param ascending true for ascending (A-Z), false for descending (Z-A)
      * @return sorted list of patients
      */
@@ -971,7 +918,6 @@ public class MaintainPatient {
 
     /**
      * Sort patients by Name (ascending order only)
-     *
      * @return sorted list of patients by name (A-Z)
      */
     private ListInterface<Patient> sortPatientsByName() {
@@ -986,7 +932,6 @@ public class MaintainPatient {
 
     /**
      * Sort patients by Age (ascending order only)
-     *
      * @return sorted list of patients by age (youngest first)
      */
     private ListInterface<Patient> sortPatientsByAge() {
@@ -1005,7 +950,6 @@ public class MaintainPatient {
 
     /**
      * Helper method to create a copy of the patient list
-     *
      * @return new list containing all patients from the main list
      */
     // Create copy of patient list using iterator for efficient traversal
@@ -1020,6 +964,7 @@ public class MaintainPatient {
         return copyList;
     }
 
+  
     private Patient findPatientInQueueByName(String name) {
         // O(1) lookup using secondary queue name map
         return queueNameMap.get(name.toLowerCase());
@@ -1031,6 +976,7 @@ public class MaintainPatient {
         return queueIcMap.get(searchIC);
     }
 
+
     public ListInterface<Patient> getPatientList() {
         return patientList;
     }
@@ -1039,10 +985,8 @@ public class MaintainPatient {
     // HashMap is trusted for O(1) lookups without validation overhead
 
     /**
-     * Generate age demographics data
-     *
-     * @return array with age demographic counts [total, under18, age18to30,
-     * age31to50, age51to65, over65]
+     * Generate age demographics data 
+     * @return array with age demographic counts [total, under18, age18to30, age31to50, age51to65, over65]
      */
     public int[] generateAgeDemographicsData() {
         int under18 = 0;
@@ -1076,8 +1020,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Generate age demographics report data
-     *
+     * Generate age demographics report data 
      * @return AgeDemographicsData object for UI to display
      */
     public AgeDemographicsData generateAgeDemographicsReport() {
@@ -1089,7 +1032,6 @@ public class MaintainPatient {
      * Age demographics data transfer object
      */
     public static class AgeDemographicsData {
-
         private final int totalPatients;
         private final int under18;
         private final int age18to30;
@@ -1106,34 +1048,30 @@ public class MaintainPatient {
             this.over65 = over65;
         }
 
-        public int getTotalPatients() {
-            return totalPatients;
+        public int getTotalPatients() { 
+            return totalPatients; 
         }
-
-        public int getUnder18() {
-            return under18;
+        public int getUnder18() { 
+            return under18; 
         }
-
-        public int getAge18to30() {
-            return age18to30;
+        public int getAge18to30() { 
+            return age18to30; 
         }
-
-        public int getAge31to50() {
-            return age31to50;
+        public int getAge31to50() { 
+            return age31to50; 
         }
-
-        public int getAge51to65() {
-            return age51to65;
+        public int getAge51to65() { 
+            return age51to65; 
         }
-
-        public int getOver65() {
-            return over65;
+        public int getOver65() { 
+            return over65; 
         }
     }
 
+
+
     /**
-     * Check if patients exist for reports
-     *
+     * Check if patients exist for reports 
      * @return true if patients exist, false otherwise
      */
     public boolean hasPatientsForReport() {
@@ -1141,8 +1079,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Generate registration timeline report data
-     *
+     * Generate registration timeline report data 
      * @return RegistrationTimelineData object for UI to display
      */
     public RegistrationTimelineData generateRegistrationTimelineReport() {
@@ -1174,7 +1111,7 @@ public class MaintainPatient {
         while (monthIterator.hasNext()) {
             Patient p = monthIterator.next();
             String monthYear = p.getRegistrationDate().format(
-                    java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
+                java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
 
             Integer count = monthlyCount.get(monthYear);
             if (count == null) {
@@ -1192,57 +1129,50 @@ public class MaintainPatient {
     }
 
     /**
-     * Registration timeline data transfer object
+     * Registration timeline data transfer object 
      */
     public static class RegistrationTimelineData {
-
         private final String[][] patientData;     // Formatted data for UI display
-        private final Patient firstPatient;
-        private final Patient lastPatient;
-        private final int maleCount;
-        private final int femaleCount;
-        private final MapInterface<String, Integer> monthlyCount;
+        private final Patient firstPatient;       
+        private final Patient lastPatient;        
+        private final int maleCount;              
+        private final int femaleCount;            
+        private final MapInterface<String, Integer> monthlyCount; 
 
         public RegistrationTimelineData(String[][] patientData, Patient firstPatient, Patient lastPatient,
-                int maleCount, int femaleCount, MapInterface<String, Integer> monthlyCount) {
-            this.patientData = patientData;
-            this.firstPatient = firstPatient;
-            this.lastPatient = lastPatient;
-            this.maleCount = maleCount;
-            this.femaleCount = femaleCount;
-            this.monthlyCount = monthlyCount;
+                                      int maleCount, int femaleCount, MapInterface<String, Integer> monthlyCount) {
+            this.patientData = patientData;       
+            this.firstPatient = firstPatient;    
+            this.lastPatient = lastPatient;       
+            this.maleCount = maleCount;           
+            this.femaleCount = femaleCount;        
+            this.monthlyCount = monthlyCount;      
         }
 
         // Getter methods for UI layer to access data
-        public String[][] getPatientData() {
-            return patientData;
+        public String[][] getPatientData() { 
+            return patientData; 
         }
-
-        public Patient getFirstPatient() {
-            return firstPatient;
+        public Patient getFirstPatient() { 
+            return firstPatient; 
         }
-
-        public Patient getLastPatient() {
-            return lastPatient;
+        public Patient getLastPatient() { 
+            return lastPatient; 
         }
-
-        public int getMaleCount() {
-            return maleCount;
+        public int getMaleCount() { 
+            return maleCount; 
         }
-
-        public int getFemaleCount() {
-            return femaleCount;
+        public int getFemaleCount() { 
+            return femaleCount; 
         }
-
-        public MapInterface<String, Integer> getMonthlyCount() {
-            return monthlyCount;
+        public MapInterface<String, Integer> getMonthlyCount() { 
+            return monthlyCount; 
         }
     }
 
     /**
      * Sort patients by registration date for report generation (oldest first)
      * This method maintains backward compatibility for report generation
-     *
      * @return sorted list of patients by registration date (oldest first)
      */
     private ListInterface<Patient> sortPatientsByDate() {
@@ -1251,14 +1181,14 @@ public class MaintainPatient {
     }
 
     /**
-     * Create patient entity
+     * Create patient entity 
      */
     public Patient createPatient(String name, String icNumber, String phone, String gender) {
         return new Patient(name, icNumber, phone, gender);
     }
 
     /**
-     * Create patient entity with ID
+     * Create patient entity with ID 
      */
     public Patient createPatientWithId(String id, String name, String icNumber, String phone, String gender, java.time.LocalDate regDate) {
         return new Patient(id, name, icNumber, phone, gender, regDate);
