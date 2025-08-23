@@ -1,6 +1,7 @@
 package adt;
 
 import java.util.Comparator;
+import java.util.Iterator;
 
 public interface ListInterface<T> {
 
@@ -29,6 +30,8 @@ public interface ListInterface<T> {
     public boolean isSorted(Comparator<T> comparator);
 
     public void reverse();  
+    
+    public Iterator<T> iterator();
 
     public String toString();
 }
