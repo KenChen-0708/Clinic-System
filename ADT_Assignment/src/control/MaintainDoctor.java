@@ -6,22 +6,25 @@ import adt.HashMap;
 import boundary.DoctorUI;
 import dao.DoctorDAO;
 import entity.Doctor;
+
 import java.util.Comparator;
 
 public class MaintainDoctor {
 
     private final ListInterface<Doctor> doctorList = new DoublyLinkedList<>();
+    private final HashMap<String, Doctor> doctorMap = new HashMap<>(); // Fast lookups
     private final DoctorDAO doctorDAO;
     private final DoctorUI doctorUI;
 
     public MaintainDoctor() {
         doctorDAO = new DoctorDAO();
 
-        // Load data from file into our custom DoublyLinkedList
+        // Load data from file into both structures
         ListInterface<Doctor> loadedList = doctorDAO.retrieveFromFile();
         if (loadedList != null) {
-            for (int i = 1; i <= loadedList.getNumberOfEntries(); i++) {
-                doctorList.add(loadedList.getEntry(i));
+            for (Doctor d : doctorDAO.getIterable(loadedList)) {
+                doctorList.add(d);
+                doctorMap.put(d.getId(), d);
             }
         }
 
@@ -33,8 +36,9 @@ public class MaintainDoctor {
     // =========================
     public void addDoctor() {
         Doctor doctor = doctorUI.inputDoctorDetails();
-        if (findDoctorById(doctor.getId()) == null) {
+        if (!doctorMap.containsKey(doctor.getId())) {
             doctorList.add(doctor);
+            doctorMap.put(doctor.getId(), doctor);
             save();
             doctorUI.displayMessage("Doctor added successfully.");
         } else {
@@ -44,9 +48,13 @@ public class MaintainDoctor {
 
     public void removeDoctor() {
         String id = doctorUI.inputDoctorId();
-        int index = getDoctorIndexById(id);
-        if (index != -1) {
-            doctorList.remove(index + 1); // list is 1-indexed
+        Doctor toRemove = doctorMap.get(id);
+        if (toRemove != null) {
+            int index = getDoctorIndexById(id);
+            if (index != -1) {
+                doctorList.remove(index + 1); // list is 1-indexed
+            }
+            doctorMap.remove(id);
             save();
             doctorUI.displayMessage("Doctor removed successfully.");
         } else {
@@ -56,7 +64,7 @@ public class MaintainDoctor {
 
     public void updateDoctorDetails() {
         String id = doctorUI.inputDoctorId();
-        Doctor doctor = findDoctorById(id);
+        Doctor doctor = doctorMap.get(id);
         if (doctor != null) {
             String newName = doctorUI.inputDoctorName();
             String newSpecialization = doctorUI.inputSpecialization();
@@ -78,9 +86,9 @@ public class MaintainDoctor {
             return;
         }
         StringBuilder output = new StringBuilder();
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            Doctor d = doctorList.getEntry(i);
-            output.append(i).append(". ")
+        int counter = 1;
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            output.append(counter++).append(". ")
                     .append(d.getId()).append(" - ")
                     .append(d.getName()).append(" | ")
                     .append("Specialization: ").append(d.getSpecialization());
@@ -97,7 +105,7 @@ public class MaintainDoctor {
 
     public void searchDoctorById() {
         String id = doctorUI.inputDoctorId();
-        Doctor doc = findDoctorById(id);
+        Doctor doc = doctorMap.get(id);
         if (doc != null) {
             displayDoctorDetails(doc);
         } else {
@@ -116,7 +124,7 @@ public class MaintainDoctor {
     }
 
     // =========================
-    // Sorting (using DoublyLinkedList.mergeSort)
+    // Sorting
     // =========================
     public void sortDoctorsByName() {
         if (doctorList.isEmpty()) {
@@ -143,7 +151,7 @@ public class MaintainDoctor {
     // =========================
     public void setDoctorSchedule() {
         String id = doctorUI.inputDoctorId();
-        Doctor doc = findDoctorById(id);
+        Doctor doc = doctorMap.get(id);
         if (doc != null) {
             String schedule = doctorUI.inputSchedule();
             doc.setSchedule(schedule);
@@ -156,13 +164,10 @@ public class MaintainDoctor {
 
     public void displayDoctorSchedule() {
         String id = doctorUI.inputDoctorId();
-        Doctor doc = findDoctorById(id);
+        Doctor doc = doctorMap.get(id);
         if (doc != null) {
-            if (doc.getSchedule() != null) {
-                doctorUI.displayMessage("Doctor Schedule: " + doc.getSchedule());
-            } else {
-                doctorUI.displayMessage("No schedule set for this doctor.");
-            }
+            doctorUI.displayMessage("Doctor Schedule: "
+                    + (doc.getSchedule() != null ? doc.getSchedule() : "Not set"));
         } else {
             doctorUI.displayMessage("Doctor not found.");
         }
@@ -173,7 +178,7 @@ public class MaintainDoctor {
     // =========================
     public void setDoctorAvailability() {
         String id = doctorUI.inputDoctorId();
-        Doctor doc = findDoctorById(id);
+        Doctor doc = doctorMap.get(id);
         if (doc != null) {
             String availability = doctorUI.inputAvailability();
             doc.setAvailability(availability);
@@ -186,7 +191,7 @@ public class MaintainDoctor {
 
     public void displayDoctorAvailability() {
         String id = doctorUI.inputDoctorId();
-        Doctor doc = findDoctorById(id);
+        Doctor doc = doctorMap.get(id);
         if (doc != null) {
             doctorUI.displayMessage("Doctor Availability: "
                     + (doc.getAvailability() != null ? doc.getAvailability() : "Not set"));
@@ -196,11 +201,11 @@ public class MaintainDoctor {
     }
 
     // =========================
-    // Statistics using custom HashMap
+    // Statistics
     // =========================
     public void displayStatistics() {
         if (doctorList.isEmpty()) {
-            doctorUI.displayMessage("No doctors available to display statistics.");
+            doctorUI.displayMessage("⚠️ No doctors available to display statistics.");
             return;
         }
 
@@ -209,11 +214,9 @@ public class MaintainDoctor {
         HashMap<String, Integer> availabilityCount = new HashMap<>();
 
         // Count specializations and availability
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            Doctor doc = doctorList.getEntry(i);
-
+        for (Doctor doc : doctorDAO.getIterable(doctorList)) {
             // Specialization
-            String spec = doc.getSpecialization();
+            String spec = doc.getSpecialization() != null ? doc.getSpecialization() : "Not specified";
             Integer count = specializationCount.get(spec);
             specializationCount.put(spec, (count != null ? count : 0) + 1);
 
@@ -224,27 +227,26 @@ public class MaintainDoctor {
         }
 
         StringBuilder stats = new StringBuilder();
-        stats.append("Total Doctors: ").append(totalDoctors).append("\n\n");
+        stats.append("=====================================\n");
+        stats.append("         📊 Doctor Statistics         \n");
+        stats.append("=====================================\n");
+        stats.append(" Total Doctors: ").append(totalDoctors).append("\n\n");
 
-        // Specialization Breakdown
-        stats.append("Specialization Breakdown:\n");
-        ListInterface<String> specKeys = specializationCount.getKeys();
-        for (int i = 1; i <= specKeys.getNumberOfEntries(); i++) {
-            String key = specKeys.getEntry(i);
-            stats.append(" - ").append(key)
-                    .append(": ").append(specializationCount.get(key))
-                    .append("\n");
+        // Specialization breakdown
+        stats.append("🔹 Specialization Breakdown:\n");
+        stats.append("-------------------------------------\n");
+        for (String key : doctorDAO.getIterable(specializationCount.getKeys())) {
+            stats.append(String.format(" %-20s : %d\n", key, specializationCount.get(key)));
         }
 
-        // Availability Breakdown
-        stats.append("\nAvailability Breakdown:\n");
-        ListInterface<String> availKeys = availabilityCount.getKeys();
-        for (int i = 1; i <= availKeys.getNumberOfEntries(); i++) {
-            String key = availKeys.getEntry(i);
-            stats.append(" - ").append(key)
-                    .append(": ").append(availabilityCount.get(key))
-                    .append("\n");
+        // Availability breakdown
+        stats.append("\n🔹 Availability Breakdown:\n");
+        stats.append("-------------------------------------\n");
+        for (String key : doctorDAO.getIterable(availabilityCount.getKeys())) {
+            stats.append(String.format(" %-20s : %d\n", key, availabilityCount.get(key)));
         }
+
+        stats.append("=====================================\n");
 
         doctorUI.displayMessage(stats.toString());
     }
@@ -252,21 +254,13 @@ public class MaintainDoctor {
     // =========================
     // Helpers
     // =========================
-    private Doctor findDoctorById(String id) {
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            Doctor doc = doctorList.getEntry(i);
-            if (doc.getId().equalsIgnoreCase(id)) {
-                return doc;
-            }
-        }
-        return null;
-    }
-
     private int getDoctorIndexById(String id) {
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            if (doctorList.getEntry(i).getId().equalsIgnoreCase(id)) {
-                return i - 1; // return 0-based index
+        int index = 0;
+        for (Doctor doc : doctorDAO.getIterable(doctorList)) {
+            if (doc.getId().equalsIgnoreCase(id)) {
+                return index; // 0-based index
             }
+            index++;
         }
         return -1;
     }
@@ -282,7 +276,7 @@ public class MaintainDoctor {
     }
 
     private void save() {
-        doctorDAO.saveToFile(doctorList);
+        doctorDAO.saveToFile(doctorList); // Save only the list
     }
 
     public void runDoctorMenu() {
@@ -291,8 +285,7 @@ public class MaintainDoctor {
 
     private void searchDoctors(java.util.function.Predicate<Doctor> filter) {
         StringBuilder output = new StringBuilder();
-        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
-            Doctor d = doctorList.getEntry(i);
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
             if (filter.test(d)) {
                 output.append(d).append("\n");
             }

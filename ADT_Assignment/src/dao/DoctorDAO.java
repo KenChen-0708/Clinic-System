@@ -4,6 +4,8 @@ import adt.DoublyLinkedList;
 import adt.ListInterface;
 import entity.Doctor;
 import java.io.*;
+import java.util.Iterator;
+
 
 public class DoctorDAO {
     private final String FILE_NAME = "doctors.dat";
@@ -26,5 +28,22 @@ public class DoctorDAO {
             System.out.println("Error loading doctors.");
         }
         return list;
+    }
+
+    // ✅ Generic adapter so it works with Doctor, String, etc.
+    public <T> Iterable<T> getIterable(ListInterface<T> list) {
+        return () -> new Iterator<T>() {
+            private int currentIndex = 1; // because ListInterface is 1-indexed
+
+            @Override
+            public boolean hasNext() {
+                return currentIndex <= list.getNumberOfEntries();
+            }
+
+            @Override
+            public T next() {
+                return list.getEntry(currentIndex++);
+            }
+        };
     }
 }
