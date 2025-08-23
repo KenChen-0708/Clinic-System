@@ -10,40 +10,37 @@ import adt.MapInterface;
 import boundary.PatientUI;
 import dao.PatientDAO;
 import entity.Patient;
-import utility.MessageUI;
-import utility.FormatUtil;
 import utility.ValidationUtil;
 import java.util.Comparator;
 
 public class MaintainPatient {
 
-    // Primary data storage
-    private final ListInterface<Patient> patientList;        // Main patient storage (DoublyLinkedList)
-    private final PatientDAO patientDAO;                     // Data persistence layer
-    private final PatientUI patientUI;                       // User interface layer
-    private final MaintainTreatment maintainTreatment;  //Siuyee changes - to get current serving patient id
+    private final ListInterface<Patient> patientList;
+    private final PatientDAO patientDAO;
+    private final MaintainTreatment maintainTreatment;
 
-    // Queue management system
-    private final QueueInterface<Patient> patientQueue;      // FIFO line-up queue for patients
+    private final PatientUI patientUI = new PatientUI(this);
 
-    // Secondary indexing for O(1) lookups (HashMap-based)
-    private final MapInterface<String, Patient> patientMap;  // Patient lookup by ID
-    private final MapInterface<String, Patient> icMap;       // Patient lookup by IC number
-    private final MapInterface<String, Boolean> queueMap;    // Queue membership checks
-    private final MapInterface<String, Patient> queueNameMap; // Queue search by name
-    private final MapInterface<String, Patient> queueIcMap;  // Queue search by IC
+    private final QueueInterface<Patient> patientQueue;
+    private final MapInterface<String, Patient> patientMap;
+    private final MapInterface<String, Patient> icMap;
+    private final MapInterface<String, Boolean> queueMap;
+    private final MapInterface<String, Patient> queueNameMap;
+    private final MapInterface<String, Patient> queueIcMap;
 
+    /**
+     * Initialize all data structures and load existing data
+     */
     public MaintainPatient() {
         patientDAO = new PatientDAO();
         patientList = patientDAO.retrieveFromFile();
-        patientUI = new PatientUI(this);
-        patientQueue = new LinkedQueue<>(); // Initialize the line-up queue
-        patientMap = new HashMap<>(); // Initialize patient ID map
-        icMap = new HashMap<>(); // Initialize IC map
-        queueMap = new HashMap<>(); // Initialize queue duplicate prevention map (PatientID -> true if in queue)
-        queueNameMap = new HashMap<>(); // Initialize queue name search map
-        queueIcMap = new HashMap<>(); // Initialize queue IC search map
-        maintainTreatment = new MaintainTreatment(); //Siuyee changes - to get current serving patient id
+        patientQueue = new LinkedQueue<>();
+        patientMap = new HashMap<>();
+        icMap = new HashMap<>();
+        queueMap = new HashMap<>();
+        queueNameMap = new HashMap<>();
+        queueIcMap = new HashMap<>();
+        maintainTreatment = new MaintainTreatment();
 
         // Populate maps with existing patients for efficient lookup
         populateMaps();
@@ -63,7 +60,13 @@ public class MaintainPatient {
         }
     }
 
-    // Unified method to update all data structures consistently
+    /**
+     * Unified method to update all data structures consistently
+     * Ensures data integrity across list, maps, and file storage
+     * @param oldPatient the patient to be updated
+     * @param newPatient the updated patient data
+     * @return true if update successful, false if IC conflict detected
+     */
     private boolean updateAllDataStructures(Patient oldPatient, Patient newPatient) {
         // CRITICAL: Validate IC number uniqueness before update
         if (!oldPatient.getIcNumber().equals(newPatient.getIcNumber())) {
@@ -171,148 +174,202 @@ public class MaintainPatient {
         queueIcMap.clear(); // O(1) clear IC map
     }
 
+
+
+    /**
+     * Run patient menu 
+     */
     public void runPatientMenu() {
         patientUI.run();
     }
 
-    public void handleMenuChoice(int choice) {
-        switch (choice) {
-            case 1:
-                managePatientMenu(); // Dedicated Patient Management Menu
-                break;
-            case 2:
-                managePatientQueue(); // Dedicated Queue Management Menu
-                break;
-            case 3:
-                generateAgeDemographicsReport();
-                break;
-            case 4:
-                generateRegistrationTimelineReport();
-                break;
-            case 0:
-                MessageUI.displayExitMessage();
-                break;
-            default:
-                MessageUI.displayInvalidChoiceMessage();
+    /**
+     * Add patient to queue by ID
+     * @param patientId ID of patient to add
+     * @return QueueOperationResult with status and data
+     */
+    public QueueOperationResult addPatientToQueueById(String patientId) {
+        if (patientId == null || patientId.trim().isEmpty()) {
+            return new QueueOperationResult(false, "INVALID_ID", null, null, 0);
         }
-    }
 
-    private void managePatientMenu() {
-        int choice;
-        do {
-            choice = patientUI.displayPatientManagementMenu();
-            switch (choice) {
-                case 1:
-                    registerNewPatient();
-                    break;
-                case 2:
-                    viewAllPatients();
-                    break;
-                case 3:
-                    searchPatientMenu();
-                    break;
-                case 4:
-                    updatePatient();
-                    break;
-                case 5:
-                    removePatient();
-                    break;
-                case 0:
-                    patientUI.displayMessage("\neturning to Main Patient Menu...");
-                    break;
-                default:
-                    MessageUI.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-    private void searchPatientMenu() {
-        int choice;
-        do {
-            choice = patientUI.displaySearchPatientMenu();
-            switch (choice) {
-                case 1:
-                    searchPatientById();
-                    break;
-                case 2:
-                    searchPatientByName();
-                    break;
-                case 3:
-                    searchPatientByIC();
-                    break;
-                case 0:
-                    patientUI.displayMessage("\nReturning to Patient Management Menu...");
-                    break;
-                default:
-                    MessageUI.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-    private void registerNewPatient() {
-        boolean continueRegistering = true;
-
-        while (continueRegistering) {
-            // First, get IC number and check if user wants to exit
-            String icNumber = patientUI.inputICForRegistration();
-
-            if (icNumber.equals("0")) {
-                patientUI.displayMessage("\nExiting patient registration...\n");
-                break;
-            }
-
-            // Check if patient already exists (by IC number)
-            Patient existingPatient = icMap.get(icNumber); // Use map for O(1) lookup
-
-            if (existingPatient != null) {
-                // Patient already exists - show existing patient details
-                patientUI.displayMessage("\n=== PATIENT ALREADY EXISTS ===");
-                int age = calculateAgeFromIC(existingPatient.getIcNumber());
-                patientUI.displayPatient(existingPatient, age);
-
-                // Ask if they want to add existing patient to queue
-                boolean addToQueue = patientUI.askToAddExistingPatientToQueue(existingPatient.getName());
-                if (addToQueue) {
-                    if (!isInQueue(existingPatient)) { // O(1) check
-                        enqueuePatient(existingPatient); // O(1) add
-                        String queueNum = patientQueue.getQueueNumber(existingPatient);
-                        patientUI.displayMessage("\nExisting patient " + existingPatient.getName() + " has been added to the line-up queue.");
-                        patientUI.displayMessage("Queue Number: " + queueNum);
-                        patientUI.displayMessage("Total patients in queue: " + patientQueue.size());
-                    } else {
-                        patientUI.displayMessage("\nPatient is already in the queue.");
-                    }
-                } else {
-                    patientUI.displayMessage("\nPatient not added to queue.");
-                }
-            } else {
-                // New patient - continue with registration
-                patientUI.displayMessage("\n=== NEW PATIENT REGISTRATION ===");
-                Patient patient = patientUI.inputRemainingPatientDetails(icNumber);
-
-                // Auto-generate patient ID
-                String newId = generateNextPatientId();
-                patient.setId(newId);
-
-                // Use unified method to ensure data consistency
-                addToAllDataStructures(patient);
-                patientUI.displayMessage("\nPatient registered successfully with ID: " + newId);
-
-                // Enhanced registration with queue option:
-                boolean joinQueue = patientUI.askToJoinQueue();
-                if (joinQueue) {
-                    enqueuePatient(patient); // O(1) efficient add
-                    String queueNum = patientQueue.getQueueNumber(patient);
-                    patientUI.displayMessage("\nPatient " + patient.getName() + " has been added to the line-up queue.");
-                    patientUI.displayMessage("Queue Number: " + queueNum);
-                    patientUI.displayMessage("Total patients in queue: " + patientQueue.size() + "\n");
-                } else {
-                    patientUI.displayMessage("\nPatient not added to queue.\n");
-                }
-            }
-
-            continueRegistering = patientUI.askToContinueOperation("register another patient");
+        Patient patient = findPatientById(patientId);
+        if (patient == null) {
+            return new QueueOperationResult(false, "PATIENT_NOT_FOUND", null, null, 0);
         }
+
+        if (isPatientInQueue(patient)) {
+            return new QueueOperationResult(false, "ALREADY_IN_QUEUE", patient, null, getQueueSize());
+        }
+
+        String queueNum = addPatientToQueue(patient);
+        if (queueNum != null) {
+            return new QueueOperationResult(true, "SUCCESS", patient, queueNum, getQueueSize());
+        }
+
+        return new QueueOperationResult(false, "OPERATION_FAILED", patient, null, getQueueSize());
+    }
+
+    /**
+     * Serve next patient in queue
+     * @return QueueOperationResult with served patient data
+     */
+    public QueueOperationResult serveNextPatient() {
+        if (patientQueue.isEmpty()) {
+            return new QueueOperationResult(false, "QUEUE_EMPTY", null, null, 0);
+        }
+
+        // Use the helper method that properly cleans up all tracking maps
+        Patient nextPatient = dequeuePatient();
+        if (nextPatient != null) {
+            // Set serving patient for treatment module
+            if (maintainTreatment != null) {
+                maintainTreatment.setServingPatient(nextPatient);
+            }
+
+            String queueNum = patientQueue.getQueueNumber(nextPatient);
+            return new QueueOperationResult(true, "PATIENT_SERVED", nextPatient, queueNum, patientQueue.size());
+        }
+
+        return new QueueOperationResult(false, "OPERATION_FAILED", null, null, patientQueue.size());
+    }
+
+    /**
+     * Get current queue status
+     * @return QueueStatusData with queue information
+     */
+    public QueueStatusData getCurrentQueueStatus() {
+        if (patientQueue.isEmpty()) {
+            return new QueueStatusData(0, null, null);
+        }
+
+        Patient nextPatient = patientQueue.peek();
+        String queueNum = patientQueue.getQueueNumber(nextPatient);
+
+        return new QueueStatusData(patientQueue.size(), nextPatient, queueNum);
+    }
+
+    /**
+     * Queue status data transfer object
+     */
+    public static class QueueStatusData {
+        private final int totalWaiting;
+        private final Patient nextPatient;
+        private final String nextQueueNumber;
+
+        public QueueStatusData(int totalWaiting, Patient nextPatient, String nextQueueNumber) {
+            this.totalWaiting = totalWaiting;
+            this.nextPatient = nextPatient;
+            this.nextQueueNumber = nextQueueNumber;
+        }
+
+        public int getTotalWaiting() { return totalWaiting; }
+        public Patient getNextPatient() { return nextPatient; }
+        public String getNextQueueNumber() { return nextQueueNumber; }
+        public boolean isEmpty() { return totalWaiting == 0; }
+    }
+
+    /**
+     * Search patient in queue by name 
+     * @param name Patient name to search
+     * @return SearchResult with patient data
+     */
+    public SearchResult searchPatientInQueueByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return new SearchResult(false, null, null, -1);
+        }
+
+        // Use existing method
+        Patient foundPatient = findPatientInQueueByName(name);
+        if (foundPatient != null) {
+            String queueNum = patientQueue.getQueueNumber(foundPatient);
+            int position = patientQueue.getPosition(foundPatient);
+            return new SearchResult(true, foundPatient, queueNum, position);
+        }
+
+        return new SearchResult(false, null, null, -1);
+    }
+
+    /**
+     * Search patient in queue by IC 
+     * @param ic Patient IC to search
+     * @return SearchResult with patient data
+     */
+    public SearchResult searchPatientInQueueByIC(String ic) {
+        if (ic == null || ic.trim().isEmpty()) {
+            return new SearchResult(false, null, null, -1);
+        }
+
+        // Use existing method
+        Patient foundPatient = findPatientInQueueByIC(ic);
+        if (foundPatient != null) {
+            String queueNum = patientQueue.getQueueNumber(foundPatient);
+            int position = patientQueue.getPosition(foundPatient);
+            return new SearchResult(true, foundPatient, queueNum, position);
+        }
+
+        return new SearchResult(false, null, null, -1);
+    }
+
+    /**
+     * Clear queue
+     * @return QueueOperationResult with clear operation data
+     */
+    public QueueOperationResult clearQueueLogic() {
+        if (patientQueue.isEmpty()) {
+            return new QueueOperationResult(false, "QUEUE_ALREADY_EMPTY", null, null, 0);
+        }
+
+        int clearedCount = patientQueue.size();
+        clearAllQueueMaps();
+        return new QueueOperationResult(true, "QUEUE_CLEARED", null, null, clearedCount);
+    }
+
+    /**
+     * Get queue table data for display 
+     * @return queue data formatted for table display
+     */
+    public String[][] getQueueTableData() {
+        if (patientQueue.isEmpty()) {
+            return new String[0][0];
+        }
+
+        // Create a copy of the queue to avoid modifying the original
+        QueueInterface<Patient> tempQueue = new LinkedQueue<>();
+        String[][] queueData = new String[patientQueue.size()][6];
+        int index = 0;
+
+        // Extract data from queue without modifying it
+        while (!patientQueue.isEmpty()) {
+            Patient p = patientQueue.dequeue();
+            String queueNum = patientQueue.getQueueNumber(p);
+            int age = calculateAgeFromIC(p.getIcNumber());
+
+            queueData[index][0] = queueNum != null ? queueNum : String.format("%04d", index + 1);
+            queueData[index][1] = p.getId();
+            queueData[index][2] = p.getName();
+            queueData[index][3] = p.getGender();
+            queueData[index][4] = String.valueOf(age);
+            queueData[index][5] = p.getPhone();
+
+            tempQueue.enqueue(p); // Preserve original queue
+            index++;
+        }
+
+        // Restore original queue
+        while (!tempQueue.isEmpty()) {
+            patientQueue.enqueue(tempQueue.dequeue());
+        }
+
+        return queueData;
+    }
+
+    /**
+     * Check if queue is empty 
+     * @return true if queue is empty, false otherwise
+     */
+    public boolean isQueueEmpty() {
+        return patientQueue.isEmpty();
     }
 
     private String generateNextPatientId() {
@@ -327,47 +384,6 @@ public class MaintainPatient {
             }
         }
         return String.format("P%04d", max + 1);
-    }
-
-    private void removePatient() {
-        boolean continueRemoving = true;
-
-        while (continueRemoving) {
-            String id = patientUI.inputPatientId();
-
-            if (id.equals("0")) {
-                patientUI.displayMessage("\nExiting remove patient...");
-                break;
-            }
-
-            Patient patientToRemove = patientMap.get(id); // Use map for O(1) lookup
-
-            if (patientToRemove != null) {
-                // Show patient details and ask for confirmation
-                patientUI.displayMessage("Patient to be removed:");
-                int age = calculateAgeFromIC(patientToRemove.getIcNumber());
-                patientUI.displayPatient(patientToRemove, age);
-
-                boolean confirmed = patientUI.confirmRemovePatient(patientToRemove.getName());
-
-                if (confirmed) {
-                    // Use unified method to ensure data consistency
-                    removeFromAllDataStructures(patientToRemove);
-                    patientUI.displayMessage("\nPatient removed successfully.");
-
-                    // Also remove from queue if present
-                    if (removePatientFromQueue(patientToRemove)) {
-                        patientUI.displayMessage("Patient also removed from line-up queue.");
-                    }
-                } else {
-                    patientUI.displayMessage("\nPatient removal cancelled.");
-                }
-            } else {
-                patientUI.displayMessage("\nPatient with ID '" + id + "' not found.\n");
-            }
-
-            continueRemoving = patientUI.askToContinueOperation("remove another patient");
-        }
     }
 
     private boolean removePatientFromQueue(Patient patient) {
@@ -404,125 +420,68 @@ public class MaintainPatient {
         return found;
     }
 
-    private void viewAllPatients() {
-        if (patientList.getNumberOfEntries() == 0) {
-            patientUI.displayMessage("No patients registered yet.");
-            patientUI.askToContinueOrReturnToMenu();
-            return;
-        }
+    /**
+     * Check if patients exist for viewing
+     * returns boolean for UI to handle
+     */
+    public boolean hasPatients() {
+        return patientList.getNumberOfEntries() > 0;
+    }
 
-        // Show view menu and handle sorting
-        boolean continueViewing = true;
-        while (continueViewing) {
-            int choice = patientUI.displayViewPatientsMenu();
 
-            switch (choice) {
-                case 1:
-                    displayPatientsTableWithAges(patientList, "Default Order");
-                    break;
-                case 2:
-                    ListInterface<Patient> sortedById = sortPatientsByID();
-                    displayPatientsTableWithAges(sortedById, "Sorted by ID");
-                    break;
-                case 3:
-                    ListInterface<Patient> sortedByName = sortPatientsByName();
-                    displayPatientsTableWithAges(sortedByName, "Sorted by Name");
-                    break;
-                case 4:
-                    ListInterface<Patient> sortedByAge = sortPatientsByAge();
-                    displayPatientsTableWithAges(sortedByAge, "Sorted by Age");
-                    break;
-                case 5:
-                    ListInterface<Patient> sortedByDate = sortPatientsByRegistrationDate();
-                    displayPatientsTableWithAges(sortedByDate, "Sorted by Registration Date");
-                    break;
-                case 0:
-                    continueViewing = false;
-                    break;
-                default:
-                    patientUI.displayMessage("Invalid choice. Please try again.");
-                    continue;
-            }
-
-            if (choice >= 1 && choice <= 5) {
-                patientUI.askToContinueOrReturnToMenu();
-            }
+    /**
+     * Handle Patient ID sorting submenu with ascending/descending options
+     * Returns the sorted list for UI to display
+     */
+    public ListInterface<Patient> handleSortByIdChoice(int choice) {
+        switch (choice) {
+            case 1:
+                return sortPatientsByID(true);  // Ascending (A-Z)
+            case 2:
+                return sortPatientsByID(false); // Descending (Z-A)
+            default:
+                return null; // Invalid choice
         }
     }
 
-    private ListInterface<Patient> sortPatientsByRegistrationDate() {
-        // Create a copy of the patient list for sorting
-        ListInterface<Patient> sortedList = new DoublyLinkedList<>();
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            sortedList.add(patientList.getEntry(i));
+    /**
+     * Handle Registration Date sorting submenu with ascending/descending options
+     * Returns the sorted list for UI to display
+     */
+    public ListInterface<Patient> handleSortByDateChoice(int choice) {
+        switch (choice) {
+            case 1:
+                return sortPatientsByRegistrationDate(true);  // Ascending (Oldest first)
+            case 2:
+                return sortPatientsByRegistrationDate(false); // Descending (Newest first)
+            default:
+                return null; // Invalid choice
         }
-
-        // Simple bubble sort by registration date (earliest first)
-        for (int i = 1; i <= sortedList.getNumberOfEntries() - 1; i++) {
-            for (int j = 1; j <= sortedList.getNumberOfEntries() - i; j++) {
-                Patient current = sortedList.getEntry(j);
-                Patient next = sortedList.getEntry(j + 1);
-
-                // Compare registration dates (earlier dates come first)
-                if (current.getRegistrationDate().isAfter(next.getRegistrationDate())) {
-                    sortedList.replace(j, next);
-                    sortedList.replace(j + 1, current);
-                }
-            }
-        }
-
-        return sortedList;
     }
 
-    private ListInterface<Patient> sortPatientsByID() {
-        // Create a copy of the patient list for sorting
-        ListInterface<Patient> sortedList = new DoublyLinkedList<>();
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            sortedList.add(patientList.getEntry(i));
-        }
 
-        // Sort by ID using List ADT sorting function
-        sortedList.mergeSort((p1, p2) -> p1.getId().compareTo(p2.getId()));
-
-        return sortedList;
+    /**
+     * Get sorted patients by name (ascending only)
+     */
+    public ListInterface<Patient> getSortedPatientsByName() {
+        return sortPatientsByName();
     }
 
-    private ListInterface<Patient> sortPatientsByName() {
-        // Create a copy of the patient list for sorting
-        ListInterface<Patient> sortedList = new DoublyLinkedList<>();
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            sortedList.add(patientList.getEntry(i));
-        }
-
-        // Sort by Name using List ADT sorting function
-        sortedList.mergeSort((p1, p2) -> p1.getName().compareToIgnoreCase(p2.getName()));
-
-        return sortedList;
+    /**
+     * Get sorted patients by age (ascending only)
+     */
+    public ListInterface<Patient> getSortedPatientsByAge() {
+        return sortPatientsByAge();
     }
 
-    private ListInterface<Patient> sortPatientsByAge() {
-        // Create a copy of the patient list for sorting
-        ListInterface<Patient> sortedList = new DoublyLinkedList<>();
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            sortedList.add(patientList.getEntry(i));
-        }
+    /**
+     * Get patient data formatted for table display
+     */
+    public String[][] getPatientTableData(ListInterface<Patient> patients) {
+        String[][] patientData = new String[patients.getNumberOfEntries()][7];
 
-        // Sort by Age using List ADT sorting function
-        sortedList.mergeSort((p1, p2) -> {
-            int age1 = calculateAgeFromIC(p1.getIcNumber());
-            int age2 = calculateAgeFromIC(p2.getIcNumber());
-            return Integer.compare(age1, age2);
-        });
-
-        return sortedList;
-    }
-
-    private void displayPatientsTableWithAges(ListInterface<Patient> patientList, String sortType) {
-        // Prepare patient data with ages (business logic in control layer)
-        String[][] patientData = new String[patientList.getNumberOfEntries()][7];
-
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            Patient p = patientList.getEntry(i);
+        for (int i = 1; i <= patients.getNumberOfEntries(); i++) {
+            Patient p = patients.getEntry(i);
             int age = calculateAgeFromIC(p.getIcNumber());
 
             patientData[i-1][0] = p.getId();
@@ -534,408 +493,399 @@ public class MaintainPatient {
             patientData[i-1][6] = p.getRegistrationDate().toString();
         }
 
-        // Delegate to UI for display
-        patientUI.displayPatientsTableWithData(patientData, sortType);
+        return patientData;
     }
 
-    private void searchPatientById() {
-        boolean continueSearching = true;
 
-        while (continueSearching) {
-            String id = patientUI.inputPatientId();
+    public static class ValidationResult {
+        private final boolean valid;
+        private final String errorMessage;
 
-            if (id == null || id.equals("0")) {
-                patientUI.displayMessage("\nExiting search...");
-                break;
-            }
+        public ValidationResult(boolean valid, String errorMessage) {
+            this.valid = valid;
+            this.errorMessage = errorMessage;
+        }
 
-            // Validate input
-            if (id.trim().isEmpty()) {
-                patientUI.displayMessage("\nInvalid input. Please enter a valid Patient ID.");
-                continue;
-            }
+        public boolean isValid() { return valid; }
+        public String getErrorMessage() { return errorMessage; }
+    }
 
-            Patient patient = patientMap.get(id); // Use map for O(1) lookup
+    /**
+     * Queue operation result class 
+     */
+    public static class QueueOperationResult {
+        private final boolean success;
+        private final String statusCode;
+        private final Patient patient;
+        private final String queueNumber;
+        private final int totalInQueue;
 
-            if (patient != null) {
-                // Validate data consistency
-                if (validatePatientConsistency(patient)) {
-                    int age = calculateAgeFromIC(patient.getIcNumber());
-                    patientUI.displayPatient(patient, age);
-                } else {
-                    patientUI.displayMessage("\nData inconsistency detected. Refreshing data...");
-                    populateMaps();
-                    patient = patientMap.get(id);
-                    if (patient != null) {
-                        int age = calculateAgeFromIC(patient.getIcNumber());
-                        patientUI.displayPatient(patient, age);
-                    } else {
-                        patientUI.displayMessage("\nPatient with ID '" + id + "' not found.");
-                    }
-                }
-            } else {
-                patientUI.displayMessage("\nPatient with ID '" + id + "' not found.");
-            }
+        public QueueOperationResult(boolean success, String statusCode, Patient patient, String queueNumber, int totalInQueue) {
+            this.success = success;
+            this.statusCode = statusCode;
+            this.patient = patient;
+            this.queueNumber = queueNumber;
+            this.totalInQueue = totalInQueue;
+        }
 
-            continueSearching = patientUI.askToContinueOperation("search another patient by ID");
+        public boolean isSuccess() { 
+            return success; 
+        }
+        public String getStatusCode() { 
+            return statusCode; 
+        }
+        public Patient getPatient() { 
+            return patient; 
+        }
+        public String getQueueNumber() { 
+            return queueNumber; 
+        }
+        public int getTotalInQueue() { 
+            return totalInQueue; 
         }
     }
 
-    private void searchPatientByName() {
-        boolean continueSearching = true;
+    /**
+     * Search result class 
+     */
+    public static class SearchResult {
+        private final boolean found;
+        private final Patient patient;
+        private final String queueNumber;
+        private final int queuePosition;
 
-        while (continueSearching) {
-            String name = patientUI.inputPatientName();
-
-            if (name.equals("0")) {
-                patientUI.displayMessage("\nExiting search...");
-                break;
-            }
-
-            ListInterface<Patient> foundPatients = findPatientsByName(name);
-
-            if (foundPatients.getNumberOfEntries() > 0) {
-                patientUI.displayMessage("\nFound " + foundPatients.getNumberOfEntries() + " patient(s) with name '" + name + "':");
-                for (int i = 1; i <= foundPatients.getNumberOfEntries(); i++) {
-                    patientUI.displayMessage("\n--- Patient " + i + " ---");
-                    Patient p = foundPatients.getEntry(i);
-                    int age = calculateAgeFromIC(p.getIcNumber());
-                    patientUI.displayPatient(p, age);
-                }
-            } else {
-                patientUI.displayMessage("\nNo patients found with name '" + name + "'.");
-            }
-
-            continueSearching = patientUI.askToContinueOperation("search another patient by name");
-        }
-    }
-
-    private void searchPatientByIC() {
-        boolean continueSearching = true;
-
-        while (continueSearching) {
-            String ic = patientUI.inputPatientIC();
-
-            if (ic == null || ic.equals("0")) {
-                patientUI.displayMessage("\nExiting search...");
-                break;
-            }
-
-            // Validate input
-            if (ic.trim().isEmpty()) {
-                patientUI.displayMessage("\nInvalid input. Please enter a valid IC number.");
-                continue;
-            }
-
-            Patient patient = icMap.get(ic); // Use map for O(1) lookup
-
-            if (patient != null) {
-                // Validate data consistency
-                if (validatePatientConsistency(patient)) {
-                    int age = calculateAgeFromIC(patient.getIcNumber());
-                    patientUI.displayPatient(patient, age);
-                } else {
-                    patientUI.displayMessage("\nData inconsistency detected. Refreshing data...");
-                    populateMaps();
-                    patient = icMap.get(ic);
-                    if (patient != null) {
-                        int age = calculateAgeFromIC(patient.getIcNumber());
-                        patientUI.displayPatient(patient, age);
-                    } else {
-                        String displayIC = ic.length() == 12 ?
-                            ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8) : ic;
-                        patientUI.displayMessage("\nPatient with IC '" + displayIC + "' not found.");
-                    }
-                }
-            } else {
-                // Format IC for display in error message
-                String displayIC = ic.length() == 12 ?
-                    ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8) : ic;
-                patientUI.displayMessage("\nPatient with IC '" + displayIC + "' not found.");
-            }
-
-            continueSearching = patientUI.askToContinueOperation("search another patient by IC");
-        }
-    }
-
-    private void updatePatient() {
-        boolean continueUpdating = true;
-
-        while (continueUpdating) {
-            String id = patientUI.inputPatientId();
-
-            if (id.equals("0")) {
-                patientUI.displayMessage("\nExiting update patient...");
-                break;
-            }
-
-            Patient patient = patientMap.get(id); // Use map for O(1) lookup
-
-            if (patient != null) {
-                patientUI.displayMessage("Current patient details:");
-                int age = calculateAgeFromIC(patient.getIcNumber());
-                patientUI.displayPatient(patient, age);
-
-                Patient updatedPatient = patientUI.inputUpdatedPatientDetails(patient);
-
-                // Use unified method to ensure data consistency with IC validation
-                boolean updateSuccess = updateAllDataStructures(patient, updatedPatient);
-
-                if (updateSuccess) {
-                    patientUI.displayMessage("\nPatient updated successfully.");
-                } else {
-                    // IC number conflict detected
-                    String displayIC = updatedPatient.getIcNumber().length() == 12 ?
-                        updatedPatient.getIcNumber().substring(0, 6) + "-" +
-                        updatedPatient.getIcNumber().substring(6, 8) + "-" +
-                        updatedPatient.getIcNumber().substring(8) : updatedPatient.getIcNumber();
-                    patientUI.displayMessage("\nERROR: IC number " + displayIC + " already exists for another patient.");
-                    patientUI.displayMessage("Update cancelled to prevent duplicate IC numbers.");
-                }
-            } else {
-                patientUI.displayMessage("\nPatient with ID '" + id + "' not found.");
-            }
-
-            continueUpdating = patientUI.askToContinueOperation("update another patient");
-        }
-    }
-
-    private void managePatientQueue() {
-        int choice;
-        do {
-            choice = patientUI.displayQueueManagementMenu();
-            switch (choice) {
-                case 1:
-                    addPatientToQueue();
-                    break;
-                case 2:
-                    serveNextPatient();
-                    break;
-                case 3:
-                    viewCurrentQueue();
-                    break;
-                case 4:
-                    searchPatientInQueueMenu();
-                    break;
-                case 5:
-                    clearQueue();
-                    break;
-                case 0:
-                    patientUI.displayMessage("Returning to Patient Menu...");
-                    break;
-                default:
-                    MessageUI.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-    private void addPatientToQueue() {
-        boolean continueAdding = true;
-
-        while (continueAdding) {
-            String id = patientUI.inputPatientId();
-
-            if (id.equals("0")) {
-                patientUI.displayMessage("Exiting add to queue...");
-                break;
-            }
-
-            Patient patient = patientMap.get(id); // Use map for O(1) lookup
-
-            if (patient != null) {
-                if (!isInQueue(patient)) { // FAST O(1) check
-                    enqueuePatient(patient); // FAST O(1) add with patient tracking
-                    String queueNum = patientQueue.getQueueNumber(patient);
-                    patientUI.displayMessage("\nPatient " + patient.getName() + " added to line-up queue.");
-                    patientUI.displayMessage("Queue Number: " + queueNum);
-                    patientUI.displayMessage("Total patients in queue: " + patientQueue.size());
-                } else {
-                    patientUI.displayMessage("\nPatient is already in the queue.");
-                }
-            } else {
-                patientUI.displayMessage("\nPatient ID not found.");
-            }
-
-            continueAdding = patientUI.askToContinueOperation("add another patient to queue");
-        }
-    }
-
-    private void serveNextPatient() {
-        boolean continueServing = true;
-
-        while (continueServing && !patientQueue.isEmpty()) {
-            Patient nextPatient = dequeuePatient(); // FAST O(1) removal with patient tracking
-            if (nextPatient != null) {
-                String queueNum = patientQueue.getQueueNumber(nextPatient);
-                maintainTreatment.setServingPatient(nextPatient);  //Siuyee changes - to get current serving patient id
-                if (queueNum != null) {
-                    patientUI.displayMessage("\nNow serving: Queue #" + queueNum +
-                                           " - " + nextPatient.getName() + " (ID: " + nextPatient.getId() + ")");
-                } else {
-                    patientUI.displayMessage("\nNow serving: " + nextPatient.getName() + " (ID: " + nextPatient.getId() + ")");
-                }
-                patientUI.displayMessage("Remaining patients in queue: " + patientQueue.size());
-
-                if (!patientQueue.isEmpty()) {
-                    continueServing = patientUI.askToContinueOperation("serve next patient");
-                } else {
-                    patientUI.displayMessage("\nAll patients have been served. Queue is now empty.");
-                    continueServing = false;
-                }
-            } else {
-                continueServing = false;
-            }
+        public SearchResult(boolean found, Patient patient, String queueNumber, int queuePosition) {
+            this.found = found;
+            this.patient = patient;
+            this.queueNumber = queueNumber;
+            this.queuePosition = queuePosition;
         }
 
-        if (patientQueue.isEmpty() && continueServing) {
-            patientUI.displayMessage("\nNo patients in the queue.");
+        public boolean isFound() { return found; }
+        public Patient getPatient() { return patient; }
+        public String getQueueNumber() { return queueNumber; }
+        public int getQueuePosition() { return queuePosition; }
+    }
+
+    /**
+     * Validate IC number format
+     * @param icNumber IC number to validate
+     * @return ValidationResult with status and error message
+     */
+    public ValidationResult validateIC(String icNumber) {
+        if (icNumber == null || icNumber.trim().isEmpty()) {
+            return new ValidationResult(false, "IC Number cannot be empty.");
         }
-    }
 
-    private void viewCurrentQueue() {
-        if (patientQueue.isEmpty()) {
-            patientUI.displayMessage("\nNo patients in the queue.");
-        } else {
-            patientUI.displayMessage("\n=== CURRENT LINE-UP QUEUE ===");
-            patientUI.displayMessage("Total patients waiting: " + patientQueue.size());
-            Patient nextPatient = patientQueue.peek();
-            String queueNum = patientQueue.getQueueNumber(nextPatient);
-            if (queueNum != null) {
-                patientUI.displayMessage("Next to serve: Queue #" + queueNum +
-                                       " - " + nextPatient.getName() +
-                                       " (ID: " + nextPatient.getId() + ")");
-            } else {
-                patientUI.displayMessage("Next to serve: " + nextPatient.getName() +
-                                       " (ID: " + nextPatient.getId() + ")");
-            }
-
-            // Display queue in table format
-            patientUI.displayQueueTable(patientQueue);
+        String cleanIC = icNumber.replaceAll("-", "").trim();
+        if (!cleanIC.matches("\\d{12}")) {
+            return new ValidationResult(false, "IC Number must be exactly 12 digits (Malaysian format: YYMMDDPBXXXX).");
         }
-        patientUI.askToContinueOrReturnToMenu();
-    }
 
-    private void searchPatientInQueueMenu() {
-        int choice;
-        do {
-            choice = patientUI.displaySearchInQueueMenu();
-            switch (choice) {
-                case 1:
-                    searchPatientInQueueByName();
-                    break;
-                case 2:
-                    searchPatientInQueueByIC();
-                    break;
-                case 0:
-                    patientUI.displayMessage("\nReturning to Queue Management Menu...");
-                    break;
-                default:
-                    MessageUI.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-    private void searchPatientInQueueByName() {
-        boolean continueSearching = true;
-
-        while (continueSearching) {
-            String name = patientUI.inputPatientName();
-
-            if (name.equals("0")) {
-                patientUI.displayMessage("\nExiting search...");
-                break;
-            }
-
-            Patient foundPatient = findPatientInQueueByName(name);
-
-            if (foundPatient != null) {
-                patientUI.displayMessage("\nPatient FOUND in queue:");
-                String queueNum = patientQueue.getQueueNumber(foundPatient);
-                if (queueNum != null) {
-                    patientUI.displayMessage("Queue Number: " + queueNum);
-                }
-                patientUI.displayMessage("Name: " + foundPatient.getName());
-                patientUI.displayMessage("ID: " + foundPatient.getId());
-                patientUI.displayMessage("IC: " + foundPatient.getIcNumber());
-                int position = patientQueue.getPosition(foundPatient);
-                patientUI.displayMessage("Queue Position: " + position);
-            } else {
-                patientUI.displayMessage("\nNo patient with name '" + name + "' found in the queue.");
-            }
-
-            continueSearching = patientUI.askToContinueOperation("search another patient by name");
+        if (!ValidationUtil.isValidMalaysianIC(cleanIC)) {
+            return new ValidationResult(false, "Invalid Malaysian IC format. Please enter a valid IC number.");
         }
+
+        return new ValidationResult(true, null);
     }
 
-    private void searchPatientInQueueByIC() {
-        boolean continueSearching = true;
-
-        while (continueSearching) {
-            String ic = patientUI.inputPatientIC();
-
-            if (ic.equals("0")) {
-                patientUI.displayMessage("\nExiting search...");
-                break;
-            }
-
-            Patient foundPatient = findPatientInQueueByIC(ic);
-
-            if (foundPatient != null) {
-                patientUI.displayMessage("\nPatient FOUND in queue:");
-                String queueNum = patientQueue.getQueueNumber(foundPatient);
-                if (queueNum != null) {
-                    patientUI.displayMessage("Queue Number: " + queueNum);
-                }
-                patientUI.displayMessage("Name: " + foundPatient.getName());
-                patientUI.displayMessage("ID: " + foundPatient.getId());
-                patientUI.displayMessage("IC: " + foundPatient.getIcNumber());
-                int position = patientQueue.getPosition(foundPatient);
-                patientUI.displayMessage("Queue Position: " + position);
-            } else {
-                String displayIC = ic.length() == 12 ?
-                    ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8) : ic;
-                patientUI.displayMessage("\nNo patient with IC '" + displayIC + "' found in the queue.");
-            }
-
-            continueSearching = patientUI.askToContinueOperation("search another patient by IC");
+    /**
+     * Validate name format
+     * @param name Name to validate
+     * @return ValidationResult with status and error message
+     */
+    public ValidationResult validateName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return new ValidationResult(false, "Name cannot be empty.");
         }
-    }
 
-    private void clearQueue() {
-        if (patientQueue.isEmpty()) {
-            patientUI.displayMessage("\nQueue is already empty.");
-        } else {
-            boolean confirm = patientUI.confirmClearQueue();
-            if (confirm) {
-                int clearedCount = patientQueue.size();
-                clearAllQueueMaps(); // O(1) efficient clear
-                patientUI.displayMessage("\nQueue Cleared Successfully. ");
-                patientUI.displayMessage(clearedCount + " patients removed.");
-            } else {
-                patientUI.displayMessage("\nQueue clear cancelled.");
-            }
+        if (!ValidationUtil.isValidName(name.trim())) {
+            return new ValidationResult(false, "Name must contain only letters and spaces and be at least 2 characters long.");
         }
-        patientUI.askToContinueOrReturnToMenu();
+
+        return new ValidationResult(true, null);
     }
 
-    // Method removed - using patientMap.get(id) for O(1) lookup instead
+    /**
+     * Validate phone number format
+     * @param phone Phone number to validate
+     * @return ValidationResult with status and error message
+     */
+    public ValidationResult validatePhone(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return new ValidationResult(false, "Phone number cannot be empty.");
+        }
 
-    private ListInterface<Patient> findPatientsByName(String name) {
+        String cleanPhone = phone.replaceAll("[\\s-]", "");
+        if (!ValidationUtil.isValidPhone(cleanPhone)) {
+            return new ValidationResult(false, "Invalid Malaysian phone number format. Must be 10-11 digits.");
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    /**
+     * Format phone for storage 
+     * @param phone Phone number to format
+     * @return formatted phone number
+     */
+    public String formatPhoneForStorage(String phone) {
+        return ValidationUtil.formatPhoneForStorage(phone);
+    }
+
+    /**
+     * Find patient by ID 
+     * @param id Patient ID to search for
+     * @return Patient if found, null otherwise
+     */
+    public Patient findPatientById(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            return null;
+        }
+
+        Patient patient = patientMap.get(id.trim());
+        if (patient != null && !validatePatientConsistency(patient)) {
+            // Auto-repair data inconsistency
+            populateMaps();
+            patient = patientMap.get(id.trim());
+        }
+        return patient;
+    }
+
+    /**
+     * Find patients by name 
+     * @param name Patient name to search for
+     * @return List of patients with matching names
+     */
+    public ListInterface<Patient> findPatientsByName(String name) {
         ListInterface<Patient> foundPatients = new DoublyLinkedList<>();
 
-        // Use map values for more efficient iteration
-        ListInterface<Patient> allPatients = patientMap.getValues();
-        for (int i = 1; i <= allPatients.getNumberOfEntries(); i++) {
-            Patient p = allPatients.getEntry(i);
-            if (p != null && p.getName().toLowerCase().contains(name.toLowerCase())) {
-                foundPatients.add(p);
+        if (name == null || name.trim().isEmpty()) {
+            return foundPatients;
+        }
+
+        String searchName = name.trim().toLowerCase();
+        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
+            Patient patient = patientList.getEntry(i);
+            if (patient.getName().toLowerCase().contains(searchName)) {
+                foundPatients.add(patient);
             }
         }
         return foundPatients;
     }
 
-    // Method removed - using icMap.get(ic) for O(1) lookup instead
+    /**
+     * Find patient by IC number 
+     * @param ic IC number to search for
+     * @return Patient if found, null otherwise
+     */
+    public Patient findPatientByIC(String ic) {
+        if (ic == null || ic.trim().isEmpty()) {
+            return null;
+        }
 
+        String cleanIC = ic.replaceAll("-", "").trim();
+        Patient patient = icMap.get(cleanIC);
+        if (patient != null && !validatePatientConsistency(patient)) {
+            // Auto-repair data inconsistency
+            populateMaps();
+            patient = icMap.get(cleanIC);
+        }
+        return patient;
+    }
+
+    /**
+     * Calculate age from IC number 
+     * @param icNumber Malaysian IC number
+     * @return calculated age
+     */
+    public int getPatientAge(String icNumber) {
+        return calculateAgeFromIC(icNumber);
+    }
+
+    /**
+     * Check if IC number already exists 
+     * @param icNumber IC number to check
+     * @return existing Patient if found, null otherwise
+     */
+    public Patient checkExistingPatient(String icNumber) {
+        if (icNumber == null || icNumber.trim().isEmpty()) {
+            return null;
+        }
+        String cleanIC = icNumber.replaceAll("-", "").trim();
+        return icMap.get(cleanIC);
+    }
+
+    /**
+     * Register new patient 
+     * @param name Patient name
+     * @param icNumber Patient IC number
+     * @param phone Patient phone number
+     * @param gender Patient gender
+     * @return newly created Patient object
+     */
+    public Patient registerNewPatient(String name, String icNumber, String phone, String gender) {
+        // Generate new patient ID
+        String newId = generateNextPatientId();
+
+        // Create patient using control layer method
+        Patient patient = createPatientWithId(newId, name, icNumber, phone, gender, java.time.LocalDate.now());
+
+        // Add to all data structures
+        addToAllDataStructures(patient);
+
+        return patient;
+    }
+
+    /**
+     * Check if patient is already in queue 
+     * @param patient Patient to check
+     * @return true if patient is in queue, false otherwise
+     */
+    public boolean isPatientInQueue(Patient patient) {
+        return isInQueue(patient);
+    }
+
+    /**
+     * Add patient to queue 
+     * @param patient Patient to add to queue
+     * @return queue number assigned to patient
+     */
+    public String addPatientToQueue(Patient patient) {
+        if (patient == null || isInQueue(patient)) {
+            return null;
+        }
+
+        enqueuePatient(patient);
+        return patientQueue.getQueueNumber(patient);
+    }
+
+    /**
+     * Get current queue size 
+     * @return number of patients in queue
+     */
+    public int getQueueSize() {
+        return patientQueue.size();
+    }
+    
+    /**
+     * Update patient information 
+     * @param currentPatient Patient to update
+     * @param updatedPatient New patient data
+     * @return true if update successful, false if IC conflict
+     */
+    public boolean updatePatientInfo(Patient currentPatient, Patient updatedPatient) {
+        if (currentPatient == null || updatedPatient == null) {
+            return false;
+        }
+
+        return updateAllDataStructures(currentPatient, updatedPatient);
+    }
+
+    /**
+     * Remove patient 
+     * @param patient Patient to remove
+     * @return true if removal successful
+     */
+    public boolean removePatient(Patient patient) {
+        if (patient == null) {
+            return false;
+        }
+
+        // Remove from all data structures
+        removeFromAllDataStructures(patient);
+
+        // Also remove from queue if present
+        removePatientFromQueue(patient);
+
+        return true;
+    }
+
+    /**
+     * Sort patients by Registration Date with order option
+     * @param ascending true for ascending (oldest first), false for descending (newest first)
+     * @return sorted list of patients
+     */
+    private ListInterface<Patient> sortPatientsByRegistrationDate(boolean ascending) {
+        // Create a copy of the patient list for sorting
+        ListInterface<Patient> sortedList = createPatientListCopy();
+
+        // Sort by Registration Date using List ADT sorting function
+        sortedList.mergeSort((p1, p2) -> p1.getRegistrationDate().compareTo(p2.getRegistrationDate()));
+
+        // Reverse if descending order is requested
+        if (!ascending) {
+            sortedList.reverse();
+        }
+
+        return sortedList;
+    }
+
+    /**
+     * Sort patients by ID with order option
+     * @param ascending true for ascending (A-Z), false for descending (Z-A)
+     * @return sorted list of patients
+     */
+    private ListInterface<Patient> sortPatientsByID(boolean ascending) {
+        // Create a copy of the patient list for sorting
+        ListInterface<Patient> sortedList = createPatientListCopy();
+
+        // Sort by ID using List ADT sorting function
+        sortedList.mergeSort((p1, p2) -> p1.getId().compareTo(p2.getId()));
+
+        // Reverse if descending order is requested
+        if (!ascending) {
+            sortedList.reverse();
+        }
+
+        return sortedList;
+    }
+
+    /**
+     * Sort patients by Name (ascending order only)
+     * @return sorted list of patients by name (A-Z)
+     */
+    private ListInterface<Patient> sortPatientsByName() {
+        // Create a copy of the patient list for sorting
+        ListInterface<Patient> sortedList = createPatientListCopy();
+
+        // Sort by Name using List ADT sorting function (case-insensitive)
+        sortedList.mergeSort((p1, p2) -> p1.getName().compareToIgnoreCase(p2.getName()));
+
+        return sortedList;
+    }
+
+    /**
+     * Sort patients by Age (ascending order only)
+     * @return sorted list of patients by age (youngest first)
+     */
+    private ListInterface<Patient> sortPatientsByAge() {
+        // Create a copy of the patient list for sorting
+        ListInterface<Patient> sortedList = createPatientListCopy();
+
+        // Sort by Age using List ADT sorting function
+        sortedList.mergeSort((p1, p2) -> {
+            int age1 = calculateAgeFromIC(p1.getIcNumber());
+            int age2 = calculateAgeFromIC(p2.getIcNumber());
+            return Integer.compare(age1, age2);
+        });
+
+        return sortedList;
+    }
+
+    /**
+     * Helper method to create a copy of the patient list
+     * @return new list containing all patients from the main list
+     */
+    private ListInterface<Patient> createPatientListCopy() {
+        ListInterface<Patient> copyList = new DoublyLinkedList<>();
+        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
+            copyList.add(patientList.getEntry(i));
+        }
+        return copyList;
+    }
+
+  
     private Patient findPatientInQueueByName(String name) {
         // O(1) lookup using secondary queue name map
         return queueNameMap.get(name.toLowerCase());
@@ -946,7 +896,6 @@ public class MaintainPatient {
         String searchIC = ic.replaceAll("-", ""); // Remove dashes for consistent lookup
         return queueIcMap.get(searchIC);
     }
-
 
 
     public ListInterface<Patient> getPatientList() {
@@ -973,16 +922,16 @@ public class MaintainPatient {
         int icMapSize = icMap.size();
 
         if (listSize != idMapSize || listSize != icMapSize) {
-            String warningMessage = "WARNING: Data inconsistency detected!\n" +
-                                  "List size: " + listSize + ", ID Map size: " + idMapSize + ", IC Map size: " + icMapSize + "\n" +
-                                  "Maps have been refreshed from the list.";
-            populateMaps(); // Auto-fix by repopulating maps
-            patientUI.displayMessage(warningMessage);
+            populateMaps(); 
         }
     }
 
-    private void generateAgeDemographicsReport() {
-        // Calculate age demographics (business logic)
+    /**
+     * Generate age demographics data 
+     * @return array with age demographic counts [total, under18, age18to30, age31to50, age51to65, over65]
+     */
+    public int[] generateAgeDemographicsData() {
+        // Calculate age demographics 
         int under18 = 0;
         int age18to30 = 0;
         int age31to50 = 0;
@@ -1006,26 +955,85 @@ public class MaintainPatient {
             }
         }
 
-        // Delegate to UI for display and user interaction
-        patientUI.displayAgeDemographicsReport(patientList.getNumberOfEntries(), under18, age18to30, age31to50, age51to65, over65);
+        return new int[]{patientList.getNumberOfEntries(), under18, age18to30, age31to50, age51to65, over65};
+    }
+
+    /**
+     * Generate age demographics report data 
+     * @return AgeDemographicsData object for UI to display
+     */
+    public AgeDemographicsData generateAgeDemographicsReport() {
+        int[] data = generateAgeDemographicsData();
+        return new AgeDemographicsData(data[0], data[1], data[2], data[3], data[4], data[5]);
+    }
+
+    /**
+     * Age demographics data transfer object
+     */
+    public static class AgeDemographicsData {
+        private final int totalPatients;
+        private final int under18;
+        private final int age18to30;
+        private final int age31to50;
+        private final int age51to65;
+        private final int over65;
+
+        public AgeDemographicsData(int totalPatients, int under18, int age18to30, int age31to50, int age51to65, int over65) {
+            this.totalPatients = totalPatients;
+            this.under18 = under18;
+            this.age18to30 = age18to30;
+            this.age31to50 = age31to50;
+            this.age51to65 = age51to65;
+            this.over65 = over65;
+        }
+
+        public int getTotalPatients() { 
+            return totalPatients; 
+        }
+        public int getUnder18() { 
+            return under18; 
+        }
+        public int getAge18to30() { 
+            return age18to30; 
+        }
+        public int getAge31to50() { 
+            return age31to50; 
+        }
+        public int getAge51to65() { 
+            return age51to65; 
+        }
+        public int getOver65() { 
+            return over65; 
+        }
     }
 
 
 
-    private void generateRegistrationTimelineReport() {
-        if (patientList.getNumberOfEntries() == 0) {
-            patientUI.displayMessage("\nNo patients registered yet.");
-            patientUI.askToReturnToMainMenu();
-            return;
+    /**
+     * Check if patients exist for reports 
+     * @return true if patients exist, false otherwise
+     */
+    public boolean hasPatientsForReport() {
+        return patientList.getNumberOfEntries() > 0;
+    }
+
+    /**
+     * Generate registration timeline report data 
+     * @return RegistrationTimelineData object for UI to display
+     */
+    public RegistrationTimelineData generateRegistrationTimelineReport() {
+        if (!hasPatientsForReport()) {
+            return null; // Return data object, not UI message
         }
 
-        // Sort patients by registration date (oldest first) - business logic
+        // sort patients by registration date
         ListInterface<Patient> sortedList = sortPatientsByDate();
 
-        // Calculate statistics - business logic
+        // calculate statistics
         Patient firstPatient = sortedList.getEntry(1);
         Patient lastPatient = sortedList.getEntry(sortedList.getNumberOfEntries());
 
+        // count gender distribution
         int maleCount = 0, femaleCount = 0;
         for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
             if (sortedList.getEntry(i).getGender().equalsIgnoreCase("Male")) {
@@ -1035,7 +1043,7 @@ public class MaintainPatient {
             }
         }
 
-        // Calculate monthly breakdown - business logic
+        // calculate monthly breakdown
         MapInterface<String, Integer> monthlyCount = new HashMap<>();
         for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
             Patient p = sortedList.getEntry(i);
@@ -1050,120 +1058,85 @@ public class MaintainPatient {
             }
         }
 
-        // Prepare patient data with ages for display
-        String[][] patientData = new String[sortedList.getNumberOfEntries()][7];
-        for (int i = 1; i <= sortedList.getNumberOfEntries(); i++) {
-            Patient p = sortedList.getEntry(i);
-            int age = calculateAgeFromIC(p.getIcNumber());
+        // prepare patient data for display
+        String[][] patientData = getPatientTableData(sortedList);
 
-            patientData[i-1][0] = p.getId();
-            patientData[i-1][1] = p.getName();
-            patientData[i-1][2] = p.getGender();
-            patientData[i-1][3] = String.valueOf(age);
-            patientData[i-1][4] = p.getIcNumber();
-            patientData[i-1][5] = p.getPhone();
-            patientData[i-1][6] = p.getRegistrationDate().toString();
-        }
-
-        // Delegate to UI for display
-        patientUI.displayRegistrationTimelineReport(patientData, firstPatient, lastPatient, maleCount, femaleCount, monthlyCount);
+        // Return structured data object (not formatted UI string)
+        return new RegistrationTimelineData(patientData, firstPatient, lastPatient, maleCount, femaleCount, monthlyCount);
     }
 
+    /**
+     * Registration timeline data transfer object 
+     */
+    public static class RegistrationTimelineData {
+        private final String[][] patientData;     // Formatted data for UI display
+        private final Patient firstPatient;       
+        private final Patient lastPatient;        
+        private final int maleCount;              
+        private final int femaleCount;            
+        private final MapInterface<String, Integer> monthlyCount; 
+
+        public RegistrationTimelineData(String[][] patientData, Patient firstPatient, Patient lastPatient,
+                                      int maleCount, int femaleCount, MapInterface<String, Integer> monthlyCount) {
+            this.patientData = patientData;       
+            this.firstPatient = firstPatient;    
+            this.lastPatient = lastPatient;       
+            this.maleCount = maleCount;           
+            this.femaleCount = femaleCount;        
+            this.monthlyCount = monthlyCount;      
+        }
+
+        // Getter methods for UI layer to access data
+        public String[][] getPatientData() { 
+            return patientData; 
+        }
+        public Patient getFirstPatient() { 
+            return firstPatient; 
+        }
+        public Patient getLastPatient() { 
+            return lastPatient; 
+        }
+        public int getMaleCount() { 
+            return maleCount; 
+        }
+        public int getFemaleCount() { 
+            return femaleCount; 
+        }
+        public MapInterface<String, Integer> getMonthlyCount() { 
+            return monthlyCount; 
+        }
+    }
+
+    /**
+     * Sort patients by registration date for report generation (oldest first)
+     * This method maintains backward compatibility for report generation
+     * @return sorted list of patients by registration date (oldest first)
+     */
     private ListInterface<Patient> sortPatientsByDate() {
-        ListInterface<Patient> sortedList = new DoublyLinkedList<>();
-        for (int i = 1; i <= patientList.getNumberOfEntries(); i++) {
-            sortedList.add(patientList.getEntry(i));
-        }
-
-        // Bubble sort by registration date (oldest first)
-        for (int i = 1; i <= sortedList.getNumberOfEntries() - 1; i++) {
-            for (int j = 1; j <= sortedList.getNumberOfEntries() - i; j++) {
-                if (sortedList.getEntry(j).getRegistrationDate().isAfter(
-                        sortedList.getEntry(j + 1).getRegistrationDate())) {
-                    Patient temp = sortedList.getEntry(j);
-                    sortedList.replace(j, sortedList.getEntry(j + 1));
-                    sortedList.replace(j + 1, temp);
-                }
-            }
-        }
-        return sortedList;
+        // Use the new parameterized method with ascending order (oldest first)
+        return sortPatientsByRegistrationDate(true);
     }
 
-    // Business logic methods - delegate to ValidationUtil
-    public boolean isValidMalaysianIC(String ic) {
-        return ValidationUtil.isValidMalaysianIC(ic);
-    }
-
+    /**
+     * Create patient entity 
+     */
     public Patient createPatient(String name, String icNumber, String phone, String gender) {
         return new Patient(name, icNumber, phone, gender);
     }
 
+    /**
+     * Create patient entity with ID 
+     */
     public Patient createPatientWithId(String id, String name, String icNumber, String phone, String gender, java.time.LocalDate regDate) {
         return new Patient(id, name, icNumber, phone, gender, regDate);
     }
 
-    // Validation methods - delegate to ValidationUtil
-    public boolean isValidName(String name) {
-        return ValidationUtil.isValidName(name);
-    }
-
-    public boolean isValidPhone(String phone) {
-        return ValidationUtil.isValidPhone(phone);
-    }
-
+    // Convert gender input to standard format
     public String normalizeGender(String gender) {
         return ValidationUtil.normalizeGender(gender);
-    }
-
-    public String formatPhoneForStorage(String phone) {
-        return ValidationUtil.formatPhoneForStorage(phone);
     }
 
     public int calculateAgeFromIC(String icNumber) {
         return ValidationUtil.calculateAgeFromIC(icNumber);
     }
-
-    public String getQueueTableData(QueueInterface<Patient> queue) {
-        StringBuilder tableData = new StringBuilder();
-        tableData.append("\n--- QUEUE TABLE ---\n");
-
-        // Table header
-        tableData.append(String.format("%-8s %-8s %-20s %-8s %-16s %-16s%n",
-                         "Queue#", "ID", "Name", "Gender", "IC Number", "Phone Number"));
-        tableData.append("================================================================================\n");
-
-        // Create temporary queue to traverse without modifying original
-        QueueInterface<Patient> tempQueue = new LinkedQueue<>();
-        int position = 1;
-
-        // Move patients to temp queue while building data
-        while (!queue.isEmpty()) {
-            Patient p = queue.dequeue();
-            String queueNum = queue.getQueueNumber(p);
-            if (queueNum == null) {
-                queueNum = String.format("%04d", position);
-            }
-
-            tableData.append(String.format("%-8s %-8s %-20s %-8s %-16s %-16s%n",
-                             queueNum,
-                             p.getId(),
-                             FormatUtil.truncateString(p.getName(), 20),
-                             p.getGender(),
-                             FormatUtil.formatICForDisplay(p.getIcNumber()),
-                             p.getPhone()));
-
-            tempQueue.enqueue(p);
-            position++;
-        }
-
-        // Restore original queue
-        while (!tempQueue.isEmpty()) {
-            queue.enqueue(tempQueue.dequeue());
-        }
-
-        tableData.append("================================================================================");
-        return tableData.toString();
-    }
-
-
 }
