@@ -25,4 +25,9 @@ public interface QueueInterface<T> {
     String displayWithNumbers();    // Display all patients with queue numbers
 
     String toString();              // Display all patients
+
+    // Safe traversal methods for non-destructive queue access
+    T[] toArray();                  // Get queue elements as array in FIFO order
+
+    String[] getQueueNumbers();     // Get queue numbers as array in FIFO order
 }

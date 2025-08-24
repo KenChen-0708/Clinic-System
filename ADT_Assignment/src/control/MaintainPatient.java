@@ -75,6 +75,13 @@ public class MaintainPatient {
      * @return true if update successful, false if IC conflict detected
      */
     private boolean updateAllDataStructures(Patient oldPatient, Patient newPatient) {
+        // Defensive null checks to prevent NPE
+        if (oldPatient == null || newPatient == null ||
+            oldPatient.getId() == null || newPatient.getId() == null ||
+            oldPatient.getIcNumber() == null || newPatient.getIcNumber() == null) {
+            return false; // Cannot update with null data
+        }
+
         // CRITICAL: Validate IC number uniqueness before update
         if (!oldPatient.getIcNumber().equals(newPatient.getIcNumber())) {
             // Check if new IC already exists for a different patient
@@ -85,26 +92,38 @@ public class MaintainPatient {
             }
         }
 
-        // Update list using iterator for efficient traversal
+        // Update list efficiently: remove old + add new (avoids O(n²) replace operation)
+        // This is more efficient than replace() which requires O(n) traversal
+        boolean found = false;
         java.util.Iterator<Patient> iterator = patientList.iterator();
         int index = 1;
         while (iterator.hasNext()) {
-            if (iterator.next().getId().equals(oldPatient.getId())) {
-                patientList.replace(index, newPatient);
+            Patient current = iterator.next();
+            if (current != null && current.getId() != null && current.getId().equals(oldPatient.getId())) {
+                patientList.remove(index);  // O(n) operation
+                patientList.add(index, newPatient);  // O(n) operation, but only once
+                found = true;
                 break;
             }
             index++;
         }
 
-        // Update all maps - remove old entries first
-        if (oldPatient != null) {
+        if (!found) {
+            // Fallback: add to end if not found (shouldn't happen in normal operation)
+            patientList.add(newPatient);
+        }
+
+        // Update all maps - remove old entries first with null safety
+        if (oldPatient != null && oldPatient.getId() != null &&
+            oldPatient.getIcNumber() != null && oldPatient.getName() != null) {
             patientMap.remove(oldPatient.getId());
             icMap.remove(oldPatient.getIcNumber());
             nameMap.remove(oldPatient.getName().toLowerCase());  // Remove old name mapping
         }
 
-        // Add new entries to all maps
-        if (newPatient.getId() != null && newPatient.getIcNumber() != null && newPatient.getName() != null) {
+        // Add new entries to all maps with null safety
+        if (newPatient != null && newPatient.getId() != null &&
+            newPatient.getIcNumber() != null && newPatient.getName() != null) {
             patientMap.put(newPatient.getId(), newPatient);
             icMap.put(newPatient.getIcNumber(), newPatient);
             nameMap.put(newPatient.getName().toLowerCase(), newPatient);  // Add new name mapping
@@ -128,21 +147,34 @@ public class MaintainPatient {
 
     // Unified method to remove patient from all data structures
     private void removeFromAllDataStructures(Patient patient) {
-        // Remove from list using iterator for efficient traversal
+        // Defensive null checks to prevent NPE
+        if (patient == null || patient.getId() == null) {
+            return; // Cannot remove null patient or patient with null ID
+        }
+
+        // Remove from list using iterator with null safety
         java.util.Iterator<Patient> iterator = patientList.iterator();
         int index = 1;
         while (iterator.hasNext()) {
-            if (iterator.next().getId().equals(patient.getId())) {
+            Patient current = iterator.next();
+            // Null-safe comparison
+            if (current != null && current.getId() != null && current.getId().equals(patient.getId())) {
                 patientList.remove(index);
                 break;
             }
             index++;
         }
 
-        // Remove from all maps
-        patientMap.remove(patient.getId());
-        icMap.remove(patient.getIcNumber());
-        nameMap.remove(patient.getName().toLowerCase());  // Remove from name map
+        // Remove from all maps with null safety
+        if (patient.getId() != null) {
+            patientMap.remove(patient.getId());
+        }
+        if (patient.getIcNumber() != null) {
+            icMap.remove(patient.getIcNumber());
+        }
+        if (patient.getName() != null) {
+            nameMap.remove(patient.getName().toLowerCase());  // Remove from name map
+        }
 
         // Remove from queue map if present
         queueMap.remove(patient.getId());
@@ -363,46 +395,32 @@ public class MaintainPatient {
     }
 
     /**
-     * Get queue table data for display using completely safe approach
-     * Uses queue tracking maps to avoid queue destruction
-     * @return queue data formatted for table display
+     * Get queue table data for display preserving FIFO queue order
+     * Uses safe queue traversal without destroying queue
+     * @return queue data formatted for table display in correct FIFO order
      */
     public String[][] getQueueTableData() {
         if (patientQueue.isEmpty()) {
             return new String[0][0];
         }
 
-        // COMPLETELY SAFE APPROACH: Use tracking maps instead of queue destruction
-        // Build data from queue tracking maps which maintain queue order
-        ListInterface<Patient> queuePatients = new DoublyLinkedList<>();
+        // SAFE QUEUE TRAVERSAL: Use new toArray() method to preserve FIFO order
+        Patient[] queueArray = patientQueue.toArray();
+        String[] queueNumbers = patientQueue.getQueueNumbers();
 
-        // Extract patients from queue safely by using queue name/IC maps
-        // This is a workaround since LinkedQueue lacks safe traversal
-        java.util.Iterator<Patient> iterator = patientList.iterator();
-        while (iterator.hasNext()) {
-            Patient patient = iterator.next();
-            // Check if patient is in queue using O(1) lookup
-            if (queueMap.get(patient.getId()) != null && queueMap.get(patient.getId())) {
-                queuePatients.add(patient);
-            }
-        }
+        String[][] queueData = new String[queueArray.length][6];
 
-        // Build table data from queue patients
-        String[][] queueData = new String[queuePatients.getNumberOfEntries()][6];
-        java.util.Iterator<Patient> queueIterator = queuePatients.iterator();
-        int index = 0;
-
-        while (queueIterator.hasNext()) {
-            Patient p = queueIterator.next();
+        // Build table data maintaining exact FIFO queue order
+        for (int i = 0; i < queueArray.length; i++) {
+            Patient p = queueArray[i];
             int age = calculateAgeFromIC(p.getIcNumber());
 
-            queueData[index][0] = String.format("%04d", index + 1);  // Queue position
-            queueData[index][1] = p.getId();
-            queueData[index][2] = p.getName();
-            queueData[index][3] = p.getGender();
-            queueData[index][4] = String.valueOf(age);
-            queueData[index][5] = p.getPhone();
-            index++;
+            queueData[i][0] = queueNumbers[i] != null ? queueNumbers[i] : String.format("%04d", i + 1);
+            queueData[i][1] = p.getId();
+            queueData[i][2] = p.getName();
+            queueData[i][3] = p.getGender();
+            queueData[i][4] = String.valueOf(age);
+            queueData[i][5] = p.getPhone();
         }
 
         return queueData;
