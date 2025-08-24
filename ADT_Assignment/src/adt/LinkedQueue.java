@@ -165,6 +165,50 @@ public class LinkedQueue<T> implements QueueInterface<T> {
         return sb.toString();
     }
 
+    /**
+     * Get queue data as array for safe traversal without modifying queue
+     * @return array of queue elements in FIFO order
+     */
+    public T[] toArray() {
+        if (isEmpty()) {
+            return (T[]) new Object[0];
+        }
+
+        T[] array = (T[]) new Object[size];
+        Node<T> current = front;
+        int index = 0;
+
+        while (current != null) {
+            array[index] = current.data;
+            current = current.next;
+            index++;
+        }
+
+        return array;
+    }
+
+    /**
+     * Get queue numbers as array corresponding to queue elements
+     * @return array of queue numbers in FIFO order
+     */
+    public String[] getQueueNumbers() {
+        if (isEmpty()) {
+            return new String[0];
+        }
+
+        String[] numbers = new String[size];
+        Node<T> current = front;
+        int index = 0;
+
+        while (current != null) {
+            numbers[index] = current.queueNumber;
+            current = current.next;
+            index++;
+        }
+
+        return numbers;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("[");
