@@ -91,9 +91,7 @@ public class MaintainPatient {
                 return false;
             }
         }
-
-        // Update list efficiently: remove old + add new (avoids O(n²) replace operation)
-        // This is more efficient than replace() which requires O(n) traversal
+        
         boolean found = false;
         java.util.Iterator<Patient> iterator = patientList.iterator();
         int index = 1;
