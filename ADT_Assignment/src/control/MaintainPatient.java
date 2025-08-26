@@ -16,35 +16,25 @@ import java.util.Comparator;
 
 public class MaintainPatient {
 
-    private final ListInterface<Patient> patientList;
-    private final PatientDAO patientDAO;
-    private final MaintainTreatment maintainTreatment;
+    // Initialize all instance variables at declaration point
+    private final PatientDAO patientDAO = new PatientDAO();
+    private final ListInterface<Patient> patientList = patientDAO.retrieveFromFile();
+    private final MaintainTreatment maintainTreatment = new MaintainTreatment();
 
     private final PatientUI patientUI = new PatientUI(this);
 
-    private final QueueInterface<Patient> patientQueue;
-    private final MapInterface<String, Patient> patientMap;
-    private final MapInterface<String, Patient> icMap;
-    private final MapInterface<String, Patient> nameMap;  // O(1) exact name lookup
-    private final MapInterface<String, Boolean> queueMap;
-    private final MapInterface<String, Patient> queueNameMap;
-    private final MapInterface<String, Patient> queueIcMap;
+    private final QueueInterface<Patient> patientQueue = new LinkedQueue<>();
+    private final MapInterface<String, Patient> patientMap = new HashMap<>();
+    private final MapInterface<String, Patient> icMap = new HashMap<>();
+    private final MapInterface<String, Patient> nameMap = new HashMap<>();  // O(1) exact name lookup
+    private final MapInterface<String, Boolean> queueMap = new HashMap<>();
+    private final MapInterface<String, Patient> queueNameMap = new HashMap<>();
+    private final MapInterface<String, Patient> queueIcMap = new HashMap<>();
 
     /**
-     * Initialize all data structures and load existing data
+     * Clean constructor - all initialization done at declaration
      */
     public MaintainPatient() {
-        patientDAO = new PatientDAO();
-        patientList = patientDAO.retrieveFromFile();
-        patientQueue = new LinkedQueue<>();
-        patientMap = new HashMap<>();
-        icMap = new HashMap<>();
-        nameMap = new HashMap<>();
-        queueMap = new HashMap<>();
-        queueNameMap = new HashMap<>();
-        queueIcMap = new HashMap<>();
-        maintainTreatment = new MaintainTreatment();
-
         // Populate maps with existing patients for efficient lookup
         populateMaps();
     }
@@ -1001,86 +991,137 @@ public class MaintainPatient {
     // HashMap is trusted for O(1) lookups without validation overhead
 
     /**
-     * Generate age demographics data 
-     * @return array with age demographic counts [total, under18, age18to30, age31to50, age51to65, over65]
+     * Generate patient treatment statistics data using custom ADT sorting
+     * @return PatientTreatmentData object with treatment statistics
      */
-    public int[] generateAgeDemographicsData() {
-        int under18 = 0;
-        int age18to30 = 0;
-        int age31to50 = 0;
-        int age51to65 = 0;
-        int over65 = 0;
+    public PatientTreatmentData generatePatientTreatmentData() {
+        if (patientList.isEmpty()) {
+            return null;
+        }
+
+        // Create sorted list of patients by name using custom ADT sorting
+        ListInterface<Patient> sortedPatients = createPatientListCopy();
+        sortedPatients.mergeSort((p1, p2) -> p1.getName().compareToIgnoreCase(p2.getName()));
+
+        // Build treatment statistics using iterator
+        ListInterface<PatientTreatmentInfo> treatmentStats = new DoublyLinkedList<>();
         int totalPatients = 0;
+        int totalTreatments = 0;
+        int patientsWithTreatments = 0;
+        int patientsWithoutTreatments = 0;
 
-        // Use iterator for efficient traversal of DoublyLinkedList
-        java.util.Iterator<Patient> iterator = patientList.iterator();
+        java.util.Iterator<Patient> iterator = sortedPatients.iterator();
         while (iterator.hasNext()) {
-            Patient p = iterator.next();
+            Patient patient = iterator.next();
             totalPatients++;
-            int age = calculateAgeFromIC(p.getIcNumber());
 
-            if (age < 18) {
-                under18++;
-            } else if (age <= 30) {
-                age18to30++;
-            } else if (age <= 50) {
-                age31to50++;
-            } else if (age <= 65) {
-                age51to65++;
+            // Get treatment count for this patient from treatment module
+            DoublyLinkedList<entity.Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patient.getId());
+            int treatmentCount = patientTreatments.getNumberOfEntries();
+            totalTreatments += treatmentCount;
+
+            if (treatmentCount > 0) {
+                patientsWithTreatments++;
             } else {
-                over65++;
+                patientsWithoutTreatments++;
             }
+
+            // Create treatment info for this patient
+            PatientTreatmentInfo info = new PatientTreatmentInfo(
+                patient.getId(),
+                patient.getName(),
+                patient.getGender(),
+                calculateAgeFromIC(patient.getIcNumber()),
+                treatmentCount
+            );
+            treatmentStats.add(info);
         }
 
-        return new int[]{totalPatients, under18, age18to30, age31to50, age51to65, over65};
+        return new PatientTreatmentData(
+            totalPatients,
+            totalTreatments,
+            patientsWithTreatments,
+            patientsWithoutTreatments,
+            treatmentStats
+        );
     }
 
     /**
-     * Generate age demographics report data 
-     * @return AgeDemographicsData object for UI to display
+     * Generate patient treatment report data
+     * @return PatientTreatmentData object for UI to display
      */
-    public AgeDemographicsData generateAgeDemographicsReport() {
-        int[] data = generateAgeDemographicsData();
-        return new AgeDemographicsData(data[0], data[1], data[2], data[3], data[4], data[5]);
+    public PatientTreatmentData generatePatientTreatmentReport() {
+        return generatePatientTreatmentData();
     }
 
     /**
-     * Age demographics data transfer object
+     * Patient treatment data transfer object
      */
-    public static class AgeDemographicsData {
+    public static class PatientTreatmentData {
         private final int totalPatients;
-        private final int under18;
-        private final int age18to30;
-        private final int age31to50;
-        private final int age51to65;
-        private final int over65;
+        private final int totalTreatments;
+        private final int patientsWithTreatments;
+        private final int patientsWithoutTreatments;
+        private final ListInterface<PatientTreatmentInfo> treatmentStats;
 
-        public AgeDemographicsData(int totalPatients, int under18, int age18to30, int age31to50, int age51to65, int over65) {
+        public PatientTreatmentData(int totalPatients, int totalTreatments, int patientsWithTreatments,
+                                  int patientsWithoutTreatments, ListInterface<PatientTreatmentInfo> treatmentStats) {
             this.totalPatients = totalPatients;
-            this.under18 = under18;
-            this.age18to30 = age18to30;
-            this.age31to50 = age31to50;
-            this.age51to65 = age51to65;
-            this.over65 = over65;
+            this.totalTreatments = totalTreatments;
+            this.patientsWithTreatments = patientsWithTreatments;
+            this.patientsWithoutTreatments = patientsWithoutTreatments;
+            this.treatmentStats = treatmentStats;
         }
 
-        public int getTotalPatients() { 
-            return totalPatients; 
+        public int getTotalPatients() {
+            return totalPatients;
         }
-        public int getUnder18() { 
-            return under18; 
+        public int getTotalTreatments() {
+            return totalTreatments;
         }
-        public int getAge18to30() { 
-            return age18to30; 
+        public int getPatientsWithTreatments() {
+            return patientsWithTreatments;
         }
-        public int getAge31to50() { 
-            return age31to50; 
+        public int getPatientsWithoutTreatments() {
+            return patientsWithoutTreatments;
         }
-        public int getAge51to65() { 
-            return age51to65; 
+        public ListInterface<PatientTreatmentInfo> getTreatmentStats() {
+            return treatmentStats;
         }
-        public int getOver65() { 
-            return over65; 
+    }
+
+    /**
+     * Individual patient treatment information
+     */
+    public static class PatientTreatmentInfo {
+        private final String patientId;
+        private final String patientName;
+        private final String gender;
+        private final int age;
+        private final int treatmentCount;
+
+        public PatientTreatmentInfo(String patientId, String patientName, String gender, int age, int treatmentCount) {
+            this.patientId = patientId;
+            this.patientName = patientName;
+            this.gender = gender;
+            this.age = age;
+            this.treatmentCount = treatmentCount;
+        }
+
+        public String getPatientId() {
+            return patientId;
+        }
+        public String getPatientName() {
+            return patientName;
+        }
+        public String getGender() {
+            return gender;
+        }
+        public int getAge() {
+            return age;
+        }
+        public int getTreatmentCount() {
+            return treatmentCount;
         }
     }
 
