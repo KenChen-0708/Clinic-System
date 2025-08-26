@@ -33,7 +33,7 @@ public class MainUI {
             switch (choice) {
                 case 1:
                     MessageUI.clearConsole();
-                    new MaintainPatient().runPatientMenu();
+                    new PatientUI(new MaintainPatient()).run();
                     break;
                 case 2:
                     MessageUI.clearConsole();
