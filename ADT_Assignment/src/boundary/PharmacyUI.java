@@ -572,8 +572,7 @@ public class PharmacyUI {
     /**
      * Generic report printer (for pre-formatted bodies).
      */
-    public void displayReport(String title, String body) {
-        System.out.println("\n=== " + title + " ===\n");
+    public void displayReport(String body) {
         if (isBlank(body)) {
             MessageUI.displayEmptyMessage();
         } else {
