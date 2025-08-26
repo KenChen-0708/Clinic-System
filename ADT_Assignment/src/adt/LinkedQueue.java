@@ -98,10 +98,10 @@ public class LinkedQueue<T> implements QueueInterface<T> {
     }
 
     @Override
-    public boolean contains(T data) {
+    public boolean contains(T anEntry) {
         Node<T> current = front;
         while (current != null) {
-            if (current.data.equals(data)) {
+            if (current.data.equals(anEntry)) {
                 return true;
             }
             current = current.next;
@@ -208,6 +208,52 @@ public class LinkedQueue<T> implements QueueInterface<T> {
 
         return numbers;
     }
+
+    /**
+     * Remove a specific element from the queue by value
+     * More efficient than rebuilding the entire queue
+     * @param value The element to remove
+     * @return true if element was found and removed, false otherwise
+     * Time Complexity: O(n) in worst case, but no queue rebuilding
+     */
+    public boolean removeByValue(T value) {
+        if (isEmpty() || value == null) {
+            return false;
+        }
+
+        // Special case: removing the front element
+        if (front.data != null && front.data.equals(value)) {
+            front = front.next;
+            if (front == null) { // queue became empty
+                rear = null;
+            }
+            size--;
+            return true;
+        }
+
+        // Search for the element to remove
+        Node<T> current = front;
+        while (current.next != null) {
+            if (current.next.data != null && current.next.data.equals(value)) {
+                // Found the element to remove
+                Node<T> nodeToRemove = current.next;
+                current.next = nodeToRemove.next;
+
+                // Update rear if we're removing the last element
+                if (nodeToRemove == rear) {
+                    rear = current;
+                }
+
+                size--;
+                return true;
+            }
+            current = current.next;
+        }
+
+        return false; // Element not found
+    }
+
+
 
     @Override
     public String toString() {
