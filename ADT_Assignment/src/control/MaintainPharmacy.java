@@ -18,7 +18,6 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.Scanner;
 
 /**
  * Application layer (controller) for pharmacy operations. - Manages inventory
@@ -83,12 +82,6 @@ public class MaintainPharmacy implements Serializable {
     // Price lower first; tie-break: ID
     private final Comparator<Medicine> BY_PRICE_THEN_ID = (a, b) -> {
         int c = Double.compare(a.getPrice(), b.getPrice());
-        return (c != 0) ? c : BY_ID_NUM.compare(a, b);
-    };
-
-    // Name A→Z; tie-break: ID
-    private final Comparator<Medicine> BY_NAME_THEN_ID = (a, b) -> {
-        int c = a.getName().compareToIgnoreCase(b.getName());
         return (c != 0) ? c : BY_ID_NUM.compare(a, b);
     };
 
@@ -187,7 +180,7 @@ public class MaintainPharmacy implements Serializable {
         }
 
         // Always display a baseline "by ID" table first
-        DoublyLinkedList<Medicine> byId = copyList();
+        ListInterface<Medicine> byId = copyList();
         byId.mergeSort(BY_ID_NUM);
         pharmacyUI.displayTable(
                 "== Inventory (By ID) ==",
@@ -204,7 +197,7 @@ public class MaintainPharmacy implements Serializable {
             }
 
             String title = "== Inventory (";
-            DoublyLinkedList<Medicine> tmp;
+            ListInterface<Medicine> tmp;
 
             switch (choice) {
                 case 1: { // Sort by ID
@@ -335,7 +328,7 @@ public class MaintainPharmacy implements Serializable {
             return;
         }
 
-        DoublyLinkedList<Medicine> byId = copyList();
+        ListInterface<Medicine> byId = copyList();
         byId.mergeSort(BY_ID_NUM);
         pharmacyUI.displayTable("== Edit Inventory ==",
                 new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
@@ -382,7 +375,7 @@ public class MaintainPharmacy implements Serializable {
             return;
         }
 
-        DoublyLinkedList<Medicine> byId = copyList();
+        ListInterface<Medicine> byId = copyList();
         byId.mergeSort(BY_ID_NUM);
         pharmacyUI.displayTable("== Remove Inventory ==",
                 new String[]{"Med ID", "Name", "Qty", "Price/Unit", "Expiry"},
@@ -441,7 +434,7 @@ public class MaintainPharmacy implements Serializable {
      * @return List of matching medicines.
      */
     public ListInterface<Medicine> searchMedicineByName(String name) {
-        DoublyLinkedList<Medicine> results = new DoublyLinkedList<>();
+        ListInterface<Medicine> results = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             Medicine m = medicineList.getEntry(i);
             if (m.getName().equalsIgnoreCase(name)) {
@@ -479,7 +472,7 @@ public class MaintainPharmacy implements Serializable {
                     }
 
                     Medicine found = searchMedicineById(medId);
-                    DoublyLinkedList<Medicine> results = new DoublyLinkedList<>();
+                    ListInterface<Medicine> results = new DoublyLinkedList<>();
                     if (found != null) {
                         results.add(found);
                     }
@@ -507,7 +500,7 @@ public class MaintainPharmacy implements Serializable {
                     }
 
                     String needle = pat.toLowerCase();
-                    DoublyLinkedList<Medicine> results = new DoublyLinkedList<>();
+                    ListInterface<Medicine> results = new DoublyLinkedList<>();
                     for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
                         Medicine m = medicineList.getEntry(i);
                         if (m.getName().toLowerCase().contains(needle)) {
@@ -600,7 +593,7 @@ public class MaintainPharmacy implements Serializable {
 
         // Get all treatments for the selected patient
         ListInterface<Treatment> treatments = treatmentDAO.retrieveFromFile();
-        DoublyLinkedList<Treatment> patientTreatments = new DoublyLinkedList<>();
+        ListInterface<Treatment> patientTreatments = new DoublyLinkedList<>();
 
         for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
             Treatment treatment = treatments.getEntry(i);
@@ -652,7 +645,7 @@ public class MaintainPharmacy implements Serializable {
         pharmacyUI.displayMessage("Treatment Date: " + treatmentToDispense.getTreatmentDate());
 
         // Get the medicine list from treatment
-        DoublyLinkedList<TreatmentMedicineList> prescribedMedicines = treatmentToDispense.getMedicineList();
+        ListInterface<TreatmentMedicineList> prescribedMedicines = treatmentToDispense.getMedicineList();
 
         // --- PRESCRIBED MEDICINES (table view) ---
         if (prescribedMedicines.getNumberOfEntries() == 0) {
@@ -663,19 +656,20 @@ public class MaintainPharmacy implements Serializable {
             final String[] headers = {"#", "Medicine", "Tablets"};
 
             String[][] rows = new String[prescribedMedicines.getNumberOfEntries()][headers.length];
-            int grandTotal = 0;
 
+            int grandTotal = 0;
             for (int i = 1; i <= prescribedMedicines.getNumberOfEntries(); i++) {
                 TreatmentMedicineList med = prescribedMedicines.getEntry(i);
 
                 rows[i - 1][0] = String.valueOf(i);
                 rows[i - 1][1] = med.getPrescription();
                 rows[i - 1][2] = String.valueOf(med.getTablets());
+                grandTotal += med.getTablets();
 
             }
 
             pharmacyUI.displayTable(title, headers, rows);
-            pharmacyUI.displayMessage("Grand total tablets prescribed: " + grandTotal);
+            pharmacyUI.displayMessage("Grand total tablets prescribed: \n" + grandTotal);
         }
 
         // Ask for confirmation before dispensing
@@ -684,13 +678,8 @@ public class MaintainPharmacy implements Serializable {
         pharmacyUI.displayMessage("--------------------------------");
         System.out.print("Enter your choice: ");
 
-        int confirmDispense = 0;
-        try {
-            confirmDispense = new Scanner(System.in).nextInt();
-        } catch (Exception e) {
-            confirmDispense = 2; // Default to cancel
-        }
-
+        // Ask for confirmation before dispensing
+        int confirmDispense = pharmacyUI.confirmDispenseAll();
         if (confirmDispense != 1) {
             MessageUI.clearConsole();
             pharmacyUI.displayMessage("Dispensing cancelled.");
@@ -791,7 +780,8 @@ public class MaintainPharmacy implements Serializable {
         MessageUI.clearConsole();
 
         if (medicineList.isEmpty()) {
-            pharmacyUI.displayReport("Inventory Report", "(No inventory items)");
+            String report = formatReportWithBody("Inventory Report", "(No inventory items)");
+            pharmacyUI.displayReport(report);
             MessageUI.pressEnterToContinue();
             return;
         }
@@ -803,19 +793,22 @@ public class MaintainPharmacy implements Serializable {
                 case 0:
                     MessageUI.clearConsole();
                     break;
-
                 case 1: { // KPI Snapshot
                     MessageUI.clearConsole();
                     String[] headers = {"Metric", "Value"};
                     String[][] rows = toRowsKpis();
-                    pharmacyUI.displayTable("== KPIs ==", headers, rows);
 
-                    String tableText = buildTableText("KPIs", headers, rows);
-                    offerExportAfterDisplay("Inventory Report - KPI Snapshot", tableText);
+                    // NEW: one formatted report text
+                    String report = formatReportWithTable("Inventory Report — KPI Snapshot", headers, rows);
+
+                    // display same formatted text
+                    pharmacyUI.displayReport(report);
+
+                    // export the same formatted text
+                    offerExportAfterDisplay("Inventory Report - KPI Snapshot", report, headers, rows);
                     break;
                 }
-
-                case 2: { // Low-stock
+                case 2: {
                     int threshold = pharmacyUI.inputLowStockThreshold();
                     if (threshold == -1) {
                         MessageUI.clearConsole();
@@ -827,20 +820,23 @@ public class MaintainPharmacy implements Serializable {
                     String[][] rows = toRowsLowStock(threshold);
 
                     if (rows.length == 0) {
-                        String body = "(No items at or below threshold)";
-                        pharmacyUI.displayReport("Inventory Report (Low-stock)", body);
-                        // Do NOT offer export when there are no items
-                        MessageUI.pressEnterToContinue();
+                        String report = formatReportWithBody(
+                                "Inventory Report — Low-stock (<= " + threshold + ")",
+                                "(No items at or below threshold)"
+                        );
+                        pharmacyUI.displayReport(report);
+                        MessageUI.pressEnterToContinue(); // no export when empty (your rule)
                     } else {
-                        String title = "== Low-stock (<= " + threshold + ") ==";
-                        pharmacyUI.displayTable(title, headers, rows);
-                        String tableText = buildTableText(title, headers, rows);
-                        offerExportAfterDisplay("Inventory Report - Low Stock (<= " + threshold + ")", tableText);
+                        String report = formatReportWithTable(
+                                "Inventory Report — Low-stock (<= " + threshold + ")",
+                                headers, rows
+                        );
+                        pharmacyUI.displayReport(report);
+                        offerExportAfterDisplay("Inventory Report - Low Stock (<= " + threshold + ")", report, headers, rows);
                     }
                     break;
                 }
-
-                case 3: { // Near-expiry
+                case 3: {
                     int days = pharmacyUI.inputNearExpiryDays();
                     if (days == -1) {
                         MessageUI.clearConsole();
@@ -852,15 +848,19 @@ public class MaintainPharmacy implements Serializable {
                     String[][] rows = toRowsNearExpiry(days);
 
                     if (rows.length == 0) {
-                        String body = "(No items expiring within " + days + " days)";
-                        pharmacyUI.displayReport("Inventory Report (Near-expiry)", body);
-                        // Do NOT offer export when there are no items
+                        String report = formatReportWithBody(
+                                "Inventory Report — Near-expiry (within " + days + " days)",
+                                "(No items expiring within " + days + " days)"
+                        );
+                        pharmacyUI.displayReport(report);
                         MessageUI.pressEnterToContinue();
                     } else {
-                        String title = "== Near-expiry (within " + days + " days) ==";
-                        pharmacyUI.displayTable(title, headers, rows);
-                        String tableText = buildTableText(title, headers, rows);
-                        offerExportAfterDisplay("Inventory Report - Near Expiry (within " + days + " days)", tableText);
+                        String report = formatReportWithTable(
+                                "Inventory Report — Near-expiry (within " + days + " days)",
+                                headers, rows
+                        );
+                        pharmacyUI.displayReport(report);
+                        offerExportAfterDisplay("Inventory Report - Near Expiry (within " + days + " days)", report, headers, rows);
                     }
                     break;
                 }
@@ -871,6 +871,18 @@ public class MaintainPharmacy implements Serializable {
         } while (choice != 0);
     }
 
+    private String dateRangeSuffix(LocalDate start, LocalDate end) {
+        if (start == null && end == null) {
+            return " (All time)";
+        }
+        if (start != null && end != null) {
+            return " (" + start + " to " + end + ")";
+        }
+        if (start != null) {
+            return " (From " + start + ")";
+        }
+        return " (Until " + end + ")";
+    }
 
     /* =========================
      * Reports: Dispensed Log
@@ -881,7 +893,8 @@ public class MaintainPharmacy implements Serializable {
         dispenseLog = dispenseDAO.retrieveFromFile();
 
         if (dispenseLog.isEmpty()) {
-            pharmacyUI.displayReport("Dispensed Medicines Report", "(No records)");
+            String report = formatReportWithBody("Dispensed Medicines Report", "(No records)");
+            pharmacyUI.displayReport(report);
             MessageUI.pressEnterToContinue();
             return;
         }
@@ -940,27 +953,52 @@ public class MaintainPharmacy implements Serializable {
                     : filterByDateRange(startDate, endDate);
 
             switch (choice) {
-                case 1: { // Detail Report
-                    String title = "Dispensed (Detail) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
-                    String body = renderDispenseDetail(filteredRecords);
-                    pharmacyUI.displayReport(title, body);
-                    offerExportAfterDisplay(title, body);
+                case 1: { // Detail (table)
+                    String title = "Dispensed Medicines — Detail" + dateRangeSuffix(startDate, endDate);
+                    String[] headers = {"DateTime", "Patient", "Med ID", "Medicine", "Qty"};
+                    String[][] rows = toRowsDispenseDetail(filteredRecords);
+
+                    if (rows.length == 0) {
+                        String report = formatReportWithBody(title, "(No records in selected period)");
+                        pharmacyUI.displayReport(report);
+                        MessageUI.pressEnterToContinue();
+                    } else {
+                        String report = formatReportWithTable(title, headers, rows);
+                        pharmacyUI.displayReport(report);
+                        offerExportAfterDisplay("Dispensed - Detail", report, headers, rows);
+                    }
                     break;
                 }
+                case 2: { // By Medicine (table)
+                    String title = "Dispensed Medicines — By Medicine" + dateRangeSuffix(startDate, endDate);
+                    String[] headers = {"Medicine", "Total Qty"};
+                    String[][] rows = toRowsDispenseByMedicine(filteredRecords);
 
-                case 2: { // By Medicine
-                    String title = "Dispensed (By Medicine) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
-                    String body = renderDispenseSummaryByMedicine(filteredRecords);
-                    pharmacyUI.displayReport(title, body);
-                    offerExportAfterDisplay(title, body);
+                    if (rows.length == 0) {
+                        String report = formatReportWithBody(title, "(No records in selected period)");
+                        pharmacyUI.displayReport(report);
+                        MessageUI.pressEnterToContinue();
+                    } else {
+                        String report = formatReportWithTable(title, headers, rows);
+                        pharmacyUI.displayReport(report);
+                        offerExportAfterDisplay("Dispensed - By Medicine", report, headers, rows);
+                    }
                     break;
                 }
+                case 3: { // By Patient (table)
+                    String title = "Dispensed Medicines — By Patient" + dateRangeSuffix(startDate, endDate);
+                    String[] headers = {"Patient", "Total Qty"};
+                    String[][] rows = toRowsDispenseByPatient(filteredRecords);
 
-                case 3: { // By Patient
-                    String title = "Dispensed (By Patient) from " + (startDate == null ? "All time" : startDate) + " to " + (endDate == null ? "All time" : endDate);
-                    String body = renderDispenseSummaryByPatient(filteredRecords);
-                    pharmacyUI.displayReport(title, body);
-                    offerExportAfterDisplay(title, body);
+                    if (rows.length == 0) {
+                        String report = formatReportWithBody(title, "(No records in selected period)");
+                        pharmacyUI.displayReport(report);
+                        MessageUI.pressEnterToContinue();
+                    } else {
+                        String report = formatReportWithTable(title, headers, rows);
+                        pharmacyUI.displayReport(report);
+                        offerExportAfterDisplay("Dispensed - By Patient", report, headers, rows);
+                    }
                     break;
                 }
 
@@ -978,8 +1016,8 @@ public class MaintainPharmacy implements Serializable {
      * Make a shallow copy of the medicine list (for sorting/transforming
      * without touching the live list).
      */
-    private DoublyLinkedList<Medicine> copyList() {
-        DoublyLinkedList<Medicine> copy = new DoublyLinkedList<>();
+    private ListInterface<Medicine> copyList() {
+        ListInterface<Medicine> copy = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             copy.add(medicineList.getEntry(i));
         }
@@ -1000,38 +1038,10 @@ public class MaintainPharmacy implements Serializable {
     }
 
     /**
-     * Group totals by medicine name (for a summary table text).
-     */
-    private String buildGroupedTotalsText() {
-        DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            int idx = indexOfName(totals, m.getName());
-            if (idx == -1) {
-                totals.add(new NameTotal(m.getName(), m.getStock()));
-            } else {
-                NameTotal nt = totals.getEntry(idx);
-                nt.total += m.getStock();
-                totals.replace(idx, nt);
-            }
-        }
-        totals.mergeSort((a, b) -> a.name.compareToIgnoreCase(b.name));
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-30s %10s%n", "Medicine Name", "Total Qty"));
-        sb.append("-----------------------------------------------\n");
-        for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
-            NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %10d%n", nt.name, nt.total));
-        }
-        return sb.toString();
-    }
-
-    /**
      * Filter dispense records within [start, end] dates (inclusive).
      */
     private ListInterface<DispenseRecord> filterByDateRange(LocalDate start, LocalDate end) {
-        DoublyLinkedList<DispenseRecord> out = new DoublyLinkedList<>();
+        ListInterface<DispenseRecord> out = new DoublyLinkedList<>();
         for (int i = 1; i <= dispenseLog.getNumberOfEntries(); i++) {
             DispenseRecord r = dispenseLog.getEntry(i);
             LocalDate d = r.getTimestamp().toLocalDate();
@@ -1041,138 +1051,6 @@ public class MaintainPharmacy implements Serializable {
         }
         return out;
     }
-
-    /**
-     * Detail view: sort by timestamp, then patient, then medicine, with better
-     * formatting.
-     */
-    private String renderDispenseDetail(ListInterface<DispenseRecord> list) {
-        DoublyLinkedList<DispenseRecord> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
-            tmp.add(list.getEntry(i));
-        }
-
-        // Sorting by timestamp, patient name, and medicine name
-        tmp.mergeSort((a, b) -> {
-            int c = a.getTimestamp().compareTo(b.getTimestamp());
-            if (c != 0) {
-                return c;
-            }
-            c = a.getPatientName().compareToIgnoreCase(b.getPatientName());
-            if (c != 0) {
-                return c;
-            }
-            return a.getMedName().compareToIgnoreCase(b.getMedName());
-        });
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("==== DISPENSE DETAILS REPORT ====\n\n");
-
-        // Header for the report
-        sb.append(String.format("%-25s %-30s %-15s %-30s %10s%n",
-                "DateTime", "Patient", "Med ID", "Medicine", "Qty"));
-        sb.append("---------------------------------------------------------------"
-                + "---------------------------------------------------------------\n");
-
-        var dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
-        for (int i = 1; i <= tmp.getNumberOfEntries(); i++) {
-            DispenseRecord r = tmp.getEntry(i);
-            sb.append(String.format("%-25s %-30s %-15s %-30s %10d%n",
-                    r.getTimestamp().format(dtf), r.getPatientName(), r.getMedId(), r.getMedName(), r.getQuantity()));
-        }
-
-        // Footer with total count
-        sb.append("\nTotal Records: ").append(tmp.getNumberOfEntries()).append(" dispensations\n");
-
-        return sb.toString();
-    }
-
-    /**
-     * Summary by medicine: totals (desc), tie-breaker by name (asc), enhanced
-     * layout.
-     */
-    private String renderDispenseSummaryByMedicine(ListInterface<DispenseRecord> list) {
-        DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
-        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
-            DispenseRecord r = list.getEntry(i);
-            int idx = indexOfName(totals, r.getMedName());
-            if (idx == -1) {
-                totals.add(new NameTotal(r.getMedName(), r.getQuantity()));
-            } else {
-                NameTotal nt = totals.getEntry(idx);
-                nt.total += r.getQuantity();
-                totals.replace(idx, nt);
-            }
-        }
-        if (totals.isEmpty()) {
-            return "(No records)";
-        }
-
-        // Sorting by total quantity descending, and by name ascending
-        totals.mergeSort((a, b) -> {
-            int c = Integer.compare(b.total, a.total);
-            return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
-        });
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("==== MEDICINE DISPENSE SUMMARY ====\n\n");
-        sb.append(String.format("%-30s %15s%n", "Medicine", "Total Qty"));
-        sb.append("---------------------------------------------------------------\n");
-
-        for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
-            NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %15d%n", nt.name, nt.total));
-        }
-
-        // Footer with total count of medicines
-        sb.append("\nTotal Medicines: ").append(totals.getNumberOfEntries()).append(" unique medicines\n");
-
-        return sb.toString();
-    }
-
-    /**
-     * Summary by patient: totals (desc), tie-breaker by name (asc), enhanced
-     * layout.
-     */
-    private String renderDispenseSummaryByPatient(ListInterface<DispenseRecord> list) {
-        DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
-        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
-            DispenseRecord r = list.getEntry(i);
-            int idx = indexOfName(totals, r.getPatientName());
-            if (idx == -1) {
-                totals.add(new NameTotal(r.getPatientName(), r.getQuantity()));
-            } else {
-                NameTotal nt = totals.getEntry(idx);
-                nt.total += r.getQuantity();
-                totals.replace(idx, nt);
-            }
-        }
-        if (totals.isEmpty()) {
-            return "(No records)";
-        }
-
-        // Sorting by total quantity descending, and by name ascending
-        totals.mergeSort((a, b) -> {
-            int c = Integer.compare(b.total, a.total);
-            return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
-        });
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("==== PATIENT DISPENSE SUMMARY ====\n\n");
-        sb.append(String.format("%-30s %15s%n", "Patient", "Total Qty"));
-        sb.append("---------------------------------------------------------------\n");
-
-        for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
-            NameTotal nt = totals.getEntry(i);
-            sb.append(String.format("%-30s %15d%n", nt.name, nt.total));
-        }
-
-        // Footer with total count of patients
-        sb.append("\nTotal Patients: ").append(totals.getNumberOfEntries()).append(" unique patients\n");
-
-        return sb.toString();
-    }
-
 
     /* =========================
      * KPIs
@@ -1229,59 +1107,161 @@ public class MaintainPharmacy implements Serializable {
     /* =========================
      * Table Builders / Export
      * ========================= */
+    // ===== Consistent Report Formatting =====
+    private static final java.time.format.DateTimeFormatter DT_FULL
+            = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
+    private static final int REPORT_WIDTH = 100;
+    private static final String COL_GAP = "  "; // 2 spaces
+    private static final int CELL_PADDING = 1;
+
     /**
-     * Build a plain-text table (no dependency on TablePrinter) for exporting.
+     * e.g. "26-Aug-2025 14:23" in local time
      */
-    private String buildTableText(String title, String[] headers, String[][] rows) {
+    private String nowStamp() {
+        return LocalDateTime.now().format(DT_FULL);
+    }
+
+    private String lineOf(char ch, int width) {
+        return String.valueOf(ch).repeat(Math.max(0, width));
+    }
+
+    /**
+     * Common header used for all reports (title + generated date)
+     */
+    private String renderHeader(String title) {
         StringBuilder sb = new StringBuilder();
-        if (title != null && !title.isEmpty()) {
-            sb.append(title).append("\n\n");
-        }
 
-        // Column widths
-        int cols = headers.length;
-        int[] w = new int[cols];
-        for (int c = 0; c < cols; c++) {
-            w[c] = headers[c].length();
-        }
-        for (String[] r : rows) {
-            for (int c = 0; c < cols; c++) {
-                if (r[c] != null && r[c].length() > w[c]) {
-                    w[c] = r[c].length();
-                }
-            }
-        }
+        String header = "===== TARUMT Clinic Management System =====";
+        String titleStr = title;  // your dynamic title
+        String dateStr = "Generated on: " + nowStamp();
 
-        // Header
-        for (int c = 0; c < cols; c++) {
-            sb.append(String.format("%-" + (w[c] + 2) + "s", headers[c]));
-        }
-        sb.append("\n");
+        // 1. Center the header
+        int headerPadding = (REPORT_WIDTH - header.length()) / 2;
+        sb.append(" ".repeat(Math.max(0, headerPadding))).append(header).append("\n");
 
-        // Separator
-        for (int c = 0; c < cols; c++) {
-            sb.append("-".repeat(w[c])).append("  ");
+        // 2. Left (title) + Right (date)
+        int spaces = REPORT_WIDTH - (dateStr.length() + titleStr.length()) - 1;
+        if (spaces < 1) {
+            spaces = 1; // at least 1 space
         }
-        sb.append("\n");
+        sb.append(titleStr).append(" ".repeat(spaces)).append(dateStr).append("\n");
+        sb.append(lineOf('-', REPORT_WIDTH)).append("\n");
 
-        // Rows
-        for (String[] r : rows) {
-            for (int c = 0; c < cols; c++) {
-                String cell = (r[c] == null) ? "" : r[c];
-                sb.append(String.format("%-" + (w[c] + 2) + "s", cell));
-            }
-            sb.append("\n");
-        }
         return sb.toString();
     }
 
     /**
-     * After displaying a report/table, optionally export as text file.
+     * Consistent footer (optional; keep simple for now)
      */
-    private void offerExportAfterDisplay(String exportTitle, String exportBody) {
+    private String renderFooter() {
+        return lineOf('-', REPORT_WIDTH) + "\n";
+    }
+
+    /**
+     * Build a nice, monospaced report with a table
+     */
+    private String formatReportWithTable(String title, String[] headers, String[][] rows) {
+        StringBuilder sb = new StringBuilder(renderHeader(title));
+
+        int cols = headers.length;
+        int gapWidth = COL_GAP.length();
+
+        // Compute available width for content
+        int totalGap = gapWidth * (cols - 1);
+        int totalPadding = CELL_PADDING * 2 * cols; // left + right padding per column
+        int available = REPORT_WIDTH - 2 - totalGap - totalPadding; // minus side borders & gaps
+
+        int baseWidth = available / cols;
+        int remainder = available % cols;
+
+        int[] colWidth = new int[cols];
+        for (int c = 0; c < cols; c++) {
+            colWidth[c] = baseWidth + (c < remainder ? 1 : 0);
+        }
+
+        // --- Header row ---
+        sb.append("|");
+        for (int c = 0; c < cols; c++) {
+            sb.append(" ".repeat(CELL_PADDING));
+            sb.append(padRight(ellipsize(headers[c], colWidth[c]), colWidth[c]));
+            sb.append(" ".repeat(CELL_PADDING));
+            if (c < cols - 1) {
+                sb.append(COL_GAP);
+            }
+        }
+        sb.append("|").append("\n");
+
+        // --- Horizontal line under header ---
+        sb.append("|").append("-".repeat(REPORT_WIDTH - 2)).append("|").append("\n");
+
+        // --- Data rows ---
+        for (String[] r : rows) {
+            sb.append("|");
+            for (int c = 0; c < cols; c++) {
+                String cell = (r[c] == null ? "" : r[c]);
+                sb.append(" ".repeat(CELL_PADDING));
+                sb.append(padRight(ellipsize(cell, colWidth[c]), colWidth[c]));
+                sb.append(" ".repeat(CELL_PADDING));
+                if (c < cols - 1) {
+                    sb.append(COL_GAP);
+                }
+            }
+            sb.append("|").append("\n");
+        }
+
+        sb.append(renderFooter());
+        return sb.toString();
+    }
+
+// --- helpers ---
+    private static String padRight(String s, int width) {
+        if (s.length() >= width) {
+            return s;
+        }
+        return s + " ".repeat(width - s.length());
+    }
+
+    private static String ellipsize(String s, int width) {
+        if (s == null) {
+            s = "";
+        }
+        if (width <= 0) {
+            return "";
+        }
+        if (s.length() <= width) {
+            return s;
+        }
+        if (width <= 1) {
+            return "…";
+        }
+        if (width == 2) {
+            return "…" + s.charAt(s.length() - 1);
+        }
+        return s.substring(0, width - 1) + "…";
+    }
+
+    /**
+     * Build a nice, monospaced report with a free-form body
+     */
+    private String formatReportWithBody(String title, String body) {
+        StringBuilder sb = new StringBuilder(renderHeader(title));
+        sb.append(body).append(renderFooter());
+        return sb.toString();
+    }
+
+    private void offerExportAfterDisplay(String filenameBase, String formattedReportText, String[] headers, String[][] rows) {
         int act = pharmacyUI.getPostReportAction();
+        String path = null;
+
         if (act == 1) {
-            String path = exportReportToFile(exportTitle, exportBody);
+            // Export TXT
+            path = exportReportToFile(filenameBase, formattedReportText);
+        } else if (act == 2) {
+            // Export CSV
+            path = exportCsv(filenameBase, headers, rows);
+        }
+
+        if (act == 1 || act == 2) {
             if (path == null) {
                 pharmacyUI.displayMessage("\nFailed to export report.\n");
             } else {
@@ -1293,15 +1273,37 @@ public class MaintainPharmacy implements Serializable {
         }
     }
 
-    /**
-     * Export the given title/body to a filesystem-safe .txt; returns absolute
-     * path or null on failure.
-     */
-    private String exportReportToFile(String title, String body) {
+    private String exportCsv(String filenameBase, String[] headers, String[][] rows) {
+        var fnf = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+        String safeTitle = filenameBase.replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replaceAll("\\s+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_+|_+$", "");
+        String filename = safeTitle.toLowerCase() + "_" + java.time.LocalDateTime.now().format(fnf) + ".csv";
+        java.io.File file = new java.io.File(filename);
+        try (var pw = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
+            pw.println(String.join(",", headers));
+            for (String[] r : rows) {
+                for (int i = 0; i < r.length; i++) {
+                    String cell = (r[i] == null ? "" : r[i]).replace("\"", "\"\"");
+                    pw.print("\"" + cell + "\"");
+                    if (i < r.length - 1) {
+                        pw.print(",");
+                    }
+                }
+                pw.println();
+            }
+        } catch (java.io.IOException e) {
+            return null;
+        }
+        return file.getAbsolutePath();
+    }
+
+    private String exportReportToFile(String filenameBase, String fullReportText) {
         var fnf = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
-        // Make a safe filename slug from the title
-        String safeTitle = title
+        // safe slug
+        String safeTitle = filenameBase
                 .replaceAll("[\\\\/:*?\"<>|]", "_")
                 .replaceAll("\\s+", "_")
                 .replaceAll("_+", "_")
@@ -1310,11 +1312,8 @@ public class MaintainPharmacy implements Serializable {
         String filename = safeTitle.toLowerCase() + "_" + java.time.LocalDateTime.now().format(fnf) + ".txt";
         java.io.File file = new java.io.File(filename);
 
-        try (java.io.PrintWriter pw
-                = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
-            pw.println(title);
-            pw.println();
-            pw.println(body);
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
+            pw.print(fullReportText); // write the already-formatted report EXACTLY as displayed
         } catch (java.io.IOException e) {
             return null;
         }
@@ -1322,8 +1321,101 @@ public class MaintainPharmacy implements Serializable {
     }
 
     /* =========================
-     * Row Mappers (for TablePrinter)
-     * ========================= */
+    * Dispensed: Row Mappers (tables)
+    * ========================= */
+    private String[][] toRowsDispenseDetail(ListInterface<DispenseRecord> list) {
+        // copy & sort
+        ListInterface<DispenseRecord> tmp = new DoublyLinkedList<>();
+        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
+            tmp.add(list.getEntry(i));
+        }
+        tmp.mergeSort((a, b) -> {
+            int c = a.getTimestamp().compareTo(b.getTimestamp());
+            if (c != 0) {
+                return c;
+            }
+            c = a.getPatientName().compareToIgnoreCase(b.getPatientName());
+            if (c != 0) {
+                return c;
+            }
+            return a.getMedName().compareToIgnoreCase(b.getMedName());
+        });
+
+        var dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu HH:mm");
+        String[][] rows = new String[tmp.getNumberOfEntries()][5];
+        for (int i = 1; i <= tmp.getNumberOfEntries(); i++) {
+            DispenseRecord r = tmp.getEntry(i);
+            rows[i - 1][0] = r.getTimestamp().format(dtf);
+            rows[i - 1][1] = r.getPatientName();
+            rows[i - 1][2] = r.getMedId();
+            rows[i - 1][3] = r.getMedName();
+            rows[i - 1][4] = String.valueOf(r.getQuantity());
+        }
+        return rows;
+    }
+
+    private String[][] toRowsDispenseByMedicine(ListInterface<DispenseRecord> list) {
+        ListInterface<NameTotal> totals = new DoublyLinkedList<>();
+        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
+            DispenseRecord r = list.getEntry(i);
+            int idx = indexOfName(totals, r.getMedName());
+            if (idx == -1) {
+                totals.add(new NameTotal(r.getMedName(), r.getQuantity()));
+            } else {
+                NameTotal nt = totals.getEntry(idx);
+                nt.total += r.getQuantity();
+                totals.replace(idx, nt);
+            }
+        }
+        if (totals.isEmpty()) {
+            return new String[0][0];
+        }
+
+        totals.mergeSort((a, b) -> {
+            int c = Integer.compare(b.total, a.total);
+            return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
+        });
+
+        String[][] rows = new String[totals.getNumberOfEntries()][2];
+        for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
+            NameTotal nt = totals.getEntry(i);
+            rows[i - 1][0] = nt.name;
+            rows[i - 1][1] = String.valueOf(nt.total);
+        }
+        return rows;
+    }
+
+    private String[][] toRowsDispenseByPatient(ListInterface<DispenseRecord> list) {
+        ListInterface<NameTotal> totals = new DoublyLinkedList<>();
+        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
+            DispenseRecord r = list.getEntry(i);
+            int idx = indexOfName(totals, r.getPatientName());
+            if (idx == -1) {
+                totals.add(new NameTotal(r.getPatientName(), r.getQuantity()));
+            } else {
+                NameTotal nt = totals.getEntry(idx);
+                nt.total += r.getQuantity();
+                totals.replace(idx, nt);
+            }
+        }
+        if (totals.isEmpty()) {
+            return new String[0][0];
+        }
+
+        totals.mergeSort((a, b) -> {
+            int c = Integer.compare(b.total, a.total);
+            return (c != 0) ? c : a.name.compareToIgnoreCase(b.name);
+        });
+
+        String[][] rows = new String[totals.getNumberOfEntries()][2];
+        for (int i = 1; i <= totals.getNumberOfEntries(); i++) {
+            NameTotal nt = totals.getEntry(i);
+            rows[i - 1][0] = nt.name;
+            rows[i - 1][1] = String.valueOf(nt.total);
+        }
+        return rows;
+    }
+
     private String[][] toRowsById(ListInterface<Medicine> list) {
         var df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
         String[][] rows = new String[list.getNumberOfEntries()][5];
@@ -1331,37 +1423,135 @@ public class MaintainPharmacy implements Serializable {
             Medicine m = list.getEntry(i);
             rows[i - 1][0] = m.getMedId();
             rows[i - 1][1] = m.getName();
-            rows[i - 1][2] = String.valueOf(m.getStock());
-            rows[i - 1][3] = String.format("RM %.2f", m.getPrice());
+            rows[i - 1][2] = fmtInt(m.getStock());
+            rows[i - 1][3] = fmtMoney(m.getPrice());
             rows[i - 1][4] = m.getExpiryDate().format(df);
         }
         return rows;
     }
 
+    // Add small helpers (you already have totalValuation(), sumUnits(), etc.)
+    private static String fmtInt(int n) {
+        return String.format("%,d", n);
+    }
+
+    private static String fmtMoney(double v) {
+        return String.format("RM %,.2f", v);
+    }
+
+    private int countOutOfStock() {
+        int n = 0;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            if (medicineList.getEntry(i).getStock() <= 0) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private int countLowStockSkus(int threshold) {
+        int n = 0;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            if (medicineList.getEntry(i).getStock() <= threshold) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private double valuationLowStock(int threshold) {
+        double sum = 0.0;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            Medicine m = medicineList.getEntry(i);
+            if (m.getStock() <= threshold) {
+                sum += m.getStock() * m.getPrice();
+            }
+        }
+        return sum;
+    }
+
+    private int countNearExpirySkus(int days) {
+        LocalDate today = LocalDate.now();
+        LocalDate cutoff = today.plusDays(days);
+        int n = 0;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            LocalDate d = medicineList.getEntry(i).getExpiryDate();
+            if (!d.isBefore(today) && !d.isAfter(cutoff)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private double valuationNearExpiry(int days) {
+        LocalDate today = LocalDate.now();
+        LocalDate cutoff = today.plusDays(days);
+        double sum = 0.0;
+        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
+            Medicine m = medicineList.getEntry(i);
+            LocalDate d = m.getExpiryDate();
+            if (!d.isBefore(today) && !d.isAfter(cutoff)) {
+                sum += m.getStock() * m.getPrice();
+            }
+        }
+        return sum;
+    }
+
+    private double weightedAvgUnitPrice() {
+        int units = sumUnits();
+        return (units == 0) ? 0.0 : totalValuation() / units;
+    }
+
     private String[][] toRowsKpis() {
-        var df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
+        java.time.format.DateTimeFormatter df
+                = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
+
         Medicine earliest = getEarliestExpiry();
         Medicine latest = getLatestExpiry();
 
-        String[][] rows = new String[5][2];
-        rows[0][0] = "Total SKUs";
-        rows[0][1] = String.valueOf(countSkus());
-        rows[1][0] = "Total Units";
-        rows[1][1] = String.valueOf(sumUnits());
-        rows[2][0] = "Total Valuation";
-        rows[2][1] = String.format("RM %.2f", totalValuation());
-        rows[3][0] = "Earliest Expiry";
-        rows[3][1] = (earliest == null) ? "-"
-                : earliest.getExpiryDate().format(df) + " (" + earliest.getMedId() + ", " + earliest.getName() + ")";
-        rows[4][0] = "Latest Expiry";
-        rows[4][1] = (latest == null) ? "-"
-                : latest.getExpiryDate().format(df) + " (" + latest.getMedId() + ", " + latest.getName() + ")";
-        return rows;
+        int threshold = 5;   // default low-stock threshold
+        int nearDays = 30;  // default near-expiry window (days)
+
+        int skus = countSkus();
+        int units = sumUnits();
+        double valuation = totalValuation();
+        int oos = countOutOfStock();
+        int low = countLowStockSkus(threshold);
+        double lowVal = valuationLowStock(threshold);
+        int near = countNearExpirySkus(nearDays);
+        double nearVal = valuationNearExpiry(nearDays);
+        double wAvg = weightedAvgUnitPrice();
+
+        // Build rows using your custom ListInterface (no Java Collections)
+        ListInterface<String[]> rows = new DoublyLinkedList<>();
+        rows.add(new String[]{"Total SKUs", fmtInt(skus)});
+        rows.add(new String[]{"Out-of-stock SKUs", fmtInt(oos)});
+        rows.add(new String[]{"Total Units", fmtInt(units)});
+        rows.add(new String[]{"Total Valuation", fmtMoney(valuation)});
+        rows.add(new String[]{"Value-weighted Avg Unit Price", fmtMoney(wAvg)});
+        rows.add(new String[]{"Low-stock (≤ " + threshold + ")", fmtInt(low) + "  |  " + fmtMoney(lowVal)});
+        rows.add(new String[]{"Near-expiry (≤ " + nearDays + " days)", fmtInt(near) + "  |  " + fmtMoney(nearVal)});
+        rows.add(new String[]{
+            "Expiry Range",
+            (earliest == null || latest == null)
+            ? "-"
+            : earliest.getExpiryDate().format(df) + " → " + latest.getExpiryDate().format(df)
+        });
+
+        // Convert your custom list to a 2D array (no toArray on ListInterface)
+        int n = rows.getNumberOfEntries();
+        String[][] out = new String[n][2]; // 2 columns: Metric, Value
+        for (int i = 1; i <= n; i++) {
+            String[] row = rows.getEntry(i);     // each row is String[2]
+            out[i - 1][0] = row[0];
+            out[i - 1][1] = row[1];
+        }
+        return out;
     }
 
     private String[][] toRowsTotalsByName() {
         // Build totals by name
-        DoublyLinkedList<NameTotal> totals = new DoublyLinkedList<>();
+        ListInterface<NameTotal> totals = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             Medicine m = medicineList.getEntry(i);
             int idx = indexOfName(totals, m.getName());
@@ -1387,7 +1577,7 @@ public class MaintainPharmacy implements Serializable {
     }
 
     private String[][] toRowsLowStock(int threshold) {
-        DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
+        ListInterface<Medicine> tmp = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             Medicine m = medicineList.getEntry(i);
             if (m.getStock() <= threshold) {
@@ -1409,7 +1599,7 @@ public class MaintainPharmacy implements Serializable {
         LocalDate today = LocalDate.now();
         LocalDate cutoff = today.plusDays(days);
 
-        DoublyLinkedList<Medicine> tmp = new DoublyLinkedList<>();
+        ListInterface<Medicine> tmp = new DoublyLinkedList<>();
         for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
             Medicine m = medicineList.getEntry(i);
             LocalDate d = m.getExpiryDate();

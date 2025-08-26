@@ -4,31 +4,36 @@ import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Iterator;
 
+/**
+ * DoublyLinkedList<T>
+ *
+ * Why we selected this ADT:
+ * --------------------------
+ * - Dynamic: grows/shrinks without fixed size limit.
+ * - Efficient insertion & deletion at both ends: O(1).
+ * - Doubly linked nodes make reverse() and mergeSort() easier
+ *   than in a singly linked list.
+ * - Avoids array resizing overhead (like in ArrayList).
+ */
 public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
 
     // ================================
-    // Inner Node class - stores data and links to previous/next nodes
+    // Inner Node class
+    // Stores element + links to next/prev nodes
     // ================================
     private class Node implements Serializable {
-
-        T data;        // Element stored in the node
-        Node next;     // Pointer to the next node
-        Node prev;     // Pointer to the previous node
-
-        Node(T data) {
-            this.data = data;
-        }
+        T data;
+        Node next;
+        Node prev;
+        Node(T data) { this.data = data; }
     }
-    
+
     // ================================
     // Inner Iterator class
+    // Provides safe traversal using Java's Iterator
     // ================================
     private class ListIterator implements Iterator<T> {
-        private Node currentNode;
-
-        public ListIterator() {
-            currentNode = head;
-        }
+        private Node currentNode = head;
 
         @Override
         public boolean hasNext() {
@@ -47,16 +52,16 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
 
         @Override
         public void remove() {
-            throw new UnsupportedOperationException("Remove not supported by this iterator.");
+            throw new UnsupportedOperationException("Remove not supported.");
         }
     }
 
     // ================================
     // Instance variables
     // ================================
-    private Node head;             // First node in the list
-    private Node tail;             // Last node in the list
-    private int numberOfEntries;   // Count of nodes in the list
+    private Node head;             // First node
+    private Node tail;             // Last node
+    private int numberOfEntries;   // Count of nodes
 
     // ================================
     // Constructor
@@ -69,16 +74,37 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
     // ================================
     // Add methods
     // ================================
-    // Add to the end of the list
+    /**
+     * add(T newEntry)
+     * ----------------
+     * - Inserts newEntry at end of list.
+     * - Calls add(position n+1).
+     *
+     * Complexity:
+     * - Time: O(1)
+     * - Space: O(1)
+     */
     @Override
     public boolean add(T newEntry) {
         return add(numberOfEntries + 1, newEntry);
     }
 
-    // Add at a specific position (1-based index)
+    /**
+     * add(int newPosition, T newEntry)
+     * --------------------------------
+     * - Inserts newEntry at the given position (1-based).
+     * - Handles insert at start, end, or middle.
+     * - Null entries are rejected.
+     *
+     * Complexity:
+     * - At start/end: O(1)
+     * - In middle   : O(min(i, n-i)) to reach node
+     */
     @Override
     public boolean add(int newPosition, T newEntry) {
-        // Check for valid position
+        if (newEntry == null) {
+            throw new NullPointerException("newEntry must not be null");
+        }
         if (newPosition < 1 || newPosition > numberOfEntries + 1) {
             return false;
         }
@@ -86,20 +112,16 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         Node newNode = new Node(newEntry);
 
         if (isEmpty()) {
-            // First element in the list
             head = tail = newNode;
         } else if (newPosition == 1) {
-            // Insert at the start
             newNode.next = head;
             head.prev = newNode;
             head = newNode;
         } else if (newPosition == numberOfEntries + 1) {
-            // Insert at the end
             tail.next = newNode;
             newNode.prev = tail;
             tail = newNode;
         } else {
-            // Insert in the middle
             Node current = getNodeAt(newPosition);
             newNode.prev = current.prev;
             newNode.next = current;
@@ -111,32 +133,19 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         return true;
     }
 
-    // Helper to unlink/remove a node from the chain
+    // Helper: unlink node safely (used by remove)
     private T unlink(Node x) {
         T val = x.data;
         Node p = x.prev, n = x.next;
 
-        // Update previous node's next pointer
-        if (p == null) {
-            head = n;
-        } else {
-            p.next = n;
-        }
+        if (p == null) { head = n; } else { p.next = n; }
+        if (n == null) { tail = p; } else { n.prev = p; }
 
-        // Update next node's prev pointer
-        if (n == null) {
-            tail = p;
-        } else {
-            n.prev = p;
-        }
-
-        // Disconnect the removed node
-        x.next = x.prev = null;
+        x.next = x.prev = null; // fully detach
         numberOfEntries--;
         return val;
     }
 
-    // Remove element at a given position
     @Override
     public T remove(int givenPosition) {
         if (givenPosition < 1 || givenPosition > numberOfEntries) {
@@ -145,16 +154,17 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         return unlink(getNodeAt(givenPosition));
     }
 
-    // Clear the entire list
     @Override
     public void clear() {
         head = tail = null;
         numberOfEntries = 0;
     }
 
-    // Replace the data at a specific position
     @Override
     public boolean replace(int givenPosition, T newEntry) {
+        if (newEntry == null) {
+            throw new NullPointerException("newEntry must not be null");
+        }
         if (givenPosition < 1 || givenPosition > numberOfEntries) {
             return false;
         }
@@ -162,7 +172,6 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         return true;
     }
 
-    // Get the data at a specific position
     @Override
     public T getEntry(int givenPosition) {
         if (givenPosition < 1 || givenPosition > numberOfEntries) {
@@ -174,12 +183,22 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
     // ================================
     // Searching methods
     // ================================
-    // Check if a value exists in the list (linearSearch)
+    /**
+     * contains(T anEntry)
+     * -------------------
+     * Why linear search?
+     * - Linked list random access is O(n), so binary search is inefficient.
+     * - Best approach: walk node-by-node until match.
+     *
+     * Complexity:
+     * - Time: O(n)
+     * - Space: O(1)
+     */
     @Override
     public boolean contains(T anEntry) {
         Node current = head;
         while (current != null) {
-            if (current.data.equals(anEntry)) {
+            if (java.util.Objects.equals(current.data, anEntry)) {
                 return true;
             }
             current = current.next;
@@ -187,60 +206,53 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         return false;
     }
 
-    // Get the number of elements in the list
-    @Override
-    public int getNumberOfEntries() {
-        return numberOfEntries;
-    }
+    @Override public int getNumberOfEntries() { return numberOfEntries; }
+    @Override public boolean isEmpty() { return numberOfEntries == 0; }
+    @Override public boolean isFull() { return false; } // dynamic list never "full"
 
-    // Check if the list is empty
-    @Override
-    public boolean isEmpty() {
-        return numberOfEntries == 0;
-    }
-
-    // Linked list can always grow
-    @Override
-    public boolean isFull() {
-        return false;
-    }
-
-    // ================================
-    // Node access helper
-    // ================================
+    // Helper: get node at position (optimized from head/tail)
     private Node getNodeAt(int position) {
-        if (position < 1 || position > numberOfEntries) {
-            return null;
-        }
+        if (position < 1 || position > numberOfEntries) return null;
 
-        // Optimize: start from head or tail depending on which is closer
         if (position <= (numberOfEntries / 2)) {
             Node cur = head;
-            for (int i = 1; i < position; i++) {
-                cur = cur.next;
-            }
+            for (int i = 1; i < position; i++) cur = cur.next;
             return cur;
         } else {
             Node cur = tail;
-            for (int i = numberOfEntries; i > position; i--) {
-                cur = cur.prev;
-            }
+            for (int i = numberOfEntries; i > position; i--) cur = cur.prev;
             return cur;
         }
     }
 
     // ================================
-    // Merge Sort (In-place, stable, O(1) extra space)
+    // Merge Sort (stable, in-place)
     // ================================
+    /**
+     * mergeSort(Comparator<T> comparator)
+     * -----------------------------------
+     * Why merge sort?
+     * - Splitting and merging are pointer-based (efficient for linked lists).
+     * - Stable: preserves order of equal elements.
+     * - Better suited than quicksort/heap sort (those need random access).
+     *
+     * How it works:
+     * 1. Recursively split list into halves until size 0/1.
+     * 2. Merge sorted halves into one.
+     * 3. Rebuild prev pointers & tail.
+     *
+     * Complexity:
+     * - Time: O(n log n)
+     * - Space: O(1) auxiliary, O(log n) recursion stack
+     */
     @Override
     public void mergeSort(Comparator<T> comparator) {
-        if (numberOfEntries <= 1) {
-            return;
-        }
+        if (comparator == null) throw new NullPointerException("comparator must not be null");
+        if (numberOfEntries <= 1) return;
 
         head = mergeSortNodes(head, comparator);
 
-        // Rebuild prev pointers and tail after sorting
+        // Rebuild prev pointers & tail
         Node cur = head, prev = null;
         while (cur != null) {
             cur.prev = prev;
@@ -250,25 +262,19 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         tail = prev;
     }
 
-    // Recursive merge sort on linked list
+    /** Recursive mergeSort on nodes */
     private Node mergeSortNodes(Node h, Comparator<T> comp) {
-        if (h == null || h.next == null) {
-            return h; // Base case: single node
-        }
-
-        Node mid = split(h);         // Split into two halves
+        if (h == null || h.next == null) return h;
+        Node mid = split(h);
         Node right = mid.next;
-        mid.next = null;             // End left half
-        if (right != null) {
-            right.prev = null;
-        }
-
-        Node leftSorted = mergeSortNodes(h, comp);
+        mid.next = null;
+        if (right != null) right.prev = null;
+        Node leftSorted  = mergeSortNodes(h, comp);
         Node rightSorted = mergeSortNodes(right, comp);
         return mergeLists(leftSorted, rightSorted, comp);
     }
 
-    // Find middle node (end of first half)
+    /** Find mid node using slow/fast pointers */
     private Node split(Node h) {
         Node slow = h, fast = h;
         while (fast.next != null && fast.next.next != null) {
@@ -278,113 +284,108 @@ public class DoublyLinkedList<T> implements ListInterface<T>, Serializable {
         return slow;
     }
 
-    // Merge two sorted lists into one
+    /** Merge two sorted sublists */
     private Node mergeLists(Node a, Node b, Comparator<T> comp) {
-        Node dummy = new Node(null); // Dummy node to build result
+        Node dummy = new Node(null);
         Node tailM = dummy;
 
         while (a != null && b != null) {
             if (comp.compare(a.data, b.data) <= 0) {
-                tailM.next = a;
-                a.prev = tailM;
-                a = a.next;
+                tailM.next = a; a.prev = tailM; a = a.next;
             } else {
-                tailM.next = b;
-                b.prev = tailM;
-                b = b.next;
+                tailM.next = b; b.prev = tailM; b = b.next;
             }
             tailM = tailM.next;
         }
 
-        // Attach remaining nodes
         Node rest = (a != null) ? a : b;
-        if (rest != null) {
-            tailM.next = rest;
-            rest.prev = tailM;
-        }
+        if (rest != null) { tailM.next = rest; rest.prev = tailM; }
 
-        // Return head of merged list
         Node newHead = dummy.next;
-        if (newHead != null) {
-            newHead.prev = null;
-        }
+        if (newHead != null) newHead.prev = null;
         return newHead;
     }
 
-    // Check if the list is sorted according to a comparator
+    /**
+     * isSorted()
+     * ----------
+     * - Checks list order by comparing adjacent pairs.
+     *
+     * Complexity:
+     * - Time: O(n)
+     * - Space: O(1)
+     */
     @Override
     public boolean isSorted(Comparator<T> comparator) {
-        if (numberOfEntries <= 1) {
-            return true;
-        }
-
+        if (comparator == null) throw new NullPointerException("comparator must not be null");
+        if (numberOfEntries <= 1) return true;
         Node current = head;
         while (current != null && current.next != null) {
-            if (comparator.compare(current.data, current.next.data) > 0) {
-                return false;
-            }
+            if (comparator.compare(current.data, current.next.data) > 0) return false;
             current = current.next;
         }
         return true;
     }
 
     // ================================
-    // Reverse operation
+    // Reverse (O(n), one pass, O(1) space)
     // ================================
     /**
      * Reverses the order of elements in the doubly linked list
      *
-     * Algorithm:
-     * 1. Store original head and tail references for O(1) swapping
-     * 2. Traverse the list once, swapping next/prev pointers for each node
-     * 3. Swap head and tail references to complete the reversal
+     * Algorithm: 1. Store original head and tail references for O(1) swapping
+     * 2. Traverse the list once, swapping next/prev pointers for each node 3.
+     * Swap head and tail references to complete the reversal
      *
-     * Time Complexity: O(n) - single pass through the list
-     * Space Complexity: O(1) - only uses a few temporary variables
+     * Time Complexity: O(n) - single pass through the list Space Complexity:
+     * O(1) - only uses a few temporary variables
      *
-     * This implementation fixes two key issues:
-     * - Efficiency: No unnecessary second traversal to find new tail
-     * - Logic clarity: Direct head/tail swapping instead of relying on loop side effects
+     * This implementation fixes two key issues: - Efficiency: No unnecessary
+     * second traversal to find new tail - Logic clarity: Direct head/tail
+     * swapping instead of relying on loop side effects
      */
     @Override
     public void reverse() {
         if (numberOfEntries <= 1) {
-            return; // Nothing to reverse for empty list or single element
+            return;
         }
 
-        // Store original head and tail for efficient O(1) swapping at the end
         Node originalHead = head;
         Node originalTail = tail;
-
         Node current = head;
 
-        // Single pass: swap next and prev pointers for all nodes
         while (current != null) {
-            Node nextNode = current.next; // Store next before we modify pointers
-
-            // Swap the next and prev pointers for current node
+            Node nextNode = current.next;
             Node temp = current.prev;
             current.prev = current.next;
             current.next = temp;
-
-            current = nextNode; // Move to next node using original direction
+            current = nextNode;
         }
 
-        // Complete the reversal: swap head and tail references (O(1) operation)
         head = originalTail;
         tail = originalHead;
     }
-    
+
     // ================================
-    // Iterator method
+    // Iterator
     // ================================
+    /**
+     * iterator()
+     * ----------
+     * - Enables enhanced for-loop: for(T item : list).
+     * - Encapsulates traversal without exposing Node.
+     *
+     * Complexity:
+     * - Time per step: O(1)
+     * - Space: O(1)
+     */
     @Override
     public Iterator<T> iterator() {
         return new ListIterator();
     }
 
     // ================================
-    // String representation
+    // toString
     // ================================
     @Override
     public String toString() {

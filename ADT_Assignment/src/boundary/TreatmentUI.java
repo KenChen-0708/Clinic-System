@@ -16,7 +16,7 @@ public class TreatmentUI {
     private final Scanner scanner;
     private final MaintainTreatment maintainTreatment;
     private final MaintainDiagnosis maintainDiagnosis;
-    private static DiagnosisUI DUI = new DiagnosisUI();
+    private static DiagnosisUI diagnosisUI = new DiagnosisUI();
 
     public TreatmentUI(MaintainTreatment maintainTreatment) {
         this.scanner = new Scanner(System.in);
@@ -57,7 +57,7 @@ public class TreatmentUI {
     private void processMenuChoice(int choice) {
         switch (choice) {
             case 1:
-                DUI.displayDiagnosisMenu();
+                diagnosisUI.displayDiagnosisMenu();
                 break;
             case 2:
                 displayTreatmentMenu();
@@ -115,23 +115,17 @@ public class TreatmentUI {
     }
 
     // ================================
-    // VIEW TREATMENT METHODS
+    // VIEW TREATMENT METHODS USING ADT
     // ================================
     public void viewTreatment() {
         System.out.println("\n==========================");
         System.out.println("     VIEW TREATMENT     ");
         System.out.println("==========================");
 
-        DoublyLinkedList<String> viewOptions = new DoublyLinkedList<>();
-        viewOptions.add("View all treatments");
-        viewOptions.add("View treatment by ID");
-        viewOptions.add("View treatments by Patient ID");
-        viewOptions.add("View treatments by Doctor ID");
-        viewOptions.add("View treatments by Status");
-        viewOptions.add("Back");
+        DoublyLinkedList<String> viewOptions = createViewOptions();
+        int choice = selectFromOptions("Select view option", viewOptions);
 
-        int choice = selectFromNumberedOptions("Select view option", viewOptions);
-        if (choice == -1) {
+        if (choice == -1 || choice == 0) {
             return;
         }
 
@@ -151,16 +145,26 @@ public class TreatmentUI {
             case 5:
                 viewTreatmentsByStatus();
                 break;
-            case 6:
-                return;
-            default:
-                System.out.println("Invalid option selected.");
+            case 0: // Back
+                System.out.println("Returning back...");
                 break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
         }
     }
 
+    private DoublyLinkedList<String> createViewOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("View all treatments");
+        options.add("View treatment by ID");
+        options.add("View treatments by Patient ID");
+        options.add("View treatments by Doctor ID");
+        options.add("View treatments by Status");
+        return options;
+    }
+
     private void viewAllTreatments() {
-        ListInterface<Treatment> treatments = maintainTreatment.getAllTreatments();
+        DoublyLinkedList<Treatment> treatments = maintainTreatment.getAllTreatments();
         displayTreatmentList(treatments, "ALL TREATMENTS");
     }
 
@@ -202,7 +206,7 @@ public class TreatmentUI {
     }
 
     private void viewTreatmentsByStatus() {
-        String status = selectFromOptions("Select Status", maintainTreatment.getStatusOptions());
+        String status = selectFromStatusOptions("Select Status");
         if (status == null) {
             return;
         }
@@ -212,34 +216,34 @@ public class TreatmentUI {
     }
 
     // ================================
-    // UPDATE TREATMENT METHODS
+    // UPDATE TREATMENT METHODS USING ADT
     // ================================
     public void updateTreatment() {
         System.out.println("\n==========================");
         System.out.println("     UPDATE TREATMENT    ");
         System.out.println("==========================");
+
         String treatmentId = getValidInput("Enter Treatment ID to update: ");
-        System.out.print("\n");
         if (treatmentId == null) {
             return;
         }
+
         Treatment existingTreatment = maintainTreatment.findTreatmentById(treatmentId);
         if (existingTreatment == null) {
             System.out.println("Treatment with ID '" + treatmentId + "' not found.");
             return;
         }
+
         System.out.println("Current treatment details:");
         displayTreatmentDetails(existingTreatment);
-        DoublyLinkedList<String> updateOptions = new DoublyLinkedList<>();
-        updateOptions.add("Update Status");
-        updateOptions.add("Update Treatment Date");
-        updateOptions.add("Add Medicine");
-        updateOptions.add("Update All Medicines");
-        updateOptions.add("Back");
-        int choice = selectFromNumberedOptions("What would you like to update?", updateOptions);
-        if (choice == -1) {
+
+        DoublyLinkedList<String> updateOptions = createUpdateOptions();
+        int choice = selectFromOptions("What would you like to update?", updateOptions);
+
+        if (choice == -1 || choice == 0) {
             return;
         }
+
         switch (choice) {
             case 1:
                 updateTreatmentStatus(treatmentId);
@@ -253,16 +257,25 @@ public class TreatmentUI {
             case 4:
                 updateAllMedicines(treatmentId);
                 break;
-            case 5:
-                return;
-            default:
-                System.out.println("Invalid option selected.");
+            case 0: // Back
+                System.out.println("Returning back...");
                 break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
         }
     }
 
+    private DoublyLinkedList<String> createUpdateOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("Update Status");
+        options.add("Update Treatment Date");
+        options.add("Add Medicine");
+        options.add("Update All Medicines");
+        return options;
+    }
+
     private void updateTreatmentStatus(String treatmentId) {
-        String newStatus = selectFromOptions("Select new status", maintainTreatment.getStatusOptions());
+        String newStatus = selectFromStatusOptions("Select new status");
         if (newStatus == null) {
             return;
         }
@@ -312,7 +325,6 @@ public class TreatmentUI {
         System.out.println("\n============================");
         System.out.println("     UPDATE ALL MEDICINES    ");
         System.out.println("============================");
-
         System.out.println("This will replace all existing medicines for this treatment.");
 
         if (!askYesNo("Do you want to continue?")) {
@@ -335,23 +347,17 @@ public class TreatmentUI {
     }
 
     // ================================
-    // DELETE TREATMENT METHODS
+    // DELETE TREATMENT METHODS USING ADT
     // ================================
     public void deleteTreatment() {
-
         System.out.println("\n==========================");
         System.out.println("     DELETE TREATMENT    ");
         System.out.println("==========================");
 
-        DoublyLinkedList<String> deleteOptions = new DoublyLinkedList<>();
-        deleteOptions.add("Delete specific treatment by ID");
-        deleteOptions.add("Delete all treatments for a patient");
-        deleteOptions.add("Delete all treatments for a doctor");
-        deleteOptions.add("Delete all treatments");
-        deleteOptions.add("Back");
+        DoublyLinkedList<String> deleteOptions = createDeleteOptions();
+        int choice = selectFromOptions("Select delete option", deleteOptions);
 
-        int choice = selectFromNumberedOptions("Select delete option", deleteOptions);
-        if (choice == -1) {
+        if (choice == -1 || choice == 0) {
             return;
         }
 
@@ -368,17 +374,25 @@ public class TreatmentUI {
             case 4:
                 deleteAllTreatments();
                 break;
-            case 5:
-                return;
-            default:
-                System.out.println("Invalid option selected.");
+            case 0: // Back
+                System.out.println("Returning back...");
                 break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
         }
+    }
+
+    private DoublyLinkedList<String> createDeleteOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("Delete specific treatment by ID");
+        options.add("Delete all treatments for a patient");
+        options.add("Delete all treatments for a doctor");
+        options.add("Delete all treatments");
+        return options;
     }
 
     private void deleteTreatmentById() {
         String treatmentId = getValidInput("Enter Treatment ID to delete: ");
-        System.out.print("\n");
         if (treatmentId == null) {
             return;
         }
@@ -449,7 +463,7 @@ public class TreatmentUI {
     }
 
     private void deleteAllTreatments() {
-        ListInterface<Treatment> allTreatments = maintainTreatment.getAllTreatments();
+        DoublyLinkedList<Treatment> allTreatments = maintainTreatment.getAllTreatments();
         if (allTreatments.isEmpty()) {
             System.out.println("No treatments to delete.");
             return;
@@ -487,13 +501,12 @@ public class TreatmentUI {
         String report = maintainTreatment.getTreatmentReport();
         System.out.println(report);
 
-        // Wait for user input before returning to menu
         System.out.print("Press Enter to continue...");
         scanner.nextLine();
     }
 
     // ================================
-    // MEDICINE CREATION METHODS
+    // MEDICINE CREATION METHODS USING ADT
     // ================================
     private DoublyLinkedList<TreatmentMedicineList> createMedicineList() {
         DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
@@ -507,7 +520,6 @@ public class TreatmentUI {
             return medicines;
         }
 
-        // Display available medicines
         displayMedicineOptions();
 
         while (true) {
@@ -521,7 +533,7 @@ public class TreatmentUI {
                 continue;
             }
 
-            String mealTiming = selectFromOptions("Meal timing", maintainTreatment.getMealTimingOptions());
+            String mealTiming = selectFromMealTimingOptions("Meal timing");
             if (mealTiming == null) {
                 continue;
             }
@@ -560,7 +572,7 @@ public class TreatmentUI {
             return null;
         }
 
-        String mealTiming = selectFromOptions("Meal timing", maintainTreatment.getMealTimingOptions());
+        String mealTiming = selectFromMealTimingOptions("Meal timing");
         if (mealTiming == null) {
             return null;
         }
@@ -579,7 +591,7 @@ public class TreatmentUI {
     }
 
     // ================================
-    // DISPLAY METHODS
+    // DISPLAY METHODS USING ADT
     // ================================
     private void displayTreatmentList(ListInterface<Treatment> treatments, String title) {
         if (treatments.isEmpty()) {
@@ -618,18 +630,19 @@ public class TreatmentUI {
 
         DoublyLinkedList<TreatmentMedicineList> medicines = treatment.getMedicineList();
         if (medicines != null && !medicines.isEmpty()) {
-            System.out.print("Medicines        : ");
+            System.out.println("Medicines        :");
             for (int i = 1; i <= medicines.getNumberOfEntries(); i++) {
                 TreatmentMedicineList medicine = medicines.getEntry(i);
                 System.out.println("  " + i + ". " + medicine.getPrescription()
                         + " - " + medicine.getTablets() + " tablets, "
                         + medicine.getTimesPerDay() + " times per day, "
                         + medicine.getMealTiming() + ", "
-                        + medicine.getTotalDay() + " total day\n");
+                        + medicine.getTotalDay() + " total days");
             }
         } else {
-            System.out.println("Medicines        : No medicines prescribed\n");
+            System.out.println("Medicines        : No medicines prescribed");
         }
+        System.out.println();
     }
 
     private void displayMedicineOptions() {
@@ -641,7 +654,7 @@ public class TreatmentUI {
     }
 
     // ================================
-    // INPUT UTILITY METHODS
+    // INPUT UTILITY METHODS USING ADT
     // ================================
     private String getValidInput(String prompt) {
         System.out.print(prompt);
@@ -657,7 +670,7 @@ public class TreatmentUI {
         try {
             System.out.print(prompt);
             int number = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
             if (number <= 0) {
                 System.out.println("Number must be positive!");
                 return -1;
@@ -694,44 +707,21 @@ public class TreatmentUI {
     }
 
     // ================================
-    // SELECTION UTILITY METHODS
+    // SELECTION UTILITY METHODS USING ADT
     // ================================
-    private String selectFromOptions(String title, DoublyLinkedList<String> options) {
+    private int selectFromOptions(String title, DoublyLinkedList<String> options) {
         System.out.println(title + ":");
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
         }
-
-        try {
-            System.out.print("Choose option (1-" + options.getNumberOfEntries() + "): ");
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-
-            if (choice >= 1 && choice <= options.getNumberOfEntries()) {
-                return options.getEntry(choice);
-            } else {
-                System.out.println("Invalid choice!");
-                return null;
-            }
-        } catch (Exception e) {
-            System.out.println("Invalid input!");
-            scanner.nextLine();
-            return null;
-        }
-    }
-
-    private int selectFromNumberedOptions(String title, DoublyLinkedList<String> options) {
-        System.out.println(title + ":");
-        for (int i = 1; i <= options.getNumberOfEntries(); i++) {
-            System.out.println(i + ". " + options.getEntry(i));
-        }
+        System.out.println("0. Back");
 
         try {
             System.out.print("Enter choice: ");
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
-            if (choice >= 1 && choice <= options.getNumberOfEntries()) {
+            if (choice >= 0 && choice <= options.getNumberOfEntries()) {
                 return choice;
             } else {
                 System.out.println("Invalid choice!");
@@ -744,28 +734,88 @@ public class TreatmentUI {
         }
     }
 
+    private String selectFromStatusOptions(String title) {
+        DoublyLinkedList<String> statusOptions = maintainTreatment.getStatusOptions();
+        System.out.println(title + ":");
+        for (int i = 1; i <= statusOptions.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + statusOptions.getEntry(i));
+        }
+        System.out.println("0. Back");
+
+        try {
+            System.out.print("Choose option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (choice == 0) {
+                return null;
+            }
+            
+            if (choice >= 1 && choice <= statusOptions.getNumberOfEntries()) {
+                return statusOptions.getEntry(choice);
+            } else {
+                System.out.println("Invalid choice!");
+                return null;
+            }
+        } catch (Exception e) {
+            System.out.println("Invalid input!");
+            scanner.nextLine();
+            return null;
+        }
+    }
+
+    private String selectFromMealTimingOptions(String title) {
+        DoublyLinkedList<String> mealTimingOptions = maintainTreatment.getMealTimingOptions();
+        System.out.println(title + ":");
+        for (int i = 1; i <= mealTimingOptions.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + mealTimingOptions.getEntry(i));
+        }
+        System.out.println("0. Back");
+
+        try {
+            System.out.print("Choose option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (choice == 0) {
+                return null;
+            }
+            
+            if (choice >= 1 && choice <= mealTimingOptions.getNumberOfEntries()) {
+                return mealTimingOptions.getEntry(choice);
+            } else {
+                System.out.println("Invalid choice!");
+                return null;
+            }
+        } catch (Exception e) {
+            System.out.println("Invalid input!");
+            scanner.nextLine();
+            return null;
+        }
+    }
+
     private String selectMedicine() {
         DoublyLinkedList<String> availableMedicines = maintainTreatment.getAvailableMedicines();
 
         try {
             System.out.print("Select medicine by number (1-" + availableMedicines.getNumberOfEntries() + ") or 0 to skip: ");
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
             if (choice == 0) {
-                return null; // User chose to skip
+                return null;
             }
 
             if (choice >= 1 && choice <= availableMedicines.getNumberOfEntries()) {
                 return availableMedicines.getEntry(choice);
             } else {
                 System.out.println("Invalid choice! Please select a number between 1-" + availableMedicines.getNumberOfEntries());
-                return selectMedicine(); // Recursive call for retry
+                return selectMedicine();
             }
         } catch (Exception e) {
             System.out.println("Invalid input! Please enter a valid number.");
             scanner.nextLine();
-            return selectMedicine(); // Recursive call for retry
+            return selectMedicine();
         }
     }
 }
