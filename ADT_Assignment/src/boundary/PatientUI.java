@@ -120,7 +120,7 @@ public class PatientUI {
             choice = displayReportsMenu();
             switch (choice) {
                 case 1:
-                    handleAgeDemographicsReport();
+                    handlePatientTreatmentReport();
                     break;
                 case 2:
                     handleRegistrationTimelineReport();
@@ -134,13 +134,12 @@ public class PatientUI {
         } while (choice != 0);
     }
 
-    // Generate and display age demographics report
-    private void handleAgeDemographicsReport() {
-        MaintainPatient.AgeDemographicsData data = maintainPatient.generateAgeDemographicsReport();
+    // Generate and display patient treatment report
+    private void handlePatientTreatmentReport() {
+        MaintainPatient.PatientTreatmentData data = maintainPatient.generatePatientTreatmentReport();
 
         if (data != null) {
-            displayAgeDemographicsReport(data.getTotalPatients(), data.getUnder18(),
-                data.getAge18to30(), data.getAge31to50(), data.getAge51to65(), data.getOver65());
+            displayPatientTreatmentReport(data);
         } else {
             displayMessage("\nNo patients registered yet.");
             askToContinueOrReturnToMenu();
@@ -163,7 +162,7 @@ public class PatientUI {
     // Display reports menu
     private int displayReportsMenu() {
         System.out.println("\n=== PATIENT REPORTS ===");
-        System.out.println("1. Age Demographics Report");
+        System.out.println("1. Patient Treatment Statistics Report");
         System.out.println("2. Registration Timeline Report");
         System.out.println("0. Back to Main Menu");
         System.out.println("========================");
@@ -1331,17 +1330,46 @@ public class PatientUI {
         return response.equals("y") || response.equals("yes");
     }
 
-    public void displayAgeDemographicsReport(int totalPatients, int under18, int age18to30, int age31to50, int age51to65, int over65) {
-        System.out.println("\n=== AGE DEMOGRAPHICS REPORT ===");
-        System.out.println("Total Registered Patients: " + totalPatients);
-        System.out.println();
-        System.out.println("Under 18: " + under18 + " patients");
-        System.out.println("18-30 years: " + age18to30 + " patients");
-        System.out.println("31-50 years: " + age31to50 + " patients");
-        System.out.println("51-65 years: " + age51to65 + " patients");
-        System.out.println("Over 65: " + over65 + " patients");
-        System.out.println("===============================\n");
+    // Display patient treatment report with clear formatting
+    public void displayPatientTreatmentReport(MaintainPatient.PatientTreatmentData data) {
+        System.out.println("\n================================================================================");
+        System.out.println("                    PATIENT TREATMENT STATISTICS REPORT");
+        System.out.println("================================================================================");
 
+        // Overall Statistics
+        System.out.println("OVERALL TREATMENT STATISTICS:");
+        System.out.println("Total Registered Patients: " + data.getTotalPatients());
+        System.out.println("Total Treatments Given: " + data.getTotalTreatments());
+        System.out.println("Patients with Treatments: " + data.getPatientsWithTreatments());
+        System.out.println("Patients without Treatments: " + data.getPatientsWithoutTreatments());
+
+        if (data.getTotalPatients() > 0) {
+            double treatmentRate = (double) data.getPatientsWithTreatments() / data.getTotalPatients() * 100;
+            double avgTreatments = (double) data.getTotalTreatments() / data.getTotalPatients();
+            System.out.println("Treatment Coverage Rate: " + String.format("%.1f", treatmentRate) + " percent");
+            System.out.println("Average Treatments per Patient: " + String.format("%.1f", avgTreatments));
+        }
+
+        System.out.println("\n================================================================================");
+        System.out.println("DETAILED PATIENT TREATMENT BREAKDOWN (Sorted by Name):");
+        System.out.println("================================================================================");
+        System.out.printf("%-8s %-25s %-8s %-5s %-12s%n", "ID", "Name", "Gender", "Age", "Treatments");
+        System.out.println("--------------------------------------------------------------------------------");
+
+        // Display individual patient treatment data
+        java.util.Iterator<MaintainPatient.PatientTreatmentInfo> iterator = data.getTreatmentStats().iterator();
+        while (iterator.hasNext()) {
+            MaintainPatient.PatientTreatmentInfo info = iterator.next();
+            System.out.printf("%-8s %-25s %-8s %-5d %-12d%n",
+                info.getPatientId(),
+                info.getPatientName(),
+                info.getGender(),
+                info.getAge(),
+                info.getTreatmentCount()
+            );
+        }
+
+        System.out.println("================================================================================\n");
         askToContinueOrReturnToMenu();
     }
 
