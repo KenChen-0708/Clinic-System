@@ -9,31 +9,23 @@ import adt.ListInterface;
 
 public class MaintainDiagnosis {
 
-    private DoublyLinkedList<Diagnosis> diagnosisList = new DoublyLinkedList<>();
     private final DiagnosisDAO diagnosisDao = new DiagnosisDAO();
     
-    // ADT for caching frequently used data
-    private DoublyLinkedList<String> statusOptions;
-    private DoublyLinkedList<String> mealTimingOptions;
+    // ADT-based caching system for performance optimization
+    private final DoublyLinkedList<String> statusOptions;
+    private final DoublyLinkedList<String> mealTimingOptions;
     private DoublyLinkedList<String> availableMedicines;
     
     public MaintainDiagnosis() {
-        initializeOptions();
-    }
-
-    // Initialize common options using ADT for better performance
-    private void initializeOptions() {
-        // Status options
+        // Initialize cached options using DoublyLinkedList ADT
         statusOptions = new DoublyLinkedList<>();
         statusOptions.add("Pending");
         statusOptions.add("Completed");
 
-        // Meal timing options
         mealTimingOptions = new DoublyLinkedList<>();
         mealTimingOptions.add("Before meal");
         mealTimingOptions.add("After meal");
 
-        // Load available medicines (cache for better performance)
         loadAvailableMedicines();
     }
 
@@ -42,8 +34,7 @@ public class MaintainDiagnosis {
         try {
             PharmacyUI pharmacyUI = new PharmacyUI();
             ListInterface<String> medicineNames = pharmacyUI.getMedicineNames();
-
-            // Copy to our cached list
+            // Copy using ADT operations
             for (int i = 1; i <= medicineNames.getNumberOfEntries(); i++) {
                 availableMedicines.add(medicineNames.getEntry(i));
             }
@@ -52,9 +43,12 @@ public class MaintainDiagnosis {
         }
     }
     
-    // CREATE - Add new diagnosis
+    // ===== CRUD OPERATIONS USING ADT =====
+    
+    // CREATE
     public boolean addDiagnosis(Diagnosis newDiagnosis) {
         if (newDiagnosis != null) {
+            DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
             diagnosisList.add(newDiagnosis);
             diagnosisDao.saveToFile(diagnosisList);
             return true;
@@ -62,55 +56,39 @@ public class MaintainDiagnosis {
         return false;
     }
 
-    // CREATE - Create diagnosis (alternative method for compatibility)
     public boolean createDiagnosis(Diagnosis newDiagnosis) {
         return addDiagnosis(newDiagnosis);
     }
 
-    // READ - Get all diagnoses
+    // READ - Enhanced with ADT operations
     public DoublyLinkedList<Diagnosis> getAllDiagnoses() {
-        diagnosisList = (DoublyLinkedList<Diagnosis>) diagnosisDao.retrieveFromFile();
-        return diagnosisList;
+        return (DoublyLinkedList<Diagnosis>) diagnosisDao.retrieveFromFile();
     }
     
-    // READ - Find diagnosis by ID
     public Diagnosis findById(String diagnosisId) {
-        refreshData();
-        
-        for (int i = 1; i <= diagnosisList.getNumberOfEntries(); i++) {
-            Diagnosis diagnosis = diagnosisList.getEntry(i);
-            if (diagnosis.getDiagnosisId().equalsIgnoreCase(diagnosisId)) {
-                return diagnosis;
-            }
-        }
-        return null;
+        DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
+        return findInList(diagnosisList, diagnosisId, "id");
     }
 
-    // READ - Find diagnosis by ID (alternative method name for compatibility)
     public Diagnosis findDiagnosisById(String diagnosisId) {
         return findById(diagnosisId);
     }
     
-    // READ - Find diagnoses by Patient ID
     public DoublyLinkedList<Diagnosis> findByPatientId(String patientId) {
-        refreshData();
-        return filterByField(patientId, "patient");
+        return filterDiagnoses(patientId, "patient");
     }
 
-    // READ - Find diagnoses by Patient ID (alternative method name for compatibility)
     public DoublyLinkedList<Diagnosis> findDiagnosesByPatientId(String patientId) {
         return findByPatientId(patientId);
     }
     
-    // READ - Find diagnoses by Doctor ID
     public DoublyLinkedList<Diagnosis> findByDoctorId(String doctorId) {
-        refreshData();
-        return filterByField(doctorId, "doctor");
+        return filterDiagnoses(doctorId, "doctor");
     }
     
-    // UPDATE - Update diagnosis
+    // UPDATE - Using ADT search and replace operations
     public boolean updateDiagnosis(String diagnosisId, DoublyLinkedList<String> newSymptoms, String newDetails) {
-        refreshData();
+        DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
         
         for (int i = 1; i <= diagnosisList.getNumberOfEntries(); i++) {
             Diagnosis diagnosis = diagnosisList.getEntry(i);
@@ -128,60 +106,53 @@ public class MaintainDiagnosis {
         return false;
     }
     
-    // DELETE - Delete specific diagnosis
+    // DELETE - Enhanced with ADT remove operations
     public boolean deleteById(String diagnosisId) {
-        refreshData();
-        return removeByCondition(diagnosisId, "id");
+        DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
+        return removeDiagnosisFromList(diagnosisList, diagnosisId, "id", false);
     }
 
-    // DELETE - Delete specific diagnosis (alternative method name for compatibility)
     public boolean deleteDiagnosisById(String diagnosisId) {
         return deleteById(diagnosisId);
     }
     
-    // DELETE - Delete by patient ID
     public int deleteByPatientId(String patientId) {
-        refreshData();
-        return removeMultipleByCondition(patientId, "patient");
+        DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
+        return removeMultipleDiagnosesFromList(diagnosisList, patientId, "patient");
     }
 
-    // DELETE - Delete by patient ID (alternative method name for compatibility)
     public int deleteDiagnosesByPatientId(String patientId) {
         return deleteByPatientId(patientId);
     }
     
-    // DELETE - Delete by doctor ID
     public int deleteByDoctorId(String doctorId) {
-        refreshData();
-        return removeMultipleByCondition(doctorId, "doctor");
+        DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
+        return removeMultipleDiagnosesFromList(diagnosisList, doctorId, "doctor");
     }
     
-    // DELETE - Delete all diagnoses
     public boolean deleteAll() {
-        diagnosisList = new DoublyLinkedList<>();
-        diagnosisDao.saveToFile(diagnosisList);
+        DoublyLinkedList<Diagnosis> emptyList = new DoublyLinkedList<>();
+        diagnosisDao.saveToFile(emptyList);
         return true;
     }
 
-    // DELETE - Delete all diagnoses (alternative method name for compatibility)
     public boolean deleteAllDiagnoses() {
         return deleteAll();
     }
     
-    // UTILITY - Check if diagnosis exists
+    // ===== UTILITY METHODS USING ADT =====
+    
     public boolean exists(String diagnosisId) {
         return findById(diagnosisId) != null;
     }
     
-    // UTILITY - Get count
     public int getCount() {
-        refreshData();
-        return diagnosisList.getNumberOfEntries();
+        return getAllDiagnoses().getNumberOfEntries();
     }
     
-    // UTILITY - Get report
+    // Enhanced reporting using ADT operations
     public String getReport() {
-        refreshData();
+        DoublyLinkedList<Diagnosis> diagnosisList = getAllDiagnoses();
         
         if (diagnosisList.isEmpty()) {
             return "No diagnoses found in the system.";
@@ -191,8 +162,8 @@ public class MaintainDiagnosis {
         report.append("=== DIAGNOSIS SYSTEM REPORT ===\n");
         report.append("Total Diagnoses: ").append(diagnosisList.getNumberOfEntries()).append("\n\n");
         
-        DoublyLinkedList<String> uniquePatients = getUniqueValues("patient");
-        DoublyLinkedList<String> uniqueDoctors = getUniqueValues("doctor");
+        DoublyLinkedList<String> uniquePatients = getUniqueFieldValues(diagnosisList, "patient");
+        DoublyLinkedList<String> uniqueDoctors = getUniqueFieldValues(diagnosisList, "doctor");
         
         report.append("Unique Patients: ").append(uniquePatients.getNumberOfEntries()).append("\n");
         report.append("Unique Doctors: ").append(uniqueDoctors.getNumberOfEntries()).append("\n");
@@ -200,7 +171,8 @@ public class MaintainDiagnosis {
         return report.toString();
     }
     
-    // MEDICINE MANAGEMENT - Get cached options
+    // ===== CACHED OPTIONS ACCESS =====
+    
     public DoublyLinkedList<String> getStatusOptions() {
         return statusOptions;
     }
@@ -217,7 +189,8 @@ public class MaintainDiagnosis {
         loadAvailableMedicines();
     }
     
-    // MEDICINE MANAGEMENT - Create medicine list
+    // ===== MEDICINE MANAGEMENT USING ADT =====
+    
     public DoublyLinkedList<TreatmentMedicineList> createMedicineList(
             DoublyLinkedList<String> prescriptions,
             DoublyLinkedList<Integer> tablets,
@@ -227,19 +200,14 @@ public class MaintainDiagnosis {
         
         DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
         
-        // Validate input lists have same size
         int size = prescriptions.getNumberOfEntries();
-        if (tablets.getNumberOfEntries() != size || 
-            mealTimings.getNumberOfEntries() != size ||
-            timesPerDay.getNumberOfEntries() != size ||
-            totalDays.getNumberOfEntries() != size) {
-            return medicines; // Return empty list if sizes don't match
+        if (!validateListSizes(tablets, mealTimings, timesPerDay, totalDays, size)) {
+            return medicines;
         }
         
-        // Create medicine objects
         for (int i = 1; i <= size; i++) {
             TreatmentMedicineList medicine = new TreatmentMedicineList(
-                "", // Treatment ID will be set later
+                "", 
                 prescriptions.getEntry(i),
                 tablets.getEntry(i),
                 mealTimings.getEntry(i),
@@ -252,16 +220,14 @@ public class MaintainDiagnosis {
         return medicines;
     }
     
-    // VALIDATION METHODS - Data validation logic
+    // ===== VALIDATION METHODS =====
+    
     public boolean isValidMedicineChoice(int choice) {
         return choice >= 1 && choice <= availableMedicines.getNumberOfEntries();
     }
     
     public String getMedicineByChoice(int choice) {
-        if (isValidMedicineChoice(choice)) {
-            return availableMedicines.getEntry(choice);
-        }
-        return null;
+        return isValidMedicineChoice(choice) ? availableMedicines.getEntry(choice) : null;
     }
     
     public boolean isValidStatusChoice(int choice) {
@@ -269,10 +235,7 @@ public class MaintainDiagnosis {
     }
     
     public String getStatusByChoice(int choice) {
-        if (isValidStatusChoice(choice)) {
-            return statusOptions.getEntry(choice);
-        }
-        return null;
+        return isValidStatusChoice(choice) ? statusOptions.getEntry(choice) : null;
     }
     
     public boolean isValidMealTimingChoice(int choice) {
@@ -280,16 +243,14 @@ public class MaintainDiagnosis {
     }
     
     public String getMealTimingByChoice(int choice) {
-        if (isValidMealTimingChoice(choice)) {
-            return mealTimingOptions.getEntry(choice);
-        }
-        return null;
+        return isValidMealTimingChoice(choice) ? mealTimingOptions.getEntry(choice) : null;
     }
     
-    // DATA PROCESSING - Business logic for data processing
+    // ===== DATA PROCESSING =====
+    
     public DoublyLinkedList<String> processSymptoms(String symptomInput) {
         DoublyLinkedList<String> symptoms = new DoublyLinkedList<>();
-        if (symptomInput != null && !symptomInput.trim().isEmpty()) {
+        if (isValidInput(symptomInput)) {
             symptoms.add(symptomInput.trim());
         }
         return symptoms;
@@ -299,63 +260,66 @@ public class MaintainDiagnosis {
         return input != null && !input.trim().isEmpty();
     }
     
-    // PRIVATE HELPER METHODS - Eliminate code duplication
-    private void refreshData() {
-        diagnosisList = (DoublyLinkedList<Diagnosis>) diagnosisDao.retrieveFromFile();
-    }
+    // ===== PRIVATE HELPER METHODS USING ADT OPERATIONS =====
     
-    private DoublyLinkedList<Diagnosis> filterByField(String value, String fieldType) {
-        DoublyLinkedList<Diagnosis> filteredList = new DoublyLinkedList<>();
+    private DoublyLinkedList<Diagnosis> filterDiagnoses(String value, String fieldType) {
+        DoublyLinkedList<Diagnosis> allDiagnoses = getAllDiagnoses();
+        DoublyLinkedList<Diagnosis> filtered = new DoublyLinkedList<>();
         
-        for (int i = 1; i <= diagnosisList.getNumberOfEntries(); i++) {
-            Diagnosis diagnosis = diagnosisList.getEntry(i);
-            String compareValue = getFieldValue(diagnosis, fieldType);
-            
-            if (compareValue.equalsIgnoreCase(value)) {
-                filteredList.add(diagnosis);
+        for (int i = 1; i <= allDiagnoses.getNumberOfEntries(); i++) {
+            Diagnosis diagnosis = allDiagnoses.getEntry(i);
+            if (getFieldValue(diagnosis, fieldType).equalsIgnoreCase(value)) {
+                filtered.add(diagnosis);
             }
         }
-        return filteredList;
+        return filtered;
     }
     
-    private boolean removeByCondition(String value, String fieldType) {
-        for (int i = 1; i <= diagnosisList.getNumberOfEntries(); i++) {
-            Diagnosis diagnosis = diagnosisList.getEntry(i);
-            String compareValue = getFieldValue(diagnosis, fieldType);
-            
-            if (compareValue.equalsIgnoreCase(value)) {
-                diagnosisList.remove(i);
-                diagnosisDao.saveToFile(diagnosisList);
+    private Diagnosis findInList(DoublyLinkedList<Diagnosis> list, String value, String fieldType) {
+        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
+            Diagnosis diagnosis = list.getEntry(i);
+            if (getFieldValue(diagnosis, fieldType).equalsIgnoreCase(value)) {
+                return diagnosis;
+            }
+        }
+        return null;
+    }
+    
+    private boolean removeDiagnosisFromList(DoublyLinkedList<Diagnosis> list, String value, String fieldType, boolean removeAll) {
+        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
+            Diagnosis diagnosis = list.getEntry(i);
+            if (getFieldValue(diagnosis, fieldType).equalsIgnoreCase(value)) {
+                list.remove(i);
+                diagnosisDao.saveToFile(list);
                 return true;
             }
         }
         return false;
     }
     
-    private int removeMultipleByCondition(String value, String fieldType) {
+    private int removeMultipleDiagnosesFromList(DoublyLinkedList<Diagnosis> list, String value, String fieldType) {
         int deletedCount = 0;
         
-        for (int i = diagnosisList.getNumberOfEntries(); i >= 1; i--) {
-            Diagnosis diagnosis = diagnosisList.getEntry(i);
-            String compareValue = getFieldValue(diagnosis, fieldType);
-            
-            if (compareValue.equalsIgnoreCase(value)) {
-                diagnosisList.remove(i);
+        // Use reverse iteration to avoid index shifting issues
+        for (int i = list.getNumberOfEntries(); i >= 1; i--) {
+            Diagnosis diagnosis = list.getEntry(i);
+            if (getFieldValue(diagnosis, fieldType).equalsIgnoreCase(value)) {
+                list.remove(i);
                 deletedCount++;
             }
         }
         
         if (deletedCount > 0) {
-            diagnosisDao.saveToFile(diagnosisList);
+            diagnosisDao.saveToFile(list);
         }
         return deletedCount;
     }
     
-    private DoublyLinkedList<String> getUniqueValues(String fieldType) {
+    private DoublyLinkedList<String> getUniqueFieldValues(DoublyLinkedList<Diagnosis> list, String fieldType) {
         DoublyLinkedList<String> uniqueValues = new DoublyLinkedList<>();
         
-        for (int i = 1; i <= diagnosisList.getNumberOfEntries(); i++) {
-            Diagnosis diagnosis = diagnosisList.getEntry(i);
+        for (int i = 1; i <= list.getNumberOfEntries(); i++) {
+            Diagnosis diagnosis = list.getEntry(i);
             String value = getFieldValue(diagnosis, fieldType);
             
             if (!uniqueValues.contains(value)) {
@@ -367,14 +331,18 @@ public class MaintainDiagnosis {
     
     private String getFieldValue(Diagnosis diagnosis, String fieldType) {
         switch (fieldType) {
-            case "id":
-                return diagnosis.getDiagnosisId();
-            case "patient":
-                return diagnosis.getPatientId();
-            case "doctor":
-                return diagnosis.getDoctorId();
-            default:
-                return "";
+            case "id": return diagnosis.getDiagnosisId();
+            case "patient": return diagnosis.getPatientId();
+            case "doctor": return diagnosis.getDoctorId();
+            default: return "";
         }
+    }
+    
+    private boolean validateListSizes(DoublyLinkedList<Integer> tablets, DoublyLinkedList<String> mealTimings, 
+            DoublyLinkedList<Integer> timesPerDay, DoublyLinkedList<Integer> totalDays, int expectedSize) {
+        return tablets.getNumberOfEntries() == expectedSize && 
+               mealTimings.getNumberOfEntries() == expectedSize &&
+               timesPerDay.getNumberOfEntries() == expectedSize &&
+               totalDays.getNumberOfEntries() == expectedSize;
     }
 }

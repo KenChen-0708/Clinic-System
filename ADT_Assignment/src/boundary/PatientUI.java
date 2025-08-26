@@ -46,7 +46,7 @@ public class PatientUI {
                 runReportsMenu();
                 break;
             case 0:
-                displayMessage("Returning to Main Menu...");
+                displayMessage("\nReturning to Main Menu...");
                 break;
             default:
                 MessageUI.displayInvalidChoiceMessage();
