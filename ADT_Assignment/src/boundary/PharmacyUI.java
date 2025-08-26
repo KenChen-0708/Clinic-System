@@ -492,6 +492,14 @@ public class PharmacyUI {
         return readIntInRangeLoop(0, 2, "Please enter 0-2: ");
     }
 
+    public int confirmDispenseAll() {
+        System.out.println("1. Dispense all medicines");
+        System.out.println("0. Discard");
+        System.out.println("--------------------------------");
+        System.out.print("Enter your choice (0-1): ");
+        return readIntInRangeLoop(0, 1, "Please enter 0 or 1: ");
+    }
+
 
     /* =========================================================
      * Reporting Menus & Printers

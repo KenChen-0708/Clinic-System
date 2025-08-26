@@ -18,7 +18,6 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.Scanner;
 
 /**
  * Application layer (controller) for pharmacy operations. - Manages inventory
@@ -83,12 +82,6 @@ public class MaintainPharmacy implements Serializable {
     // Price lower first; tie-break: ID
     private final Comparator<Medicine> BY_PRICE_THEN_ID = (a, b) -> {
         int c = Double.compare(a.getPrice(), b.getPrice());
-        return (c != 0) ? c : BY_ID_NUM.compare(a, b);
-    };
-
-    // Name A→Z; tie-break: ID
-    private final Comparator<Medicine> BY_NAME_THEN_ID = (a, b) -> {
-        int c = a.getName().compareToIgnoreCase(b.getName());
         return (c != 0) ? c : BY_ID_NUM.compare(a, b);
     };
 
@@ -663,19 +656,20 @@ public class MaintainPharmacy implements Serializable {
             final String[] headers = {"#", "Medicine", "Tablets"};
 
             String[][] rows = new String[prescribedMedicines.getNumberOfEntries()][headers.length];
-            int grandTotal = 0;
 
+            int grandTotal = 0;
             for (int i = 1; i <= prescribedMedicines.getNumberOfEntries(); i++) {
                 TreatmentMedicineList med = prescribedMedicines.getEntry(i);
 
                 rows[i - 1][0] = String.valueOf(i);
                 rows[i - 1][1] = med.getPrescription();
                 rows[i - 1][2] = String.valueOf(med.getTablets());
+                grandTotal += med.getTablets();
 
             }
 
             pharmacyUI.displayTable(title, headers, rows);
-            pharmacyUI.displayMessage("Grand total tablets prescribed: " + grandTotal);
+            pharmacyUI.displayMessage("Grand total tablets prescribed: \n" + grandTotal);
         }
 
         // Ask for confirmation before dispensing
@@ -684,13 +678,8 @@ public class MaintainPharmacy implements Serializable {
         pharmacyUI.displayMessage("--------------------------------");
         System.out.print("Enter your choice: ");
 
-        int confirmDispense = 0;
-        try {
-            confirmDispense = new Scanner(System.in).nextInt();
-        } catch (Exception e) {
-            confirmDispense = 2; // Default to cancel
-        }
-
+        // Ask for confirmation before dispensing
+        int confirmDispense = pharmacyUI.confirmDispenseAll();
         if (confirmDispense != 1) {
             MessageUI.clearConsole();
             pharmacyUI.displayMessage("Dispensing cancelled.");
@@ -1513,74 +1502,15 @@ public class MaintainPharmacy implements Serializable {
         return (units == 0) ? 0.0 : totalValuation() / units;
     }
 
-// OPTIONAL: build one-line example lists (no more than ~60 chars)
-    private String topLowStockExamples(int threshold, int limit) {
-        // collect lowest stock first
-        ListInterface<Medicine> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            if (m.getStock() <= threshold) {
-                tmp.add(m);
-            }
-        }
-        tmp.mergeSort((a, b) -> {
-            int c = Integer.compare(a.getStock(), b.getStock());
-            return (c != 0) ? c : a.getMedId().compareTo(b.getMedId());
-        });
-        StringBuilder sb = new StringBuilder();
-        int shown = 0;
-        for (int i = 1; i <= tmp.getNumberOfEntries() && shown < limit; i++) {
-            Medicine m = tmp.getEntry(i);
-            String part = m.getMedId() + " " + m.getName() + " (" + m.getStock() + ")";
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
-            sb.append(ellipsize(part, 24)); // keep short
-            shown++;
-        }
-        if (tmp.getNumberOfEntries() > limit) {
-            sb.append(", …");
-        }
-        return sb.toString();
-    }
-
-    private String topNearExpiryExamples(int days, int limit) {
-        LocalDate today = LocalDate.now();
-        LocalDate cutoff = today.plusDays(days);
-        ListInterface<Medicine> tmp = new DoublyLinkedList<>();
-        for (int i = 1; i <= medicineList.getNumberOfEntries(); i++) {
-            Medicine m = medicineList.getEntry(i);
-            LocalDate d = m.getExpiryDate();
-            if (!d.isBefore(today) && !d.isAfter(cutoff)) {
-                tmp.add(m);
-            }
-        }
-        tmp.mergeSort((a, b) -> a.getExpiryDate().compareTo(b.getExpiryDate()));
-        var df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
-        StringBuilder sb = new StringBuilder();
-        int shown = 0;
-        for (int i = 1; i <= tmp.getNumberOfEntries() && shown < limit; i++) {
-            Medicine m = tmp.getEntry(i);
-            String part = m.getMedId() + " " + m.getName() + " (" + m.getExpiryDate().format(df) + ")";
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
-            sb.append(ellipsize(part, 24));
-            shown++;
-        }
-        if (tmp.getNumberOfEntries() > limit) {
-            sb.append(", …");
-        }
-        return sb.toString();
-    }
-
     private String[][] toRowsKpis() {
-        var df = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
+        java.time.format.DateTimeFormatter df
+                = java.time.format.DateTimeFormatter.ofPattern("dd-MMM-uuuu");
+
         Medicine earliest = getEarliestExpiry();
         Medicine latest = getLatestExpiry();
 
-        int threshold = 5;   // <- pick your default low-stock threshold here
-        int nearDays = 30;  // <- default near-expiry window
+        int threshold = 5;   // default low-stock threshold
+        int nearDays = 30;  // default near-expiry window (days)
 
         int skus = countSkus();
         int units = sumUnits();
@@ -1592,8 +1522,8 @@ public class MaintainPharmacy implements Serializable {
         double nearVal = valuationNearExpiry(nearDays);
         double wAvg = weightedAvgUnitPrice();
 
-        // base KPIs (no names)
-        java.util.List<String[]> rows = new java.util.ArrayList<>();
+        // Build rows using your custom ListInterface (no Java Collections)
+        ListInterface<String[]> rows = new DoublyLinkedList<>();
         rows.add(new String[]{"Total SKUs", fmtInt(skus)});
         rows.add(new String[]{"Out-of-stock SKUs", fmtInt(oos)});
         rows.add(new String[]{"Total Units", fmtInt(units)});
@@ -1601,11 +1531,22 @@ public class MaintainPharmacy implements Serializable {
         rows.add(new String[]{"Value-weighted Avg Unit Price", fmtMoney(wAvg)});
         rows.add(new String[]{"Low-stock (≤ " + threshold + ")", fmtInt(low) + "  |  " + fmtMoney(lowVal)});
         rows.add(new String[]{"Near-expiry (≤ " + nearDays + " days)", fmtInt(near) + "  |  " + fmtMoney(nearVal)});
-        rows.add(new String[]{"Expiry Range",
-            (earliest == null || latest == null) ? "-"
-            : earliest.getExpiryDate().format(df) + " → " + latest.getExpiryDate().format(df)});
+        rows.add(new String[]{
+            "Expiry Range",
+            (earliest == null || latest == null)
+            ? "-"
+            : earliest.getExpiryDate().format(df) + " → " + latest.getExpiryDate().format(df)
+        });
 
-        return rows.toArray(new String[0][0]);
+        // Convert your custom list to a 2D array (no toArray on ListInterface)
+        int n = rows.getNumberOfEntries();
+        String[][] out = new String[n][2]; // 2 columns: Metric, Value
+        for (int i = 1; i <= n; i++) {
+            String[] row = rows.getEntry(i);     // each row is String[2]
+            out[i - 1][0] = row[0];
+            out[i - 1][1] = row[1];
+        }
+        return out;
     }
 
     private String[][] toRowsTotalsByName() {
