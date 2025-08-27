@@ -25,36 +25,13 @@ public class DoctorUI {
             System.out.println("\n===============================");
             System.out.println("     DOCTOR MANAGEMENT MENU    ");
             System.out.println("===============================");
-            System.out.println("1. Add Doctor");
-            System.out.println("2. Update Doctor Details");
-            System.out.println("3. Remove Doctor");
-            System.out.println("4. View All Doctors");
-            System.out.println();
-            System.out.println("Search Doctors:");
-            System.out.println("5.  By ID");
-            System.out.println("6.  By Name");
-            System.out.println("7.  By Specialization");
-            System.out.println();
-            System.out.println("Sort Doctors:");
-            System.out.println("8.  By ID");
-            System.out.println("9.  By Name");
-            System.out.println("10. By Specialization");
-            System.out.println();
-            System.out.println("Doctor Schedule:");
-            System.out.println("11. Set");
-            System.out.println("12. View");
-            System.out.println();
-            System.out.println("Doctor Availability:");
-            System.out.println("13. Set");
-            System.out.println("14. View");
-            System.out.println();
-            System.out.println("Group Doctors:");
-            System.out.println("15. By Specialization");
-            System.out.println("16. By Availability");
-            System.out.println("17. By Schedule");
-            System.out.println();
-            System.out.println("18. View Statistics");
-            System.out.println("19. Doctor Workload (Total patients/treatments)");
+            System.out.println("1. Manage Doctors");
+            System.out.println("2. Search");
+            System.out.println("3. Sort");
+            System.out.println("4. Schedule");
+            System.out.println("5. Availability");
+            System.out.println("6. Group");
+            System.out.println("7. Reports");
             System.out.println("0. Back to Main Menu");
             System.out.println("-------------------------------");
             System.out.print("Enter your choice: ");
@@ -64,65 +41,29 @@ public class DoctorUI {
                 scanner.next();
             }
             choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
-                    maintainDoctor.addDoctor();
+                    runManageMenu();
                     break;
                 case 2:
-                    maintainDoctor.updateDoctorDetails();
+                    runSearchMenu();
                     break;
                 case 3:
-                    maintainDoctor.removeDoctor();
+                    runSortMenu();
                     break;
                 case 4:
-                    maintainDoctor.displayAllDoctors();
+                    runScheduleMenu();
                     break;
                 case 5:
-                    maintainDoctor.searchDoctorById();
+                    runAvailabilityMenu();
                     break;
                 case 6:
-                    maintainDoctor.searchDoctorByName();
+                    runGroupMenu();
                     break;
                 case 7:
-                    maintainDoctor.searchDoctorBySpecialization();
-                    break;
-                case 8:
-                    maintainDoctor.sortDoctorsById();
-                    break;
-                case 9:
-                    maintainDoctor.sortDoctorsByName();
-                    break;
-                case 10:
-                    maintainDoctor.sortDoctorsBySpecialization();
-                    break;
-                case 11:
-                    maintainDoctor.setDoctorSchedule();
-                    break;
-                case 12:
-                    maintainDoctor.displayDoctorSchedule();
-                    break;
-                case 13:
-                    maintainDoctor.setDoctorAvailability();
-                    break;
-                case 14:
-                    maintainDoctor.displayDoctorAvailability();
-                    break;
-                case 15:
-                    maintainDoctor.displayGroupBySpecialization();
-                    break;
-                case 16:
-                    maintainDoctor.displayGroupByAvailability();
-                    break;
-                case 17:
-                    maintainDoctor.displayGroupBySchedule();
-                    break;
-                case 18:
-                    maintainDoctor.displayStatistics();
-                    break;
-                case 19:
-                    maintainDoctor.displayDoctorWorkload();
+                    runReportsMenu();
                     break;
                 case 0:
                     MessageUI.displayExitMessage();
@@ -131,6 +72,159 @@ public class DoctorUI {
                     MessageUI.displayInvalidChoiceMessage();
             }
         } while (choice != 0);
+    }
+
+    private void runManageMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Manage Doctors ---");
+            System.out.println("1. Add Doctor");
+            System.out.println("2. Update Doctor Details");
+            System.out.println("3. Remove Doctor");
+            System.out.println("4. View All Doctors");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: maintainDoctor.addDoctor(); break;
+                case 2: maintainDoctor.updateDoctorDetails(); break;
+                case 3: maintainDoctor.removeDoctor(); break;
+                case 4: maintainDoctor.displayAllDoctors(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
+    }
+
+    private void runSearchMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Search Doctors ---");
+            System.out.println("1. By ID");
+            System.out.println("2. By Name");
+            System.out.println("3. By Specialization");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: maintainDoctor.searchDoctorById(); break;
+                case 2: maintainDoctor.searchDoctorByName(); break;
+                case 3: maintainDoctor.searchDoctorBySpecialization(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
+    }
+
+    private void runSortMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Sort Doctors ---");
+            System.out.println("1. By ID");
+            System.out.println("2. By Name");
+            System.out.println("3. By Specialization");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: {
+                    System.out.print("(A=Ascending, D=Descending): ");
+                    String opt = scanner.nextLine().trim();
+                    if (opt.equalsIgnoreCase("D")) maintainDoctor.sortDoctorsByIdDescending();
+                    else maintainDoctor.sortDoctorsById();
+                    break;
+                }
+                case 2: maintainDoctor.sortDoctorsByName(); break;
+                case 3: maintainDoctor.sortDoctorsBySpecialization(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
+    }
+
+    private void runScheduleMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Doctor Schedule ---");
+            System.out.println("1. Set Schedule");
+            System.out.println("2. View Schedule (by ID)");
+            System.out.println("3. View All Schedules");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: maintainDoctor.setDoctorSchedule(); break;
+                case 2: maintainDoctor.displayDoctorSchedule(); break;
+                case 3: maintainDoctor.displayAllSchedules(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
+    }
+
+    private void runAvailabilityMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Doctor Availability ---");
+            System.out.println("1. Set Availability");
+            System.out.println("2. View Availability (by ID)");
+            System.out.println("3. View All Availability");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: maintainDoctor.setDoctorAvailability(); break;
+                case 2: maintainDoctor.displayDoctorAvailability(); break;
+                case 3: maintainDoctor.displayAllAvailability(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
+    }
+
+    private void runGroupMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Group Doctors ---");
+            System.out.println("1. By Specialization");
+            System.out.println("2. By Availability");
+            System.out.println("3. By Schedule");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: maintainDoctor.displayGroupBySpecialization(); break;
+                case 2: maintainDoctor.displayGroupByAvailability(); break;
+                case 3: maintainDoctor.displayGroupBySchedule(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
+    }
+
+    private void runReportsMenu() {
+        int c;
+        do {
+            System.out.println("\n--- Reports ---");
+            System.out.println("1. Statistics Report");
+            System.out.println("2. Doctor Workload");
+            System.out.println("0. Back");
+            System.out.print("Enter choice: ");
+            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
+            c = scanner.nextInt(); scanner.nextLine();
+            switch (c) {
+                case 1: maintainDoctor.displayStatistics(); break;
+                case 2: maintainDoctor.displayDoctorWorkload(); break;
+                case 0: break;
+                default: MessageUI.displayInvalidChoiceMessage();
+            }
+        } while (c != 0);
     }
 
     // (All input methods moved to MaintainDoctor)

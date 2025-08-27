@@ -135,7 +135,9 @@ public class MaintainDoctor {
         doctorList.mergeSort(Comparator.comparing(Doctor::getName, String.CASE_INSENSITIVE_ORDER));
         save();
         doctorUI.displayMessage("Doctors sorted by name.");
+        displayAllDoctors();
     }
+
 
     public void sortDoctorsBySpecialization() {
         if (doctorList.isEmpty()) {
@@ -145,7 +147,10 @@ public class MaintainDoctor {
         doctorList.mergeSort(Comparator.comparing(Doctor::getSpecialization, String.CASE_INSENSITIVE_ORDER));
         save();
         doctorUI.displayMessage("Doctors sorted by specialization.");
+        displayAllDoctors();
     }
+
+
 
     public void sortDoctorsById() {
         if (doctorList.isEmpty()) {
@@ -155,6 +160,18 @@ public class MaintainDoctor {
         doctorList.mergeSort(Comparator.comparing(Doctor::getId, String.CASE_INSENSITIVE_ORDER));
         save();
         doctorUI.displayMessage("Doctors sorted by ID.");
+        displayAllDoctors();
+    }
+
+    public void sortDoctorsByIdDescending() {
+        if (doctorList.isEmpty()) {
+            doctorUI.displayMessage("No doctors to sort.");
+            return;
+        }
+        doctorList.mergeSort(Comparator.comparing(Doctor::getId, String.CASE_INSENSITIVE_ORDER).reversed());
+        save();
+        doctorUI.displayMessage("Doctors sorted by ID (desc).");
+        displayAllDoctors();
     }
 
     // =========================
@@ -184,6 +201,24 @@ public class MaintainDoctor {
         }
     }
 
+    public void displayAllSchedules() {
+        if (doctorList.isEmpty()) {
+            doctorUI.displayMessage("No doctors found.");
+            return;
+        }
+        StringBuilder output = new StringBuilder();
+        int counter = 1;
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            output.append(counter++).append(". ")
+                    .append(d.getId()).append(" - ")
+                    .append(d.getName()).append(" | ")
+                    .append("Schedule: ")
+                    .append(d.getSchedule() != null && !d.getSchedule().isEmpty() ? d.getSchedule() : "Not set")
+                    .append("\n");
+        }
+        doctorUI.displayDoctorList(output.toString());
+    }
+
     // =========================
     // Availability Management
     // =========================
@@ -209,6 +244,24 @@ public class MaintainDoctor {
         } else {
             doctorUI.displayMessage("Doctor not found.");
         }
+    }
+
+    public void displayAllAvailability() {
+        if (doctorList.isEmpty()) {
+            doctorUI.displayMessage("No doctors found.");
+            return;
+        }
+        StringBuilder output = new StringBuilder();
+        int counter = 1;
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            output.append(counter++).append(". ")
+                    .append(d.getId()).append(" - ")
+                    .append(d.getName()).append(" | ")
+                    .append("Availability: ")
+                    .append(d.getAvailability() != null ? d.getAvailability() : "Not set")
+                    .append("\n");
+        }
+        doctorUI.displayDoctorList(output.toString());
     }
 
     //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
@@ -380,19 +433,45 @@ public class MaintainDoctor {
             }
         }
 
+        String generatedDate = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
+
+        double completedPct = totalTreatments > 0
+                ? (completedTreatments * 100.0) / totalTreatments
+                : 0.0;
+
         StringBuilder sb = new StringBuilder();
-        sb.append("\n================ Doctor Workload ================\n");
-        sb.append("Doctor ID         : ").append(doctorId).append("\n");
+        sb.append("\n=====================================================================================================================\n");
+        sb.append("                               Tunku Abdul Rahman University Of Management And Technology                              \n");
+        sb.append("=====================================================================================================================\n");
+        sb.append(String.format(" Report Generated On: %s\n", generatedDate));
+        sb.append("=====================================================================================================================\n");
+        sb.append("                                                   🧾 Doctor Workload Report                                           \n");
+        sb.append("=====================================================================================================================\n");
+
+        // Doctor summary table (same columns as statistics for familiarity)
+        sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                "ID", "Name", "Specialization", "Schedule", "Availability"));
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
         Doctor doc = doctorMap.get(doctorId);
-        if (doc != null) {
-            sb.append("Doctor Name       : ").append(doc.getName()).append("\n");
-            sb.append("Specialization    : ").append(doc.getSpecialization()).append("\n");
-        }
-        sb.append("------------------------------------------------\n");
-        sb.append(String.format("Total Treatments  : %d\n", totalTreatments));
-        sb.append(String.format("Completed         : %d\n", completedTreatments));
-        sb.append(String.format("Unique Patients   : %d\n", uniquePatients.getNumberOfEntries()));
-        sb.append("================================================\n");
+        String name = (doc != null ? doc.getName() : "-");
+        String spec = (doc != null && doc.getSpecialization() != null) ? doc.getSpecialization() : "Not specified";
+        String sched = (doc != null && doc.getSchedule() != null) ? doc.getSchedule() : "Not set";
+        String avail = (doc != null && doc.getAvailability() != null) ? doc.getAvailability() : "Not set";
+        sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                doctorId, name, spec, sched, avail));
+
+        sb.append("=====================================================================================================================\n");
+        sb.append("\n Workload Summary:\n");
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(String.format(" %-22s | %-10s | %-10s\n", "Metric", "Value", "Percent"));
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(String.format(" %-22s | %-10d | %-10s\n", "Total Treatments", totalTreatments, "N/A"));
+        sb.append(String.format(" %-22s | %-10d | %9.1f%%\n", "Completed", completedTreatments, completedPct));
+        sb.append(String.format(" %-22s | %-10d | %-10s\n", "Unique Patients", uniquePatients.getNumberOfEntries(), "N/A"));
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(" This report is confidential and intended for TAR UMT Medical Department use only.\n");
+        sb.append("=====================================================================================================================\n");
 
         doctorUI.displayMessage(sb.toString());
     }
