@@ -18,6 +18,8 @@ public interface QueueInterface<T> {
 
     void enqueueWithNumber(T data); // Add to rear with auto-generated queue number
 
+    void enqueueWithExistingNumber(T data, String existingQueueNumber); // Add with existing queue number (for restoration)
+
     String getQueueNumber(T data);  // Get queue number for specific data
 
     int getPosition(T data);        // Get position of data in queue (1-based)

@@ -58,6 +58,23 @@ public class LinkedQueue<T> implements QueueInterface<T> {
         size++;
     }
 
+    /**
+     * Enqueue with existing queue number - for restoration purposes
+     * Does NOT increment the counter - preserves original queue numbers
+     * @param data The data to enqueue
+     * @param existingQueueNumber The existing queue number to preserve
+     */
+    public void enqueueWithExistingNumber(T data, String existingQueueNumber) {
+        Node<T> newNode = new Node<>(data, existingQueueNumber);
+        if (isEmpty()) {
+            front = newNode;
+        } else {
+            rear.next = newNode;
+        }
+        rear = newNode;
+        size++;
+    }
+
     @Override
     public T dequeue() {
         if (isEmpty()) {

@@ -16,7 +16,6 @@ import entity.Doctor;
 import entity.Patient;
 import entity.Appointment;
 import utility.ValidationUtil;
-import java.util.Comparator;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -103,17 +102,14 @@ public class MaintainPatient {
         try {
             // Step 1: Update list (find and replace in-place)
             boolean listUpdated = false;
-            java.util.Iterator<Patient> iterator = patientList.iterator();
-            int index = 1;
-            while (iterator.hasNext()) {
-                Patient current = iterator.next();
+            for (int index = 1; index <= patientList.getNumberOfEntries(); index++) {
+                Patient current = patientList.getEntry(index);
                 if (current != null && current.getId() != null && current.getId().equals(oldPatient.getId())) {
                     patientList.remove(index);
                     patientList.add(index, newPatient);
                     listUpdated = true;
                     break;
                 }
-                index++;
             }
 
             if (!listUpdated) {
@@ -295,7 +291,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Serve next patient in queue
+     * Serve next patient in queue - FIXED: Capture queue number before dequeuing
      * @return QueueOperationResult with served patient data
      */
     public QueueOperationResult serveNextPatient() {
@@ -303,35 +299,36 @@ public class MaintainPatient {
             return new QueueOperationResult(false, "QUEUE_EMPTY", null, null, 0);
         }
 
-        // Use the helper method that properly cleans up all tracking maps
-        Patient nextPatient = dequeuePatient();
+        // FIXED: Get queue number BEFORE dequeuing the patient
+        Patient nextPatient = patientQueue.peek(); // Get patient without removing
+        String queueNum = patientQueue.getQueueNumber(nextPatient); // Get queue number while still in queue
+
+        // Now safely dequeue the patient using helper method
+        nextPatient = dequeuePatient();
         if (nextPatient != null) {
-            //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+            // Check for available doctor
             MaintainDoctor maintainDoctor = new MaintainDoctor();
-            //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
             Doctor availableDoctor = maintainDoctor.findAvailableDoctor();
 
-            //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
             if (availableDoctor != null) {
-                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+                // Update doctor availability to "On Duty"
                 availableDoctor.setAvailability("On Duty");
-                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
                 maintainDoctor.updateDoctorInList(availableDoctor);
 
                 // Set serving patient for treatment module
                 if (maintainTreatment != null) {
-                    //Siuyee new changes - use new ADT queue system to store multiple serving patients and doctors
                     maintainTreatment.addServingPatientDoctorPair(nextPatient, availableDoctor);
                 }
 
-                String queueNum = patientQueue.getQueueNumber(nextPatient);
+                // FIXED: Reset doctor availability back to "Available" after serving
+                availableDoctor.setAvailability("Available");
+                maintainDoctor.updateDoctorInList(availableDoctor);
+
                 return new QueueOperationResult(true, "PATIENT_SERVED", nextPatient, queueNum, patientQueue.size());
 
-                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
             } else {
-                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+                // No available doctor - put patient back in queue
                 enqueuePatient(nextPatient);
-                //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
                 return new QueueOperationResult(false, "NO_AVAILABLE_DOCTOR", null, null, patientQueue.size());
             }
         }
@@ -430,11 +427,40 @@ public class MaintainPatient {
     }
 
     /**
-     * Get queue data for UI display - returns raw queue array
+     * Get queue data for UI display - FIXED: Preserves original queue numbers
      * UI layer handles formatting
+     * FIXED: Safe traversal that preserves FIFO order and original queue numbers
      */
-    public Patient[] getQueueArray() {
-        return patientQueue.toArray();
+    public ListInterface<Patient> getQueueList() {
+        ListInterface<Patient> queueList = new DoublyLinkedList<>();
+
+        // FIXED: Safe FIFO traversal preserving original queue numbers
+        if (!patientQueue.isEmpty()) {
+            // Store patients and their original queue numbers
+            ListInterface<Patient> tempPatients = new DoublyLinkedList<>();
+            ListInterface<String> tempQueueNumbers = new DoublyLinkedList<>();
+
+            // First pass: Extract patients and capture their queue numbers
+            while (!patientQueue.isEmpty()) {
+                Patient patient = patientQueue.peek(); // Get patient without removing
+                String queueNum = patientQueue.getQueueNumber(patient); // Get queue number while still in queue
+
+                patient = patientQueue.dequeue(); // Now remove patient
+
+                queueList.add(patient);  // Add to result list in FIFO order
+                tempPatients.add(patient);  // Store for restoration
+                tempQueueNumbers.add(queueNum);  // Store original queue number
+            }
+
+            // Second pass: Restore original queue with exact same queue numbers
+            for (int i = 1; i <= tempPatients.getNumberOfEntries(); i++) {
+                Patient patient = tempPatients.getEntry(i);
+                String originalQueueNum = tempQueueNumbers.getEntry(i);
+                patientQueue.enqueueWithExistingNumber(patient, originalQueueNum);  // Restore with original number
+            }
+        }
+
+        return queueList;
     }
 
     /**
@@ -451,6 +477,40 @@ public class MaintainPatient {
     public boolean isQueueEmpty() {
         return patientQueue.isEmpty();
     }
+
+    /**
+     * Get patient's queue number
+     * @param patient Patient to check
+     * @return queue number or null if not in queue
+     */
+    public String getPatientQueueNumber(Patient patient) {
+        if (patient == null || !isInQueue(patient)) {
+            return null;
+        }
+        return patientQueue.getQueueNumber(patient);
+    }
+
+    /**
+     * Get patient's position in queue (1-based)
+     * @param patient Patient to check
+     * @return queue position or 0 if not in queue
+     */
+    public int getPatientQueuePosition(Patient patient) {
+        if (patient == null || !isInQueue(patient)) {
+            return 0;
+        }
+
+        ListInterface<Patient> queueList = getQueueList();
+        for (int i = 1; i <= queueList.getNumberOfEntries(); i++) {
+            Patient p = queueList.getEntry(i);
+            if (p.getId().equals(patient.getId())) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+
 
     // Generate next patient ID using iterator for efficient traversal
     private String generateNextPatientId() {
@@ -476,8 +536,25 @@ public class MaintainPatient {
             return false; // Patient not in queue
         }
 
-        // Use efficient queue removal method - no rebuilding required
-        boolean removed = ((LinkedQueue<Patient>) patientQueue).removeByValue(patient);
+        // FIXED: Simple and reliable queue removal using LinkedQueue's removeByValue
+        // First, find the actual patient object in the queue by ID
+        Patient patientToRemove = null;
+        ListInterface<Patient> queueList = getQueueList();
+
+        for (int i = 1; i <= queueList.getNumberOfEntries(); i++) {
+            Patient p = queueList.getEntry(i);
+            if (p.getId().equals(patient.getId())) {
+                patientToRemove = p;
+                break;
+            }
+        }
+
+        if (patientToRemove == null) {
+            return false; // Patient not found in queue
+        }
+
+        // Remove using the actual patient object from queue
+        boolean removed = ((LinkedQueue<Patient>) patientQueue).removeByValue(patientToRemove);
 
         if (removed) {
             // Clean up tracking maps
@@ -809,19 +886,19 @@ public class MaintainPatient {
     /**
      * Register new patient - accepts patient entity from boundary layer
      * @param patient Patient entity to register
-     * @return true if registration successful, false if IC already exists
+     * @return registered patient with ID if successful, null if IC already exists
      */
-    public boolean registerNewPatient(Patient patient) {
+    public Patient registerNewPatient(Patient patient) {
         if (patient == null) {
-            return false;
+            return null;
         }
 
         // Check if IC already exists
         if (checkExistingPatient(patient.getIcNumber()) != null) {
-            return false; // IC already exists
+            return null; // IC already exists
         }
 
-        // Generate new patient ID and update the patient
+        // Generate new patient ID and create patient with ID
         String newId = generateNextPatientId();
         Patient patientWithId = new Patient(newId, patient.getName(), patient.getIcNumber(),
                                           patient.getPhone(), patient.getGender(), java.time.LocalDate.now());
@@ -829,7 +906,7 @@ public class MaintainPatient {
         // Add to all data structures
         addToAllDataStructures(patientWithId);
 
-        return true;
+        return patientWithId; // Return the patient with generated ID
     }
 
     /**
@@ -847,12 +924,22 @@ public class MaintainPatient {
      * @return queue number assigned to patient
      */
     public String addPatientToQueue(Patient patient) {
-        if (patient == null || isInQueue(patient)) {
+        if (patient == null || patient.getId() == null) {
             return null;
         }
 
-        enqueuePatient(patient);
-        return patientQueue.getQueueNumber(patient);
+        // FIXED: Only check if patient is already in queue if they have valid data
+        if (patient.getName() != null && patient.getIcNumber() != null) {
+            // Check if patient is already in queue
+            if (isInQueue(patient)) {
+                return null; // Patient already in queue
+            }
+
+            enqueuePatient(patient);
+            return patientQueue.getQueueNumber(patient);
+        }
+
+        return null;
     }
 
     /**
@@ -1357,8 +1444,8 @@ public class MaintainPatient {
     }
 
     /**
-     * Get appointments for today - OPTIMIZED with iterator for O(n) performance
-     * @return List of today's appointments
+     * Get appointments for today - OPTIMIZED with iterator and sorted by time
+     * @return List of today's appointments sorted by appointment time
      */
     public ListInterface<Appointment> getTodayAppointments() {
         ListInterface<Appointment> todayAppointments = new DoublyLinkedList<>();
@@ -1373,6 +1460,12 @@ public class MaintainPatient {
                 todayAppointments.add(appointment);
             }
         }
+
+        // FIXED: Sort appointments by time using merge sort from ADT
+        if (!todayAppointments.isEmpty()) {
+            todayAppointments.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
+        }
+
         return todayAppointments;
     }
 
@@ -1410,11 +1503,84 @@ public class MaintainPatient {
     }
 
     /**
-     * Get all appointments (for cancellation display)
-     * @return List of all appointments
+     * Get all appointments sorted by date and time (for cancellation display)
+     * @return List of all appointments sorted by date and time
      */
     public ListInterface<Appointment> getAllAppointments() {
-        return appointmentList;
+        // Create a copy of the appointment list for sorting
+        ListInterface<Appointment> sortedAppointments = new DoublyLinkedList<>();
+
+        // Copy all appointments
+        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
+        while (iterator.hasNext()) {
+            sortedAppointments.add(iterator.next());
+        }
+
+        // FIXED: Sort appointments by date first, then by time using merge sort from ADT
+        if (!sortedAppointments.isEmpty()) {
+            sortedAppointments.mergeSort((a1, a2) -> {
+                // First compare by date
+                int dateComparison = a1.getAppointmentDate().compareTo(a2.getAppointmentDate());
+                if (dateComparison != 0) {
+                    return dateComparison;
+                }
+                // If dates are equal, compare by time
+                return a1.getAppointmentTime().compareTo(a2.getAppointmentTime());
+            });
+        }
+
+        return sortedAppointments;
+    }
+
+    /**
+     * Get scheduled appointments only (for cancellation)
+     * ECB COMPLIANT: Business logic in control layer
+     * @return List of scheduled appointments
+     */
+    public ListInterface<Appointment> getScheduledAppointments() {
+        ListInterface<Appointment> scheduledAppointments = new DoublyLinkedList<>();
+        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            if ("SCHEDULED".equals(appointment.getStatus())) {
+                scheduledAppointments.add(appointment);
+            }
+        }
+        return scheduledAppointments;
+    }
+
+    /**
+     * Get sorted appointments by specified criteria
+     * ECB COMPLIANT: Business logic in control layer
+     * @param appointments Original appointment list
+     * @param sortType 1=by ID, 2=by Time, other=no sort
+     * @return Sorted appointment list
+     */
+    public ListInterface<Appointment> getSortedAppointments(ListInterface<Appointment> appointments, int sortType) {
+        // Create a copy for sorting to preserve original
+        ListInterface<Appointment> sortedList = new DoublyLinkedList<>();
+
+        // Copy all appointments
+        java.util.Iterator<Appointment> iterator = appointments.iterator();
+        while (iterator.hasNext()) {
+            sortedList.add(iterator.next());
+        }
+
+        switch (sortType) {
+            case 1:
+                // Sort by Appointment ID using merge sort from ADT
+                sortedList.mergeSort((a1, a2) -> a1.getAppointmentId().compareTo(a2.getAppointmentId()));
+                break;
+            case 2:
+                // Sort by Time using merge sort from ADT
+                sortedList.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
+                break;
+            default:
+                // No sorting - return copy as is
+                break;
+        }
+
+        return sortedList;
     }
 
     /**
