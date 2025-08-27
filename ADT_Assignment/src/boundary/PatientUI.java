@@ -7,6 +7,7 @@ import entity.Appointment;
 import adt.*;
 import utility.MessageUI;
 import utility.FormatUtil;
+import utility.ValidationUtil;
 
 import java.util.Scanner;
 
@@ -156,6 +157,8 @@ public class PatientUI {
         System.out.println("1. Book Appointment");
         System.out.println("2. View Today's Appointments");
         System.out.println("3. Cancel Appointment");
+        System.out.println("4. Search Appointments by Patient ID");
+        System.out.println("5. Clear All Appointments for Patient");
         System.out.println("0. Back to Patient Main Menu");
         System.out.println("-------------------------------");
         return getMenuChoice();
@@ -172,6 +175,12 @@ public class PatientUI {
                 break;
             case 3:
                 handleCancelAppointment();
+                break;
+            case 4:
+                handleSearchAppointmentsByPatientId();
+                break;
+            case 5:
+                handleClearAppointmentsByPatientId();
                 break;
             case 0:
                 displayMessage("Returning to Patient Menu...");
@@ -459,6 +468,108 @@ public class PatientUI {
         askToContinueOrReturnToMenu();
     }
 
+    // Handle searching appointments by patient ID
+    private void handleSearchAppointmentsByPatientId() {
+        displayMessage("\n=== SEARCH APPOINTMENTS BY PATIENT ID ===");
+
+        String patientId;
+        do {
+            System.out.print("Enter Patient ID to search appointments (or 0 to return to menu): ");
+            patientId = scanner.nextLine().trim();
+
+            if (patientId.equals("0")) {
+                return; // Return to appointment menu
+            }
+
+            if (patientId.isEmpty()) {
+                displayMessage("Patient ID cannot be empty. Please try again.\n");
+                continue;
+            }
+
+            // Validate patient exists
+            Patient patient = maintainPatient.findPatientById(patientId);
+            if (patient == null) {
+                displayMessage("Patient not found. Please try again.\n");
+                continue;
+            }
+
+            // Search appointments for this patient
+            ListInterface<Appointment> patientAppointments = maintainPatient.searchAppointmentsByPatientId(patientId);
+
+            if (patientAppointments.isEmpty()) {
+                displayMessage("\nNo appointments found for Patient ID: " + patientId);
+                displayMessage("Patient: " + patient.getName());
+            } else {
+                displayMessage("\n=== APPOINTMENTS FOR PATIENT " + patientId + " ===");
+                displayMessage("Patient: " + patient.getName());
+                displayMessage("Total appointments found: " + patientAppointments.getNumberOfEntries());
+                displayMessage("");
+                displayAppointmentList(patientAppointments);
+            }
+
+        } while (true); // Keep prompting until user enters 0
+    }
+
+    // Handle clearing all appointments for a patient
+    private void handleClearAppointmentsByPatientId() {
+        displayMessage("\n=== CLEAR ALL APPOINTMENTS FOR PATIENT ===");
+
+        System.out.print("Enter Patient ID to clear all appointments (or 0 to return to menu): ");
+        String patientId = scanner.nextLine().trim();
+
+        if (patientId.equals("0")) {
+            return; // Return to appointment menu
+        }
+
+        if (patientId.isEmpty()) {
+            displayMessage("Patient ID cannot be empty.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        // Validate patient exists
+        Patient patient = maintainPatient.findPatientById(patientId);
+        if (patient == null) {
+            displayMessage("Patient not found.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        // Show patient info and confirm
+        displayMessage("\nPatient found:");
+        displayMessage("ID: " + patient.getId());
+        displayMessage("Name: " + patient.getName());
+        displayMessage("IC: " + FormatUtil.formatICForDisplay(patient.getIcNumber()));
+
+        // Show current appointments before clearing
+        ListInterface<Appointment> currentAppointments = maintainPatient.searchAppointmentsByPatientId(patientId);
+        if (currentAppointments.isEmpty()) {
+            displayMessage("\nNo appointments found for this patient.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        displayMessage("\nCurrent appointments for this patient:");
+        displayAppointmentList(currentAppointments);
+
+        // Confirm before clearing
+        System.out.print("\nAre you sure you want to clear ALL appointments for this patient? (y/n): ");
+        String confirmation = scanner.nextLine().trim().toLowerCase();
+
+        if (!confirmation.equals("y") && !confirmation.equals("yes")) {
+            displayMessage("Operation cancelled.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        // Clear appointments
+        MaintainPatient.AppointmentResult result = maintainPatient.clearAppointmentsByPatientId(patientId);
+
+        displayMessage("\n" + result.getMessage());
+
+        askToContinueOrReturnToMenu();
+    }
+
     // Generate and display patient treatment report
     private void handlePatientTreatmentReport() {
         MaintainPatient.PatientTreatmentData data = maintainPatient.generatePatientTreatmentReport();
@@ -548,7 +659,7 @@ public class PatientUI {
             }
 
             // Validate IC number
-            MaintainPatient.ValidationResult result = maintainPatient.validateIC(icNumber);
+            ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icNumber);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -580,7 +691,7 @@ public class PatientUI {
             System.out.print("Enter Name      : ");
             name = scanner.nextLine().trim();
 
-            MaintainPatient.ValidationResult result = maintainPatient.validateName(name);
+            ValidationUtil.ValidationResult result = ValidationUtil.validateName(name);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -597,7 +708,7 @@ public class PatientUI {
             System.out.print("Enter IC Number (12 digits): ");
             icNumber = scanner.nextLine().trim();
 
-            MaintainPatient.ValidationResult result = maintainPatient.validateIC(icNumber);
+            ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icNumber);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -616,7 +727,7 @@ public class PatientUI {
             phone = scanner.nextLine().trim();
 
             // Validate phone number
-            MaintainPatient.ValidationResult result = maintainPatient.validatePhone(phone);
+            ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phone);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -811,7 +922,7 @@ public class PatientUI {
             name = currentPatient.getName();
         } else {
             while (true) {
-                MaintainPatient.ValidationResult result = maintainPatient.validateName(nameInput);
+                ValidationUtil.ValidationResult result = ValidationUtil.validateName(nameInput);
                 if (!result.isValid()) {
                     System.out.println("\n" + result.getErrorMessage() + "\n");
                     System.out.print("Name [" + currentPatient.getName() + "]: ");
@@ -857,7 +968,7 @@ public class PatientUI {
             icNumber = currentPatient.getIcNumber();
         } else {
             while (true) {
-                MaintainPatient.ValidationResult result = maintainPatient.validateIC(icInput);
+                ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icInput);
                 if (!result.isValid()) {
                     System.out.println("\n" + result.getErrorMessage() + "\n");
                     System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
@@ -881,7 +992,7 @@ public class PatientUI {
             phone = currentPatient.getPhone();
         } else {
             while (true) {
-                MaintainPatient.ValidationResult result = maintainPatient.validatePhone(phoneInput);
+                ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phoneInput);
                 if (!result.isValid()) {
                     System.out.println("\n" + result.getErrorMessage() + "\n");
                     System.out.print("Phone [" + currentPatient.getPhone() + "]: ");

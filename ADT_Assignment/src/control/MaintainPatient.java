@@ -581,18 +581,7 @@ public class MaintainPatient {
     }
 
 
-    public static class ValidationResult {
-        private final boolean valid;
-        private final String errorMessage;
 
-        public ValidationResult(boolean valid, String errorMessage) {
-            this.valid = valid;
-            this.errorMessage = errorMessage;
-        }
-
-        public boolean isValid() { return valid; }
-        public String getErrorMessage() { return errorMessage; }
-    }
 
     /**
      * Queue operation result class
@@ -651,62 +640,7 @@ public class MaintainPatient {
         public int getQueuePosition() { return queuePosition; }
     }
 
-    /**
-     * Validate IC number format
-     * @param icNumber IC number to validate
-     * @return ValidationResult with status and error message
-     */
-    public ValidationResult validateIC(String icNumber) {
-        if (icNumber == null || icNumber.trim().isEmpty()) {
-            return new ValidationResult(false, "IC Number cannot be empty.");
-        }
 
-        String cleanIC = icNumber.replaceAll("-", "").trim();
-        if (!cleanIC.matches("\\d{12}")) {
-            return new ValidationResult(false, "IC Number must be exactly 12 digits (Malaysian format: YYMMDDPBXXXX).");
-        }
-
-        if (!ValidationUtil.isValidMalaysianIC(cleanIC)) {
-            return new ValidationResult(false, "Invalid Malaysian IC format. Please enter a valid IC number.");
-        }
-
-        return new ValidationResult(true, null);
-    }
-
-    /**
-     * Validate name format
-     * @param name Name to validate
-     * @return ValidationResult with status and error message
-     */
-    public ValidationResult validateName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return new ValidationResult(false, "Name cannot be empty.");
-        }
-
-        if (!ValidationUtil.isValidName(name.trim())) {
-            return new ValidationResult(false, "Name must contain only letters and spaces and be at least 2 characters long.");
-        }
-
-        return new ValidationResult(true, null);
-    }
-
-    /**
-     * Validate phone number format
-     * @param phone Phone number to validate
-     * @return ValidationResult with status and error message
-     */
-    public ValidationResult validatePhone(String phone) {
-        if (phone == null || phone.trim().isEmpty()) {
-            return new ValidationResult(false, "Phone number cannot be empty.");
-        }
-
-        String cleanPhone = phone.replaceAll("[\\s-]", "");
-        if (!ValidationUtil.isValidPhone(cleanPhone)) {
-            return new ValidationResult(false, "Invalid Malaysian phone number format. Must be 10-11 digits.");
-        }
-
-        return new ValidationResult(true, null);
-    }
 
 
 
@@ -1519,6 +1453,92 @@ public class MaintainPatient {
         }
 
         return sortedList;
+    }
+
+    /**
+     * Clear all appointments for a specific patient - OPTIMIZED with iterator for O(n) performance
+     * @param patientId Patient ID whose appointments to clear
+     * @return AppointmentResult with success status and message
+     */
+    public AppointmentResult clearAppointmentsByPatientId(String patientId) {
+        if (patientId == null || patientId.trim().isEmpty()) {
+            return new AppointmentResult(false, "Patient ID cannot be empty.", null);
+        }
+
+        // Validate patient exists
+        Patient patient = findPatientById(patientId);
+        if (patient == null) {
+            return new AppointmentResult(false, "Patient not found.", null);
+        }
+
+        int cancelledCount = 0;
+        boolean hasScheduledAppointments = false;
+
+        // Use iterator to find and cancel all scheduled appointments for this patient
+        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            if (appointment.getPatientId().equals(patientId.trim()) &&
+                "SCHEDULED".equals(appointment.getStatus())) {
+                hasScheduledAppointments = true;
+                appointment.setStatus("CANCELLED");
+                cancelledCount++;
+            }
+        }
+
+        if (!hasScheduledAppointments) {
+            return new AppointmentResult(false, "No scheduled appointments found for patient " + patientId + ".", null);
+        }
+
+        // Save changes to file
+        appointmentDAO.saveToFile(appointmentList);
+
+        String message = String.format("Successfully cancelled %d appointment(s) for patient %s.",
+                                     cancelledCount, patientId);
+        return new AppointmentResult(true, message, null);
+    }
+
+    /**
+     * Search appointments by patient ID - OPTIMIZED with iterator for O(n) performance
+     * @param patientId Patient ID to search appointments for
+     * @return List of appointments for the specified patient
+     */
+    public ListInterface<Appointment> searchAppointmentsByPatientId(String patientId) {
+        ListInterface<Appointment> patientAppointments = new DoublyLinkedList<>();
+
+        if (patientId == null || patientId.trim().isEmpty()) {
+            return patientAppointments; // Return empty list
+        }
+
+        // Validate patient exists
+        Patient patient = findPatientById(patientId);
+        if (patient == null) {
+            return patientAppointments; // Return empty list if patient not found
+        }
+
+        // Use iterator for efficient O(n) traversal to find all appointments for this patient
+        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            if (appointment.getPatientId().equals(patientId.trim())) {
+                patientAppointments.add(appointment);
+            }
+        }
+
+        // Sort appointments by date and time using merge sort from ADT
+        if (!patientAppointments.isEmpty()) {
+            patientAppointments.mergeSort((a1, a2) -> {
+                // First compare by date
+                int dateComparison = a1.getAppointmentDate().compareTo(a2.getAppointmentDate());
+                if (dateComparison != 0) {
+                    return dateComparison;
+                }
+                // If dates are equal, compare by time
+                return a1.getAppointmentTime().compareTo(a2.getAppointmentTime());
+            });
+        }
+
+        return patientAppointments;
     }
 
     /**
