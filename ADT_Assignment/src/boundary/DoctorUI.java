@@ -3,7 +3,7 @@ package boundary;
 import control.MaintainDoctor;
 import entity.Doctor;
 import utility.MessageUI;
-
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class DoctorUI {
@@ -101,34 +101,119 @@ public class DoctorUI {
     // =========================
     // Input Methods
     // =========================
-    public Doctor inputDoctorDetails() {
-        System.out.print("Enter ID            : ");
-        String id = scanner.nextLine();
-        System.out.print("Enter Name          : ");
-        String name = scanner.nextLine();
-        System.out.print("Enter Specialization: ");
-        String specialization = scanner.nextLine();
-        return new Doctor(id, name, specialization);
-    }
-
+//    public Doctor inputDoctorDetails() {
+//        System.out.print("Enter Name          : ");
+//        String name = scanner.nextLine();
+//        System.out.print("Enter Specialization: ");
+//        String specialization = scanner.nextLine();
+//        System.out.print("Enter Schedule (e.g., Mon-Fri 9am-5pm): ");
+//        String schedule = scanner.nextLine();
+//        System.out.print("Enter Availability (Available, On Duty, Off Duty, On Leave): ");
+//        String availability = scanner.nextLine();
+//
+//        // Pass name, specialization, schedule, availability
+//        // ID will be assigned in MaintainDoctor
+//        return new Doctor(null, name, specialization, schedule, availability);
+//    }
     public String inputDoctorId() {
-        System.out.print("Enter Doctor ID: ");
-        return scanner.nextLine();
+        String id;
+        do {
+            System.out.print("Enter Doctor ID (e.g., D0001): ");
+            id = scanner.nextLine().trim();
+            if (id.isEmpty()) {
+                System.out.println("❌ Doctor ID cannot be empty.");
+            } else if (!id.matches("D\\d{4}")) { // Example format: D0001, 
+                System.out.println("❌ Invalid format. Use 'D' followed by 4 digits.");
+            }
+        } while (id.isEmpty() || !id.matches("D\\d{4}"));
+        return id;
     }
 
     public String inputDoctorName() {
-        System.out.print("Enter Doctor Name: ");
-        return scanner.nextLine();
+        String name;
+        do {
+            System.out.print("Enter Doctor Name: ");
+            name = scanner.nextLine().trim();
+            if (name.isEmpty()) {
+                System.out.println("❌ Name cannot be empty.");
+            } else if (!name.matches("[a-zA-Z ]+")) {
+                System.out.println("❌ Name can only contain letters and spaces.");
+            }
+        } while (name.isEmpty() || !name.matches("[a-zA-Z ]+"));
+        return name;
     }
 
+    private static final String[] SPECIALIZATIONS = {
+        "Cardiology", "Pediatrics", "Dermatology", "General Medicine", "Neurology"
+    };
+
     public String inputSpecialization() {
-        System.out.print("Enter Specialization: ");
-        return scanner.nextLine();
+        String specialization;
+        do {
+            System.out.print("Enter Specialization " + Arrays.toString(SPECIALIZATIONS) + ": ");
+            specialization = scanner.nextLine().trim();
+            if (specialization.isEmpty()) {
+                System.out.println("❌ Specialization cannot be empty.");
+            } else if (!Arrays.asList(SPECIALIZATIONS).contains(specialization)) {
+                System.out.println("❌ Invalid specialization. Allowed: " + Arrays.toString(SPECIALIZATIONS));
+            }
+        } while (specialization.isEmpty() || !Arrays.asList(SPECIALIZATIONS).contains(specialization));
+        return specialization;
     }
 
     public String inputSchedule() {
-        System.out.print("Enter Schedule (e.g., Mon-Fri 9am-5pm): ");
-        return scanner.nextLine();
+        // Build a flexible pattern
+        final String day = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)";
+        final String time12 = "(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\\s?(?:[AaPp][Mm])";
+        final String time24 = "(?:[01]?\\d|2[0-3])(?::[0-5][0-9])";
+        final String time = "(?:" + time12 + "|" + time24 + ")";
+        final String timeRange = time + "\\s?-\\s?" + time;
+        final String optionalDayOrRange = "(?:" + day + "(?:\\s?-\\s?" + day + ")?\\s+)?";
+        final String pattern = "(?i)^" + optionalDayOrRange + timeRange + "$";
+
+        System.out.print("Enter Schedule (e.g., Mon-Fri 9am-6pm, Tue 10:30am-4pm, 9am-6pm). Leave blank for default: ");
+        while (true) {
+            String schedule = scanner.nextLine().trim();
+
+            // Allow blank -> MaintainDoctor will default it
+            if (schedule.isEmpty()) {
+                return "";
+            }
+
+            if (schedule.matches(pattern)) {
+                return normalizeSchedule(schedule);
+            }
+
+            System.out.println("❌ Invalid format.");
+            System.out.println("   Examples: Mon-Fri 9am-6pm | Tue 10:30am-4pm | 9am-6pm | 09:00-17:30");
+            System.out.print("Enter Schedule: ");
+        }
+    }
+
+    /**
+     * Tidy spaces, dash spacing, and AM/PM casing for consistency.
+     */
+    private String normalizeSchedule(String s) {
+        s = s.trim().replaceAll("\\s+", " ");      // collapse multiple spaces
+        s = s.replaceAll("\\s?-\\s?", "-");        // normalize dash spacing
+        s = s.replaceAll("(?i)am", "AM")
+                .replaceAll("(?i)pm", "PM");          // standardize AM/PM
+        return s;
+    }
+
+    public String inputAvailability() {
+        String availability;
+        String[] options = {"Available", "On Duty", "Off Duty", "On Leave"};
+        do {
+            System.out.print("Enter Doctor Availability " + Arrays.toString(options) + ": ");
+            availability = scanner.nextLine().trim();
+            if (availability.isEmpty()) {
+                System.out.println("❌ Availability cannot be empty.");
+            } else if (!Arrays.asList(options).contains(availability)) {
+                System.out.println("❌ Invalid availability. Allowed: " + Arrays.toString(options));
+            }
+        } while (availability.isEmpty() || !Arrays.asList(options).contains(availability));
+        return availability;
     }
 
     // =========================
@@ -142,8 +227,5 @@ public class DoctorUI {
         System.out.println(msg);
     }
 
-    public String inputAvailability() {
-        System.out.print("Enter doctor availability (Available, On Duty, Off Duty, On Leave): ");
-        return scanner.nextLine();
-    }
+    
 }
