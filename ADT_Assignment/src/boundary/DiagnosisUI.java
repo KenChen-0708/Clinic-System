@@ -1,370 +1,687 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package boundary;
 
 import adt.DoublyLinkedList;
 import control.MaintainDiagnosis;
 import control.MaintainTreatment;
 import entity.Diagnosis;
+import entity.Treatment;
+import entity.TreatmentMedicineList;
 import java.util.Scanner;
+import control.MaintainDoctor;
+import entity.Doctor;
+import entity.Patient;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
- *
- * @author siuye
+ * DiagnosisUI - Enhanced User Interface for Diagnosis Management Demonstrates
+ * comprehensive ADT usage with DoublyLinkedList operations Clean separation
+ * between UI logic and control layer operations
  */
 public class DiagnosisUI {
 
-    private static Scanner scanner = new Scanner(System.in);
-    private static MaintainDiagnosis md = new MaintainDiagnosis();
+    private static final Scanner scanner = new Scanner(System.in);
+    private static final MaintainDiagnosis md = new MaintainDiagnosis();
     private final MaintainTreatment mt = new MaintainTreatment();
 
+    // ===== MAIN MENU SYSTEM =====
     public void displayDiagnosisMenu() {
+        DoublyLinkedList<String> menuOptions = createMainMenuOptions();
         int choice;
 
         do {
-            System.out.println("\n=== DIAGNOSIS MANAGEMENT ===");
-            System.out.println("1. Create Diagnosis");
-            System.out.println("2. View Diagnosis");
-            System.out.println("3. Update Diagnosis");
-            System.out.println("4. Delete Diagnosis");
-            System.out.println("0. Exit");
-            System.out.print("Enter choice: ");
-            choice = scanner.nextInt();
-            scanner.nextLine();  // Consume the newline character after integer input
+            displayMenuHeader("DIAGNOSIS MANAGEMENT");
+            displayMenuOptions(menuOptions);
+            choice = getMenuChoice(menuOptions.getNumberOfEntries());
 
-            switch (choice) {
-                case 1:
-                    createDiagnosis();
-                    break;
-                case 2:
-                    viewDiagnosis();
-                    break;
-                case 3:
-                    updateDiagnosis();
-                    break;
-                case 4:
-                    deleteDiagnosis();
-                    break;
-                case 0:
-                    System.out.println("Exiting... Goodbye!");
-                    break;
-                default:
-                    System.out.println("Invalid choice. Please try again.");
+            if (choice != -1) {
+                processMainMenuChoice(choice);
             }
-        } while (choice != 0);
+        } while (choice != 0); // Back option is now 0
     }
 
+    private DoublyLinkedList<String> createMainMenuOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("Create Diagnosis");
+        options.add("View Diagnosis");
+        options.add("Update Diagnosis");
+        options.add("Delete Diagnosis");
+        return options;
+    }
+
+    private void processMainMenuChoice(int choice) {
+        switch (choice) {
+            case 1:
+                createDiagnosis();
+                break;
+            case 2:
+                viewDiagnosis();
+                break;
+            case 3:
+                updateDiagnosis();
+                break;
+            case 4:
+                deleteDiagnosis();
+                break;
+            case 0: // Back to Treatment Management Menu
+                System.out.println("Returning to Treatment Management...");
+                break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
+        }
+    }
+
+    // ===== CREATE DIAGNOSIS USING ADT OPERATIONS =====
     public void createDiagnosis() {
-        System.out.println("\n--- CREATE DIAGNOSIS ---");
+        displayMenuHeader("CREATE DIAGNOSIS");
 
-        // Collecting data from the user
-        System.out.println("Patient ID: " + mt.getServingPatient().getId());
-
-        System.out.print("Enter doctor ID: ");
-        String doctorId = scanner.nextLine();
-
-        DoublyLinkedList<String> symptoms = new DoublyLinkedList<>();
-        String symptom;
-        do {
-            System.out.print("Enter symptom (or press Enter to finish): ");
-            symptom = scanner.nextLine();
-            if (!symptom.isEmpty()) {
-                symptoms.add(symptom);
-            }
-        } while (!symptom.isEmpty());
-
-        System.out.print("Enter diagnosis details: ");
-        String diagnosisDetails = scanner.nextLine();
-
-//        Diagnosis newDiagnosis = new Diagnosis(patientId, doctorId, symptoms, diagnosisDetails);
-        Diagnosis newDiagnosis = new Diagnosis(mt.getServingPatient().getId(), doctorId, symptoms, diagnosisDetails);
-
-        boolean success = md.createDiagnosis(newDiagnosis);
-
-        if (!success) {
-            System.out.println("Diagnosis create not successful");
-        } else {
-            System.out.println("Diagnosis created successfully");
-            System.out.println(newDiagnosis.toString());
-        }
-
-        return;
-
-    }
-
-    public void viewDiagnosis() {
-        System.out.println("\n--- VIEW DIAGNOSIS ---");
-        System.out.println("1. View all diagnoses");
-        System.out.println("2. View diagnosis by ID");
-        System.out.println("3. View diagnoses by Patient ID");
-        System.out.print("Enter choice: ");
-        
-        try {
-            int viewChoice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-            
-            switch (viewChoice) {
-                case 1:
-                    viewAllDiagnoses();
-                    break;
-                case 2:
-                    viewDiagnosisById();
-                    break;
-                case 3:
-                    viewDiagnosesByPatientId();
-                    break;
-                default:
-                    System.out.println("Invalid choice!");
-            }
-        } catch (Exception e) {
-            System.out.println("Invalid input! Please enter a number.");
-            scanner.nextLine();
-        }
-    }
-    
-    private void viewAllDiagnoses() {
-        DoublyLinkedList<Diagnosis> diagnoses = md.getAllDiagnoses();
-        
-        if (diagnoses.isEmpty()) {
-            System.out.println("No diagnoses found.");
+        if (!validateServingQueue()) {
             return;
         }
-        
-        System.out.println("\n=== ALL DIAGNOSES ===");
-        for (int i = 1; i <= diagnoses.getNumberOfEntries(); i++) {
-            Diagnosis diagnosis = diagnoses.getEntry(i);
-            System.out.println(diagnosis);
-            System.out.println("------------------------");
+
+        Patient currentServingPatient = mt.getServingPatient();
+        Doctor currentConsultingDoctor = mt.getDoctorConsulting();
+
+        if (!validatePatientDoctorPair(currentServingPatient, currentConsultingDoctor)) {
+            return;
         }
-        System.out.println("Total diagnoses: " + diagnoses.getNumberOfEntries());
+
+        displayCurrentPatientInfo(currentServingPatient, currentConsultingDoctor);
+
+        // Get input using ADT operations
+        DoublyLinkedList<String> symptoms = getSymptomsInput();
+        if (symptoms.isEmpty()) {
+            System.out.println("Symptoms cannot be empty.");
+            return;
+        }
+
+        String diagnosisDetails = getDiagnosisDetailsInput();
+        if (!md.isValidInput(diagnosisDetails)) {
+            System.out.println("Diagnosis details cannot be empty.");
+            return;
+        }
+
+        // Create and save diagnosis using ADT
+        Diagnosis newDiagnosis = new Diagnosis(
+                currentServingPatient.getId(),
+                currentConsultingDoctor.getId(),
+                symptoms,
+                diagnosisDetails
+        );
+
+        if (md.createDiagnosis(newDiagnosis)) {
+            System.out.println("Diagnosis created successfully!");
+            System.out.println(newDiagnosis.toString());
+            createAutomaticTreatment(currentServingPatient, currentConsultingDoctor);
+            completeConsultation(currentServingPatient, currentConsultingDoctor);
+        } else {
+            System.out.println("Diagnosis creation failed.");
+        }
     }
-    
+
+    private boolean validateServingQueue() {
+        if (!mt.hasServingPatients()) {
+            System.out.println("No patients are currently being served.");
+            System.out.println("Please serve patients from the queue first before creating a diagnosis.");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validatePatientDoctorPair(Patient patient, Doctor doctor) {
+        if (patient == null || doctor == null) {
+            System.out.println("Error: No valid patient-doctor pair found in serving queue.");
+            System.out.println("Please check the serving queue status.");
+            return false;
+        }
+        return true;
+    }
+
+    private void displayCurrentPatientInfo(Patient patient, Doctor doctor) {
+        System.out.println("=== CURRENT PATIENT BEING SERVED ===");
+        System.out.println("Patient ID: " + patient.getId());
+        System.out.println("Patient Name: " + patient.getName());
+        System.out.println("Doctor ID: " + doctor.getId());
+        System.out.println("Doctor Name: " + doctor.getName());
+        System.out.println("Doctor Specialization: " + doctor.getSpecialization());
+        System.out.println("Remaining patients in serving queue: " + (mt.getServingPatientsCount() - 1));
+        mt.displayServingStatus();
+    }
+
+    private void createAutomaticTreatment(Patient patient, Doctor doctor) {
+        displayMenuHeader("AUTOMATICALLY CREATING TREATMENT");
+
+        LocalDate treatmentDate = LocalDate.now();
+        System.out.println("Treatment Date: " + treatmentDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
+        DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
+
+        if (askYesNo("Do you want to add medicines to this treatment?")
+                && !md.getAvailableMedicines().isEmpty()) {
+            medicines = getMedicinesFromUser();
+        }
+
+        String status = medicines.isEmpty() ? "Completed" : "Pending";
+
+        if (createTreatmentWithMedicines(patient.getId(), doctor.getId(), status, treatmentDate, medicines)) {
+            displayTreatmentCreationResult(status, treatmentDate, medicines, patient.getId(), doctor.getId());
+        } else {
+            System.out.println("Warning: Treatment could not be created automatically.");
+        }
+    }
+
+    private DoublyLinkedList<TreatmentMedicineList> getMedicinesFromUser() {
+        DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
+        displayMenuHeader("ADD MEDICINES");
+
+        DoublyLinkedList<String> availableMedicines = md.getAvailableMedicines();
+        if (availableMedicines.isEmpty()) {
+            System.out.println("No available medicines in the pharmacy.");
+            return medicines;
+        }
+
+        while (true) {
+            String prescription = selectFromList(availableMedicines, "medicine", true);
+            if (prescription == null) {
+                break;
+            }
+
+            TreatmentMedicineList medicine = createMedicineEntry(prescription);
+            if (medicine != null) {
+                medicines.add(medicine);
+                System.out.println("Medicine added successfully!");
+            }
+
+            if (!askYesNo("Add another medicine?")) {
+                break;
+            }
+        }
+
+        return medicines;
+    }
+
+    private TreatmentMedicineList createMedicineEntry(String prescription) {
+        int tablets = getPositiveNumber("Enter number of tablets: ");
+        if (tablets == -1) {
+            return null;
+        }
+
+        String mealTiming = selectFromList(md.getMealTimingOptions(), "meal timing", false);
+        if (mealTiming == null) {
+            return null;
+        }
+
+        int timesPerDay = getPositiveNumber("Enter times per day: ");
+        if (timesPerDay == -1) {
+            return null;
+        }
+
+        int totalDay = getPositiveNumber("Enter total days taking medicine: ");
+        if (totalDay == -1) {
+            return null;
+        }
+
+        return new TreatmentMedicineList("", prescription, tablets, mealTiming, timesPerDay, totalDay);
+    }
+
+    private void completeConsultation(Patient patient, Doctor doctor) {
+        mt.removeCurrentServingPair();
+
+        MaintainDoctor maintainDoctor = new MaintainDoctor();
+        doctor.setAvailability("Available");
+        maintainDoctor.updateDoctorInList(doctor);
+
+        System.out.println("Doctor " + doctor.getName() + " is now available for next patient.");
+        displayRemainingQueue();
+    }
+
+    // ===== VIEW DIAGNOSIS USING ADT OPERATIONS =====
+    public void viewDiagnosis() {
+        DoublyLinkedList<String> viewOptions = createViewOptions();
+        displayMenuHeader("VIEW DIAGNOSIS");
+        displayViewOptions(viewOptions);
+
+        int choice = getMenuChoice(viewOptions.getNumberOfEntries());
+        if (choice != -1) {
+            processViewChoice(choice);
+        }
+    }
+
+    private DoublyLinkedList<String> createViewOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("View all diagnoses");
+        options.add("View diagnosis by ID");
+        options.add("View diagnoses by Patient ID");
+        return options;
+    }
+
+    private void displayViewOptions(DoublyLinkedList<String> options) {
+        for (int i = 1; i <= options.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + options.getEntry(i));
+        }
+        System.out.println("0. Back");
+        System.out.print("Enter choice: ");
+    }
+
+    private void processViewChoice(int choice) {
+        switch (choice) {
+            case 1:
+                viewAllDiagnoses();
+                break;
+            case 2:
+                viewDiagnosisById();
+                break;
+            case 3:
+                viewDiagnosesByPatientId();
+                break;
+            case 0: // Back
+                System.out.println("Returning back...");
+                break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
+        }
+    }
+
+    private void viewAllDiagnoses() {
+        DoublyLinkedList<Diagnosis> diagnoses = md.getAllDiagnoses();
+        displayDiagnosisList(diagnoses, "ALL DIAGNOSES");
+    }
+
     private void viewDiagnosisById() {
-        System.out.print("Enter Diagnosis ID: ");
-        String diagnosisId = scanner.nextLine();
-        
+        String diagnosisId = getValidInput("Enter Diagnosis ID: ");
+        if (diagnosisId == null) {
+            return;
+        }
+
         Diagnosis diagnosis = md.findDiagnosisById(diagnosisId);
-        
         if (diagnosis != null) {
-            System.out.println("\n=== DIAGNOSIS FOUND ===");
+            displayMenuHeader("DIAGNOSIS FOUND");
             System.out.println(diagnosis);
         } else {
             System.out.println("Diagnosis with ID '" + diagnosisId + "' not found.");
         }
     }
-    
+
     private void viewDiagnosesByPatientId() {
-        System.out.print("Enter Patient ID: ");
-        String patientId = scanner.nextLine();
-        
-        DoublyLinkedList<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
-        
-        if (patientDiagnoses.isEmpty()) {
-            System.out.println("No diagnoses found for patient ID: " + patientId);
+        String patientId = getValidInput("Enter Patient ID: ");
+        if (patientId == null) {
             return;
         }
-        
-        System.out.println("\n=== DIAGNOSES FOR PATIENT " + patientId + " ===");
-        for (int i = 1; i <= patientDiagnoses.getNumberOfEntries(); i++) {
-            Diagnosis diagnosis = patientDiagnoses.getEntry(i);
-            System.out.println(diagnosis);
-            System.out.println("------------------------");
-        }
-        System.out.println("Total diagnoses: " + patientDiagnoses.getNumberOfEntries());
+
+        DoublyLinkedList<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
+        displayDiagnosisList(patientDiagnoses, "DIAGNOSES FOR PATIENT " + patientId);
     }
-    
+
+    // ===== UPDATE DIAGNOSIS USING ADT OPERATIONS =====
     public void updateDiagnosis() {
-        System.out.println("\n--- UPDATE DIAGNOSIS ---");
-        System.out.print("Enter Diagnosis ID to update: ");
-        String diagnosisId = scanner.nextLine();
-        
+        displayMenuHeader("UPDATE DIAGNOSIS");
+
+        String diagnosisId = getValidInput("Enter Diagnosis ID to update: ");
+        if (diagnosisId == null) {
+            return;
+        }
+
         Diagnosis existingDiagnosis = md.findDiagnosisById(diagnosisId);
-        
         if (existingDiagnosis == null) {
             System.out.println("Diagnosis with ID '" + diagnosisId + "' not found.");
             return;
         }
-        
+
         System.out.println("Current diagnosis details:");
         System.out.println(existingDiagnosis);
-        
-        try {
-            System.out.println("\nWhat would you like to update?");
-            System.out.println("1. Symptoms");
-            System.out.println("2. Diagnosis Details");
-            System.out.println("3. Both");
-            System.out.print("Enter choice: ");
-            
-            int updateChoice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-            
-            DoublyLinkedList<String> newSymptoms = null;
-            String newDiagnosisDetails = null;
-            
-            if (updateChoice == 1 || updateChoice == 3) {
-                System.out.println("\nEnter new symptoms (press Enter on empty line to finish):");
-                newSymptoms = new DoublyLinkedList<>();
-                String symptom;
-                do {
-                    System.out.print("Symptom: ");
-                    symptom = scanner.nextLine();
-                    if (!symptom.trim().isEmpty()) {
-                        newSymptoms.add(symptom);
-                    }
-                } while (!symptom.trim().isEmpty());
-                
-                if (newSymptoms.isEmpty()) {
-                    System.out.println("At least one symptom is required!");
-                    return;
-                }
-            }
-            
-            if (updateChoice == 2 || updateChoice == 3) {
-                System.out.print("Enter new diagnosis details: ");
-                newDiagnosisDetails = scanner.nextLine();
-                
-                if (newDiagnosisDetails.trim().isEmpty()) {
-                    System.out.println("Diagnosis details cannot be empty!");
-                    return;
-                }
-            }
-            
-            boolean success = md.updateDiagnosis(diagnosisId, newSymptoms, newDiagnosisDetails);
-            
-            if (success) {
-                System.out.println("Diagnosis updated successfully!");
-                Diagnosis updatedDiagnosis = md.findDiagnosisById(diagnosisId);
-                System.out.println("\nUpdated diagnosis:");
-                System.out.println(updatedDiagnosis);
-            } else {
-                System.out.println("Failed to update diagnosis.");
-            }
-            
-        } catch (Exception e) {
-            System.out.println("Error updating diagnosis: " + e.getMessage());
-            scanner.nextLine(); // Clear any remaining input
+
+        DoublyLinkedList<String> updateOptions = createUpdateOptions();
+        displayUpdateOptions(updateOptions);
+
+        int choice = getMenuChoice(updateOptions.getNumberOfEntries());
+        if (choice != -1 && choice != 0) {
+            processUpdateChoice(choice, diagnosisId);
         }
     }
-    
-    public void deleteDiagnosis() {
-        System.out.println("\n--- DELETE DIAGNOSIS ---");
-        System.out.println("1. Delete specific diagnosis by ID");
-        System.out.println("2. Delete all diagnoses for a patient");
-        System.out.println("3. Delete all diagnoses");
+
+    private DoublyLinkedList<String> createUpdateOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("Symptoms");
+        options.add("Diagnosis Details");
+        options.add("Both");
+        return options;
+    }
+
+    private void displayUpdateOptions(DoublyLinkedList<String> options) {
+        for (int i = 1; i <= options.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + options.getEntry(i));
+        }
+        System.out.println("0. Back");
         System.out.print("Enter choice: ");
-        
-        try {
-            int deleteChoice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-            
-            switch (deleteChoice) {
-                case 1:
-                    deleteDiagnosisById();
-                    break;
-                case 2:
-                    deleteDiagnosesByPatientId();
-                    break;
-                case 3:
-                    deleteAllDiagnoses();
-                    break;
-                default:
-                    System.out.println("Invalid choice!");
+    }
+
+    private void processUpdateChoice(int choice, String diagnosisId) {
+        DoublyLinkedList<String> newSymptoms = null;
+        String newDiagnosisDetails = null;
+
+        if (choice == 1 || choice == 3) {
+            newSymptoms = getUpdatedSymptoms();
+            if (newSymptoms == null) {
+                return;
             }
-        } catch (Exception e) {
-            System.out.println("Invalid input! Please enter a number.");
-            scanner.nextLine();
+        }
+
+        if (choice == 2 || choice == 3) {
+            newDiagnosisDetails = getUpdatedDiagnosisDetails();
+            if (newDiagnosisDetails == null) {
+                return;
+            }
+        }
+
+        if (md.updateDiagnosis(diagnosisId, newSymptoms, newDiagnosisDetails)) {
+            System.out.println("Diagnosis updated successfully!");
+            Diagnosis updatedDiagnosis = md.findDiagnosisById(diagnosisId);
+            System.out.println("\nUpdated diagnosis:");
+            System.out.println(updatedDiagnosis);
+        } else {
+            System.out.println("Failed to update diagnosis.");
         }
     }
-    
+
+    // ===== DELETE DIAGNOSIS USING ADT OPERATIONS =====
+    public void deleteDiagnosis() {
+        DoublyLinkedList<String> deleteOptions = createDeleteOptions();
+        displayMenuHeader("DELETE DIAGNOSIS");
+        displayDeleteOptions(deleteOptions);
+
+        int choice = getMenuChoice(deleteOptions.getNumberOfEntries());
+        if (choice != -1) {
+            processDeleteChoice(choice);
+        }
+    }
+
+    private DoublyLinkedList<String> createDeleteOptions() {
+        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+        options.add("Delete specific diagnosis by ID");
+        options.add("Delete all diagnoses for a patient");
+        options.add("Delete all diagnoses");
+        return options;
+    }
+
+    private void displayDeleteOptions(DoublyLinkedList<String> options) {
+        for (int i = 1; i <= options.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + options.getEntry(i));
+        }
+        System.out.println("0. Back");
+        System.out.print("Enter choice: ");
+    }
+
+    private void processDeleteChoice(int choice) {
+        switch (choice) {
+            case 1:
+                deleteDiagnosisById();
+                break;
+            case 2:
+                deleteDiagnosesByPatientId();
+                break;
+            case 3:
+                deleteAllDiagnoses();
+                break;
+            case 0: // Back
+                System.out.println("Returning back...");
+                break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
+        }
+    }
+
     private void deleteDiagnosisById() {
-        System.out.print("Enter Diagnosis ID to delete: ");
-        String diagnosisId = scanner.nextLine();
-        
+        String diagnosisId = getValidInput("Enter Diagnosis ID to delete: ");
+        if (diagnosisId == null) {
+            return;
+        }
+
         Diagnosis diagnosis = md.findDiagnosisById(diagnosisId);
-        
         if (diagnosis == null) {
             System.out.println("Diagnosis with ID '" + diagnosisId + "' not found.");
             return;
         }
-        
+
         System.out.println("Diagnosis to be deleted:");
         System.out.println(diagnosis);
-        
-        System.out.print("Are you sure you want to delete this diagnosis? (y/n): ");
-        String confirmation = scanner.nextLine().toLowerCase();
-        
-        if (confirmation.equals("y") || confirmation.equals("yes")) {
-            boolean success = md.deleteDiagnosisById(diagnosisId);
-            
-            if (success) {
-                System.out.println("Diagnosis deleted successfully!");
-            } else {
-                System.out.println("Failed to delete diagnosis.");
-            }
+
+        if (confirmAction("Are you sure you want to delete this diagnosis?")
+                && md.deleteDiagnosisById(diagnosisId)) {
+            System.out.println("Diagnosis deleted successfully!");
         } else {
-            System.out.println("Deletion cancelled.");
+            System.out.println("Deletion cancelled or failed.");
         }
     }
-    
+
     private void deleteDiagnosesByPatientId() {
-        System.out.print("Enter Patient ID: ");
-        String patientId = scanner.nextLine();
-        
+        String patientId = getValidInput("Enter Patient ID: ");
+        if (patientId == null) {
+            return;
+        }
+
         DoublyLinkedList<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
-        
         if (patientDiagnoses.isEmpty()) {
             System.out.println("No diagnoses found for patient ID: " + patientId);
             return;
         }
-        
-        System.out.println("Diagnoses to be deleted for patient " + patientId + ":");
-        for (int i = 1; i <= patientDiagnoses.getNumberOfEntries(); i++) {
-            System.out.println((i) + ". " + patientDiagnoses.getEntry(i).getDiagnosisId());
-        }
-        
-        System.out.print("Are you sure you want to delete ALL diagnoses for this patient? (y/n): ");
-        String confirmation = scanner.nextLine().toLowerCase();
-        
-        if (confirmation.equals("y") || confirmation.equals("yes")) {
+
+        displayDiagnosisSummary(patientDiagnoses, "Diagnoses to be deleted for patient " + patientId);
+
+        if (confirmAction("Are you sure you want to delete ALL diagnoses for this patient?")) {
             int deletedCount = md.deleteDiagnosesByPatientId(patientId);
             System.out.println("Deleted " + deletedCount + " diagnoses successfully!");
         } else {
             System.out.println("Deletion cancelled.");
         }
     }
-    
+
     private void deleteAllDiagnoses() {
         DoublyLinkedList<Diagnosis> allDiagnoses = md.getAllDiagnoses();
-        
         if (allDiagnoses.isEmpty()) {
             System.out.println("No diagnoses to delete.");
             return;
         }
-        
+
         System.out.println("Total diagnoses to be deleted: " + allDiagnoses.getNumberOfEntries());
-        System.out.print("Are you sure you want to delete ALL diagnoses? This cannot be undone! (y/n): ");
-        String confirmation = scanner.nextLine().toLowerCase();
-        
-        if (confirmation.equals("y") || confirmation.equals("yes")) {
+
+        if (confirmAction("Are you sure you want to delete ALL diagnoses? This cannot be undone!")) {
             System.out.print("Type 'DELETE ALL' to confirm: ");
             String finalConfirmation = scanner.nextLine();
-            
-            if (finalConfirmation.equals("DELETE ALL")) {
-                boolean success = md.deleteAllDiagnoses();
-                
-                if (success) {
-                    System.out.println("All diagnoses deleted successfully!");
-                } else {
-                    System.out.println("Failed to delete all diagnoses.");
-                }
+
+            if (finalConfirmation.equals("DELETE ALL") && md.deleteAllDiagnoses()) {
+                System.out.println("All diagnoses deleted successfully!");
             } else {
-                System.out.println("Deletion cancelled - incorrect confirmation text.");
+                System.out.println("Deletion cancelled or failed.");
             }
         } else {
             System.out.println("Deletion cancelled.");
         }
     }
-    
+
+    // ===== DISPLAY METHODS USING ADT OPERATIONS =====
+    private void displayDiagnosisList(DoublyLinkedList<Diagnosis> diagnoses, String title) {
+        if (diagnoses.isEmpty()) {
+            System.out.println("No diagnoses found.");
+            return;
+        }
+
+        displayMenuHeader(title);
+        for (int i = 1; i <= diagnoses.getNumberOfEntries(); i++) {
+            System.out.println(diagnoses.getEntry(i));
+        }
+        System.out.println("Total diagnoses: " + diagnoses.getNumberOfEntries());
+    }
+
+    private void displayDiagnosisSummary(DoublyLinkedList<Diagnosis> diagnoses, String title) {
+        System.out.println("\n" + title + ":");
+        for (int i = 1; i <= diagnoses.getNumberOfEntries(); i++) {
+            Diagnosis diagnosis = diagnoses.getEntry(i);
+            System.out.println(i + ". " + diagnosis.getDiagnosisId() + " - " + diagnosis.getDiagnosisDetails());
+        }
+    }
+
+    // ===== INPUT UTILITY METHODS USING ADT =====
+    private DoublyLinkedList<String> getSymptomsInput() {
+        System.out.print("Enter symptoms: ");
+        String symptomInput = scanner.nextLine();
+        return md.processSymptoms(symptomInput);
+    }
+
+    private String getDiagnosisDetailsInput() {
+        System.out.print("Enter diagnosis details: ");
+        return scanner.nextLine();
+    }
+
+    private DoublyLinkedList<String> getUpdatedSymptoms() {
+        System.out.print("Enter new symptoms: ");
+        String symptomInput = scanner.nextLine();
+        return md.isValidInput(symptomInput) ? md.processSymptoms(symptomInput) : null;
+    }
+
+    private String getUpdatedDiagnosisDetails() {
+        System.out.print("Enter new diagnosis details: ");
+        String diagnosisDetails = scanner.nextLine();
+        return md.isValidInput(diagnosisDetails) ? diagnosisDetails : null;
+    }
+
+    private String selectFromList(DoublyLinkedList<String> options, String itemType, boolean allowSkip) {
+        displayListOptions(itemType.substring(0, 1).toUpperCase() + itemType.substring(1) + " Options", options);
+
+        try {
+            String prompt = allowSkip
+                    ? "Select " + itemType + " by number (1-" + options.getNumberOfEntries() + ") or 0 to skip: "
+                    : "Choose option (1-" + options.getNumberOfEntries() + "): ";
+
+            System.out.print(prompt);
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (allowSkip && choice == 0) {
+                return null;
+            }
+
+            if (choice >= 1 && choice <= options.getNumberOfEntries()) {
+                return options.getEntry(choice);
+            } else {
+                System.out.println("Invalid choice! Please select a number between 1-" + options.getNumberOfEntries());
+                return selectFromList(options, itemType, allowSkip);
+            }
+        } catch (Exception e) {
+            System.out.println("Invalid input! Please enter a valid number.");
+            scanner.nextLine();
+            return selectFromList(options, itemType, allowSkip);
+        }
+    }
+
+    // ===== UI HELPER METHODS =====
+    private void displayMenuHeader(String title) {
+        System.out.println("\n==============================");
+        System.out.println("     " + title + "     ");
+        System.out.println("==============================");
+    }
+
+    private void displayMenuOptions(DoublyLinkedList<String> options) {
+        for (int i = 1; i <= options.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + options.getEntry(i));
+        }
+        System.out.println("0. Back to Treatment Management Menu");
+        System.out.print("Enter choice: ");
+    }
+
+    private void displayListOptions(String title, DoublyLinkedList<String> options) {
+        System.out.println(title + ":");
+        for (int i = 1; i <= options.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + options.getEntry(i));
+        }
+    }
+
+    private int getMenuChoice(int maxChoice) {
+        try {
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+            return (choice >= 0 && choice <= maxChoice) ? choice : -1;
+        } catch (Exception e) {
+            System.out.println("Invalid input! Please enter a number.");
+            scanner.nextLine();
+            return -1;
+        }
+    }
+
+    private String getValidInput(String prompt) {
+        System.out.print(prompt);
+        String input = scanner.nextLine().trim();
+        return input.isEmpty() ? null : input;
+    }
+
+    private int getPositiveNumber(String prompt) {
+        try {
+            System.out.print(prompt);
+            int number = scanner.nextInt();
+            scanner.nextLine();
+            return number > 0 ? number : -1;
+        } catch (Exception e) {
+            System.out.println("Invalid input! Please enter a valid number.");
+            scanner.nextLine();
+            return -1;
+        }
+    }
+
+    private boolean askYesNo(String question) {
+        System.out.print(question + " (y/n): ");
+        String answer = scanner.nextLine().toLowerCase();
+        return answer.equals("y") || answer.equals("yes");
+    }
+
+    private boolean confirmAction(String message) {
+        return askYesNo(message);
+    }
+
+    // ===== TREATMENT INTEGRATION METHODS =====
+    private boolean createTreatmentWithMedicines(String patientId, String doctorId, String status,
+            LocalDate treatmentDate, DoublyLinkedList<TreatmentMedicineList> medicines) {
+        return medicines.isEmpty()
+                ? mt.createTreatment(patientId, doctorId, status, treatmentDate)
+                : mt.createTreatmentWithMedicines(patientId, doctorId, status, treatmentDate, medicines);
+    }
+
+    private void displayTreatmentCreationResult(String status, LocalDate treatmentDate,
+            DoublyLinkedList<TreatmentMedicineList> medicines, String patientId, String doctorId) {
+        System.out.println("Treatment created automatically!");
+        System.out.println("Treatment Status: " + status);
+        System.out.println("Treatment Date: " + treatmentDate);
+
+        if (status.equals("Completed")) {
+            System.out.println("\n(Treatment marked as completed - no medicines required)");
+        } else {
+            System.out.println("\n(Treatment pending - patient needs to collect medicines from pharmacy)");
+        }
+        System.out.println("(Doctor consultation finished - doctor is now available)");
+
+        DoublyLinkedList<Treatment> patientTreatments = mt.findTreatmentsByPatientAndDoctor(patientId, doctorId);
+        if (!patientTreatments.isEmpty()) {
+            Treatment latestTreatment = patientTreatments.getEntry(patientTreatments.getNumberOfEntries());
+            System.out.println("Created Treatment ID: " + latestTreatment.getTreatmentId());
+
+            if (!medicines.isEmpty()) {
+                System.out.println("Medicines prescribed: " + medicines.getNumberOfEntries());
+                System.out.println("Patient should collect medicines from pharmacy to complete treatment.");
+            }
+        }
+    }
+
+    private void displayRemainingQueue() {
+        if (mt.hasServingPatients()) {
+            Patient nextPatient = mt.getServingPatient();
+            Doctor nextDoctor = mt.getDoctorConsulting();
+            if (nextPatient != null && nextDoctor != null) {
+                System.out.println("Next patient to serve: " + nextPatient.getName() + " (ID: " + nextPatient.getId() + ")");
+                System.out.println("With doctor: " + nextDoctor.getName() + " (" + nextDoctor.getSpecialization() + ")");
+                System.out.println("Remaining patients in queue: " + mt.getServingPatientsCount());
+            } else {
+                System.out.println("Queue status unclear - please check serving queue management.");
+            }
+        } else {
+            System.out.println("All patients have been diagnosed and treated. No more patients in serving queue.");
+        }
+    }
 }

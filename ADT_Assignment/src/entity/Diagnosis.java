@@ -66,14 +66,16 @@ public class Diagnosis implements Serializable {
     @Override
     public String toString() {
         return String.format(
-                "Diagnosis Information:\n"
-                + "-----------------------\n"
+                "\n------------------------"
+                + "\nDiagnosis Information:\n"
+                + "------------------------\n"
                 + "Diagnosis ID     : %s\n"
                 + "Patient ID       : %s\n"
                 + "Doctor ID        : %s\n"
                 + "Symptoms         : %s\n"
                 + "Diagnosis Details: %s\n"
-                + "Date             : %s\n",
+                + "Date             : %s\n"
+                + "------------------------\n",
                 diagnosisId, patientId, doctorId, symptoms, diagnosisDetails, getFormattedDate());
     }
 }

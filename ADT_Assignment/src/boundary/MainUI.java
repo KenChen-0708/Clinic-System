@@ -4,10 +4,9 @@ import control.MaintainPatient;
 import control.MaintainDoctor;
 import control.MaintainTreatment;
 import control.MaintainPharmacy;
-import control.SummaryReport;
 import utility.MessageUI;
 
-import java.util.Scanner;         // ECB: User input
+import java.util.Scanner;         
 
 public class MainUI {
 
@@ -21,7 +20,6 @@ public class MainUI {
             System.out.println("2. Doctor Management");
             System.out.println("3. Treatment Management");
             System.out.println("4. Pharmacy Management");
-            System.out.println("5. Generate Summary Report");
             System.out.println("0. Exit");
             System.out.print("Enter your choice: ");
             while (!scanner.hasNextInt()) {
@@ -35,7 +33,7 @@ public class MainUI {
             switch (choice) {
                 case 1:
                     MessageUI.clearConsole();
-                    new MaintainPatient().runPatientMenu();
+                    new PatientUI(new MaintainPatient()).run();
                     break;
                 case 2:
                     MessageUI.clearConsole();
@@ -48,10 +46,6 @@ public class MainUI {
                 case 4:
                     MessageUI.clearConsole();
                     new MaintainPharmacy().runPharmacyMenu();
-                    break;
-                case 5:
-                    MessageUI.clearConsole();
-                    new SummaryReport().generate();
                     break;
                 case 0:
                     MessageUI.displayExitMessage();

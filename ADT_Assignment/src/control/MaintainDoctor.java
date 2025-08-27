@@ -200,6 +200,30 @@ public class MaintainDoctor {
         }
     }
 
+    //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+    public Doctor findAvailableDoctor() {
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor doc = doctorList.getEntry(i);
+            if (doc.getAvailability() != null
+                    && doc.getAvailability().equalsIgnoreCase("Available")) {
+                return doc;
+            }
+        }
+        return null; // No available doctors
+    }
+
+    //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+    public void updateDoctorInList(Doctor updatedDoctor) {
+        for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
+            Doctor doc = doctorList.getEntry(i);
+            if (doc.getId().equals(updatedDoctor.getId())) {
+                doctorList.replace(i, updatedDoctor);
+                save();
+                break;
+            }
+        }
+    }
+
     // =========================
     // Statistics
     // =========================
@@ -295,5 +319,33 @@ public class MaintainDoctor {
         } else {
             doctorUI.displayMessage("No doctors match the criteria given.");
         }
+    }
+
+    
+    //Ronaldo Loh Yu Fei 
+    /**
+     * Get all available doctors for appointment booking
+     * @return List of available doctors
+     */
+    public ListInterface<Doctor> getAvailableDoctors() {
+        ListInterface<Doctor> availableDoctors = new DoublyLinkedList<>();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            if ("Available".equalsIgnoreCase(d.getAvailability())) {
+                availableDoctors.add(d);
+            }
+        }
+        return availableDoctors;
+    }
+
+    /**
+     * Find doctor by ID
+     * @param doctorId Doctor ID to search for
+     * @return Doctor object if found, null otherwise
+     */
+    public Doctor findDoctorById(String doctorId) {
+        if (doctorId == null || doctorId.trim().isEmpty()) {
+            return null;
+        }
+        return doctorMap.get(doctorId.trim());
     }
 }
