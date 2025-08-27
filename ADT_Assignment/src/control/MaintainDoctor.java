@@ -321,8 +321,6 @@ public class MaintainDoctor {
         }
     }
 
-    
-    //Ronaldo Loh Yu Fei 
     /**
      * Get all available doctors for appointment booking
      * @return List of available doctors
