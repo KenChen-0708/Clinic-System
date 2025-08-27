@@ -1058,9 +1058,9 @@ public class PatientUI {
     }
 
     /**
-     * Format queue data for table display - UI layer responsibility
-     * FIXED: Uses list instead of array to avoid ClassCastException
-     * Maintains FIFO order with efficient iterator traversal
+     * Format queue data for table display - UI layer responsibility FIXED: Uses
+     * list instead of array to avoid ClassCastException Maintains FIFO order
+     * with efficient iterator traversal
      */
     private String[][] formatQueueTableData() {
         ListInterface<Patient> queueList = maintainPatient.getQueueList();
@@ -1356,17 +1356,14 @@ public class PatientUI {
                 int age = maintainPatient.getPatientAge(patientToRemove.getIcNumber());
                 displayPatient(patientToRemove, age);
 
-                // ENHANCED: Check and display queue information
+                // ENHANCED: Check and display queue information with better formatting
                 if (maintainPatient.isPatientInQueue(patientToRemove)) {
                     String queueNum = maintainPatient.getPatientQueueNumber(patientToRemove);
                     int queuePosition = maintainPatient.getPatientQueuePosition(patientToRemove);
 
-                    displayMessage("\nPatient FOUND in queue:");
-                    displayMessage("Queue Number: " + queueNum);
-                    displayMessage("Name: " + patientToRemove.getName());
-                    displayMessage("ID: " + patientToRemove.getId());
-                    displayMessage("IC: " + patientToRemove.getIcNumber());
-                    displayMessage("Queue Position: " + queuePosition);
+                    displayFormattedQueueInfo(queueNum, patientToRemove.getName(),
+                            patientToRemove.getId(), patientToRemove.getIcNumber(),
+                            queuePosition);
                 }
 
                 boolean confirmed = confirmRemovePatient(patientToRemove.getName());
@@ -1534,6 +1531,7 @@ public class PatientUI {
     // Display queue table data
     private void displayQueueTableData(String[][] queueData) {
         System.out.println("\n--- QUEUE TABLE ---");
+        System.out.println("================================================================================");
         System.out.println(String.format("%-8s %-8s %-20s %-8s %-5s %-15s",
                 "Queue#", "ID", "Name", "Gender", "Age", "Phone"));
         System.out.println("================================================================================");
@@ -1585,14 +1583,9 @@ public class PatientUI {
             MaintainPatient.SearchResult result = maintainPatient.searchPatientInQueueByName(name);
 
             if (result.isFound()) {
-                displayMessage("\nPatient FOUND in queue:");
-                if (result.getQueueNumber() != null) {
-                    displayMessage("Queue Number: " + result.getQueueNumber());
-                }
-                displayMessage("Name: " + result.getPatient().getName());
-                displayMessage("ID: " + result.getPatient().getId());
-                displayMessage("IC: " + result.getPatient().getIcNumber());
-                displayMessage("Queue Position: " + result.getQueuePosition());
+                displayFormattedQueueInfo(result.getQueueNumber(), result.getPatient().getName(),
+                        result.getPatient().getId(), result.getPatient().getIcNumber(),
+                        result.getQueuePosition());
             } else {
                 displayMessage("\nNo patient with name '" + name + "' found in the queue.");
             }
@@ -1618,14 +1611,9 @@ public class PatientUI {
             MaintainPatient.SearchResult result = maintainPatient.searchPatientInQueueByIC(ic);
 
             if (result.isFound()) {
-                displayMessage("\nPatient FOUND in queue:");
-                if (result.getQueueNumber() != null) {
-                    displayMessage("Queue Number: " + result.getQueueNumber());
-                }
-                displayMessage("Name: " + result.getPatient().getName());
-                displayMessage("ID: " + result.getPatient().getId());
-                displayMessage("IC: " + result.getPatient().getIcNumber());
-                displayMessage("Queue Position: " + result.getQueuePosition());
+                displayFormattedQueueInfo(result.getQueueNumber(), result.getPatient().getName(),
+                        result.getPatient().getId(), result.getPatient().getIcNumber(),
+                        result.getQueuePosition());
             } else {
                 String displayIC = ic.length() == 12
                         ? ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8) : ic;
@@ -1665,6 +1653,7 @@ public class PatientUI {
         System.out.println("Total Patients: " + patientData.length);
         System.out.println();
 
+        System.out.println("========================================================================================");
         // Table header with correct order: ID, Name, Gender, Age, IC, Phone, Reg Date
         System.out.printf("%-8s %-20s %-8s %-4s %-16s %-14s %-12s%n",
                 "ID", "Name", "Gender", "Age", "IC Number", "Phone", "Reg Date");
@@ -1829,8 +1818,9 @@ public class PatientUI {
     }
 
     /**
-     * Display sorting message based on user choice
-     * ECB COMPLIANT: Only UI display logic in boundary layer
+     * Display sorting message based on user choice ECB COMPLIANT: Only UI
+     * display logic in boundary layer
+     *
      * @param sortChoice User's sorting choice
      */
     private void displaySortingMessage(int sortChoice) {
@@ -1852,6 +1842,7 @@ public class PatientUI {
 
     /**
      * Validate time format (HH:mm)
+     *
      * @param timeString Time string to validate
      * @return true if valid format, false otherwise
      */
@@ -1877,5 +1868,32 @@ public class PatientUI {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    /**
+     * Display formatted queue information with better layout
+     *
+     * @param queueNumber Queue number
+     * @param name Patient name
+     * @param id Patient ID
+     * @param ic Patient IC
+     * @param queuePosition Queue position
+     */
+    private void displayFormattedQueueInfo(String queueNumber, String name, String id, String ic, int queuePosition) {
+        System.out.println("\n=====================================");
+        System.out.println("   Patient FOUND in queue");
+        System.out.println("=====================================");
+        System.out.printf(" Queue Number   : %s%n", queueNumber != null ? queueNumber : "N/A");
+        System.out.printf(" Name           : %s%n", name);
+        System.out.printf(" ID             : %s%n", id);
+
+        // Format IC with dashes if it's 12 digits
+        String formattedIC = ic;
+        if (ic != null && ic.length() == 12 && !ic.contains("-")) {
+            formattedIC = ic.substring(0, 6) + "-" + ic.substring(6, 8) + "-" + ic.substring(8);
+        }
+        System.out.printf(" IC             : %s%n", formattedIC);
+        System.out.printf(" Queue Position : %d%n", queuePosition);
+        System.out.println("-------------------------------------");
     }
 }
