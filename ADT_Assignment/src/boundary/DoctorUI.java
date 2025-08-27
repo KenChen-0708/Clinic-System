@@ -25,20 +25,36 @@ public class DoctorUI {
             System.out.println("\n===============================");
             System.out.println("     DOCTOR MANAGEMENT MENU    ");
             System.out.println("===============================");
-            System.out.println("1. Add New Doctor");
-            System.out.println("2. Remove Doctor");
-            System.out.println("3. View All Doctors");
-            System.out.println("4. Search Doctor by ID");
-            System.out.println("5. Search Doctor by Name");
-            System.out.println("6. Search Doctor by Specialization");
-            System.out.println("7. Update Doctor Details");
-            System.out.println("8. Sort Doctors by Name");
-            System.out.println("9. Sort Doctors by Specialization");
-            System.out.println("10. Set Doctor Schedule");
-            System.out.println("11. View Doctor Schedule");
-            System.out.println("12. Set Doctor Availability");   // ⭐ NEW
-            System.out.println("13. View Doctor Availability");  // ⭐ NEW
-            System.out.println("14. View Statistics");
+            System.out.println("1. Add Doctor");
+            System.out.println("2. Update Doctor Details");
+            System.out.println("3. Remove Doctor");
+            System.out.println("4. View All Doctors");
+            System.out.println();
+            System.out.println("Search Doctors:");
+            System.out.println("5.  By ID");
+            System.out.println("6.  By Name");
+            System.out.println("7.  By Specialization");
+            System.out.println();
+            System.out.println("Sort Doctors:");
+            System.out.println("8.  By ID");
+            System.out.println("9.  By Name");
+            System.out.println("10. By Specialization");
+            System.out.println();
+            System.out.println("Doctor Schedule:");
+            System.out.println("11. Set");
+            System.out.println("12. View");
+            System.out.println();
+            System.out.println("Doctor Availability:");
+            System.out.println("13. Set");
+            System.out.println("14. View");
+            System.out.println();
+            System.out.println("Group Doctors:");
+            System.out.println("15. By Specialization");
+            System.out.println("16. By Availability");
+            System.out.println("17. By Schedule");
+            System.out.println();
+            System.out.println("18. View Statistics");
+            System.out.println("19. Doctor Workload (Total patients/treatments)");
             System.out.println("0. Back to Main Menu");
             System.out.println("-------------------------------");
             System.out.print("Enter your choice: ");
@@ -55,43 +71,58 @@ public class DoctorUI {
                     maintainDoctor.addDoctor();
                     break;
                 case 2:
-                    maintainDoctor.removeDoctor();
-                    break;
-                case 3:
-                    maintainDoctor.displayAllDoctors();
-                    break;
-                case 4:
-                    maintainDoctor.searchDoctorById();
-                    break;
-                case 5:
-                    maintainDoctor.searchDoctorByName();
-                    break;
-                case 6:
-                    maintainDoctor.searchDoctorBySpecialization();
-                    break;
-                case 7:
                     maintainDoctor.updateDoctorDetails();
                     break;
+                case 3:
+                    maintainDoctor.removeDoctor();
+                    break;
+                case 4:
+                    maintainDoctor.displayAllDoctors();
+                    break;
+                case 5:
+                    maintainDoctor.searchDoctorById();
+                    break;
+                case 6:
+                    maintainDoctor.searchDoctorByName();
+                    break;
+                case 7:
+                    maintainDoctor.searchDoctorBySpecialization();
+                    break;
                 case 8:
-                    maintainDoctor.sortDoctorsByName();
+                    maintainDoctor.sortDoctorsById();
                     break;
                 case 9:
-                    maintainDoctor.sortDoctorsBySpecialization();
+                    maintainDoctor.sortDoctorsByName();
                     break;
                 case 10:
-                    maintainDoctor.setDoctorSchedule();
+                    maintainDoctor.sortDoctorsBySpecialization();
                     break;
                 case 11:
-                    maintainDoctor.displayDoctorSchedule();
+                    maintainDoctor.setDoctorSchedule();
                     break;
                 case 12:
-                    maintainDoctor.setDoctorAvailability();
+                    maintainDoctor.displayDoctorSchedule();
                     break;
                 case 13:
-                    maintainDoctor.displayDoctorAvailability();
+                    maintainDoctor.setDoctorAvailability();
                     break;
                 case 14:
+                    maintainDoctor.displayDoctorAvailability();
+                    break;
+                case 15:
+                    maintainDoctor.displayGroupBySpecialization();
+                    break;
+                case 16:
+                    maintainDoctor.displayGroupByAvailability();
+                    break;
+                case 17:
+                    maintainDoctor.displayGroupBySchedule();
+                    break;
+                case 18:
                     maintainDoctor.displayStatistics();
+                    break;
+                case 19:
+                    maintainDoctor.displayDoctorWorkload();
                     break;
                 case 0:
                     MessageUI.displayExitMessage();
@@ -152,7 +183,10 @@ public class DoctorUI {
             ListInterface<Doctor> doctorList,
             DoctorDAO doctorDAO,
             MapInterface<String, Integer> specializationCount,
-            MapInterface<String, Integer> availabilityCount
+            MapInterface<String, Integer> availabilityCount,
+            MapInterface<String, Integer> totalTreatmentsByDoctor,
+            MapInterface<String, Integer> completedTreatmentsByDoctor,
+            MapInterface<String, Integer> uniquePatientsByDoctor
     ) {
         if (doctorList.isEmpty()) {
             displayMessage("⚠️ No doctors available to display statistics.");
@@ -229,6 +263,24 @@ public class DoctorUI {
         stats.append(String.format(" Most Common Specialization : %s (%d doctors)\n", topSpec, maxSpec));
         stats.append(String.format(" Majority Availability      : %s (%d doctors)\n", topAvail, maxAvail));
         stats.append("---------------------------------------------------------------------------------------------------------------------\n");
+
+        // Doctor workload table
+        stats.append("\n Doctor Workload Summary:\n");
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
+        stats.append(String.format(" %-8s | %-20s | %-10s | %-10s | %-16s\n",
+                "ID", "Name", "Total", "Completed", "Unique Patients"));
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
+        for (Doctor doc : doctorDAO.getIterable(doctorList)) {
+            Integer totalVal = totalTreatmentsByDoctor.get(doc.getId());
+            Integer completedVal = completedTreatmentsByDoctor.get(doc.getId());
+            Integer uniqueVal = uniquePatientsByDoctor.get(doc.getId());
+            int total = totalVal != null ? totalVal : 0;
+            int completed = completedVal != null ? completedVal : 0;
+            int unique = uniqueVal != null ? uniqueVal : 0;
+            stats.append(String.format(" %-8s | %-20s | %-10d | %-10d | %-16d\n",
+                    doc.getId(), doc.getName(), total, completed, unique));
+        }
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
         stats.append(" This report is confidential and intended for TAR UMT Medical Department use only.\n");
         stats.append("=====================================================================================================================\n");
 
@@ -241,5 +293,44 @@ public class DoctorUI {
         } else {
             displayMessage("No doctors match the criteria given.");
         }
+    }
+
+    public void displayGroupedDoctors(String title,
+            MapInterface<String, ListInterface<Doctor>> grouped,
+            DoctorDAO doctorDAO) {
+        StringBuilder sb = new StringBuilder();
+
+        String generatedDate = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
+        String header = String.format("%-80s %s", title, "Generated: " + generatedDate);
+
+        sb.append("\n=====================================================================================================================\n");
+        sb.append(String.format(" %-100s\n", header));
+        sb.append("=====================================================================================================================\n");
+
+        for (String key : doctorDAO.getIterable(grouped.getKeys())) {
+            ListInterface<Doctor> list = grouped.get(key);
+            int groupCount = (list != null) ? list.getNumberOfEntries() : 0;
+
+            sb.append(String.format("\n[%s]  (%,d)\n", key, groupCount));
+            sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+            sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                    "ID", "Name", "Specialization", "Schedule", "Availability"));
+            sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+
+            int i = 1;
+            for (Doctor d : doctorDAO.getIterable(list)) {
+                sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                        d.getId(),
+                        d.getName(),
+                        (d.getSpecialization() != null ? d.getSpecialization() : "Not specified"),
+                        (d.getSchedule() != null ? d.getSchedule() : "Not set"),
+                        (d.getAvailability() != null ? d.getAvailability() : "Not set")));
+                i++;
+            }
+        }
+
+        sb.append("\n=====================================================================================================================\n");
+        displayMessage(sb.toString());
     }
 }
