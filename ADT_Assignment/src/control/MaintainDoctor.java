@@ -3,16 +3,18 @@ package control;
 import adt.DoublyLinkedList;
 import adt.ListInterface;
 import adt.HashMap;
+import adt.MapInterface;
 import boundary.DoctorUI;
 import dao.DoctorDAO;
 import entity.Doctor;
-
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 
 public class MaintainDoctor {
 
     private final ListInterface<Doctor> doctorList = new DoublyLinkedList<>();
-    private final HashMap<String, Doctor> doctorMap = new HashMap<>(); // Fast lookups
+    private final MapInterface<String, Doctor> doctorMap = new HashMap<>(); // Fast lookups
     private final DoctorDAO doctorDAO;
     private final DoctorUI doctorUI;
 
@@ -35,14 +37,26 @@ public class MaintainDoctor {
     // Core CRUD Operations
     // =========================
     public void addDoctor() {
-        Doctor doctor = doctorUI.inputDoctorDetails();
-        if (!doctorMap.containsKey(doctor.getId())) {
+        // Ask UI for name & specialization only
+        String name = doctorUI.inputDoctorName();
+        String specialization = doctorUI.inputSpecialization();
+        String availability = doctorUI.inputAvailability();
+        String schedule = doctorUI.inputSchedule();
+
+        // Auto-generate ID
+        String newId = generateDoctorId();
+
+        // Create doctor directly with ID
+        Doctor doctor = new Doctor(newId, name, specialization, schedule, availability);
+
+        // Save doctor if ID is unique
+        if (!doctorMap.containsKey(newId)) {
             doctorList.add(doctor);
-            doctorMap.put(doctor.getId(), doctor);
+            doctorMap.put(newId, doctor);
             save();
-            doctorUI.displayMessage("Doctor added successfully.");
+            doctorUI.displayMessage("Doctor added successfully with ID: " + newId);
         } else {
-            doctorUI.displayMessage("Doctor with this ID already exists.");
+            doctorUI.displayMessage("Error: Duplicate ID detected.");
         }
     }
 
@@ -224,25 +238,31 @@ public class MaintainDoctor {
         }
     }
 
-    // =========================
-    // Statistics
-    // =========================
+
+
+// =========================
+// Statistics Report
+// =========================
     public void displayStatistics() {
         if (doctorList.isEmpty()) {
             doctorUI.displayMessage("⚠️ No doctors available to display statistics.");
             return;
         }
 
-        int totalDoctors = doctorList.getNumberOfEntries();
-        HashMap<String, Integer> specializationCount = new HashMap<>();
-        HashMap<String, Integer> availabilityCount = new HashMap<>();
+        // Date & time
+        String generatedDate = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
 
-        // Count specializations and availability
+        int totalDoctors = doctorList.getNumberOfEntries();
+        MapInterface<String, Integer> specializationCount = new HashMap<>();
+        MapInterface<String, Integer> availabilityCount = new HashMap<>();
+
+        // Count specializations & availability
         for (Doctor doc : doctorDAO.getIterable(doctorList)) {
             // Specialization
             String spec = doc.getSpecialization() != null ? doc.getSpecialization() : "Not specified";
-            Integer count = specializationCount.get(spec);
-            specializationCount.put(spec, (count != null ? count : 0) + 1);
+            Integer specCount = specializationCount.get(spec);
+            specializationCount.put(spec, (specCount != null ? specCount : 0) + 1);
 
             // Availability
             String avail = doc.getAvailability() != null ? doc.getAvailability() : "Not set";
@@ -250,27 +270,79 @@ public class MaintainDoctor {
             availabilityCount.put(avail, (availCount != null ? availCount : 0) + 1);
         }
 
+        // Find most common specialization
+        String topSpec = "None";
+        int maxSpec = 0;
+        for (String key : doctorDAO.getIterable(specializationCount.getKeys())) {
+            int count = specializationCount.get(key);
+            if (count > maxSpec) {
+                maxSpec = count;
+                topSpec = key;
+            }
+        }
+
+        // Find most common availability
+        String topAvail = "None";
+        int maxAvail = 0;
+        for (String key : doctorDAO.getIterable(availabilityCount.getKeys())) {
+            int count = availabilityCount.get(key);
+            if (count > maxAvail) {
+                maxAvail = count;
+                topAvail = key;
+            }
+        }
+
         StringBuilder stats = new StringBuilder();
-        stats.append("=====================================\n");
-        stats.append("         📊 Doctor Statistics         \n");
-        stats.append("=====================================\n");
+        stats.append("\n=====================================================================================================================\n");
+        stats.append("                               Tunku Abdul Rahman University Of Management And Technology                              \n");
+        stats.append("=====================================================================================================================\n");
+        stats.append(String.format(" Report Generated On: %s\n", generatedDate));
+        stats.append("=====================================================================================================================\n");
+        stats.append("                                                   📊 Doctor Statistics Report                                         \n");
+        stats.append("=====================================================================================================================\n");
+
+        // Doctor list (wide table)
+        stats.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                "ID", "Name", "Specialization", "Schedule", "Availability"));
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
+
+        for (Doctor doc : doctorDAO.getIterable(doctorList)) {
+            stats.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                    doc.getId(),
+                    doc.getName(),
+                    (doc.getSpecialization() != null ? doc.getSpecialization() : "Not specified"),
+                    (doc.getSchedule() != null ? doc.getSchedule() : "Not set"),
+                    (doc.getAvailability() != null ? doc.getAvailability() : "Not set")));
+        }
+
+        stats.append("=====================================================================================================================\n");
+
+        // Detailed Statistics Summary
+        stats.append("\n🔹 Summary Statistics:\n");
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
         stats.append(" Total Doctors: ").append(totalDoctors).append("\n\n");
 
-        // Specialization breakdown
-        stats.append("🔹 Specialization Breakdown:\n");
-        stats.append("-------------------------------------\n");
+        // Specialization breakdown with percentage
+        stats.append(" Specialization Breakdown:\n");
         for (String key : doctorDAO.getIterable(specializationCount.getKeys())) {
-            stats.append(String.format(" %-20s : %d\n", key, specializationCount.get(key)));
+            int count = specializationCount.get(key);
+            double percentage = (count * 100.0) / totalDoctors;
+            stats.append(String.format("   %-20s : %d (%.1f%%)\n", key, count, percentage));
         }
 
-        // Availability breakdown
-        stats.append("\n🔹 Availability Breakdown:\n");
-        stats.append("-------------------------------------\n");
+        stats.append("\n Availability Breakdown:\n");
         for (String key : doctorDAO.getIterable(availabilityCount.getKeys())) {
-            stats.append(String.format(" %-20s : %d\n", key, availabilityCount.get(key)));
+            int count = availabilityCount.get(key);
+            double percentage = (count * 100.0) / totalDoctors;
+            stats.append(String.format("   %-20s : %d (%.1f%%)\n", key, count, percentage));
         }
 
-        stats.append("=====================================\n");
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
+        stats.append(String.format(" Most Common Specialization : %s (%d doctors)\n", topSpec, maxSpec));
+        stats.append(String.format(" Majority Availability      : %s (%d doctors)\n", topAvail, maxAvail));
+        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
+        stats.append(" This report is confidential and intended for TAR UMT Medical Department use only.\n");
+        stats.append("=====================================================================================================================\n");
 
         doctorUI.displayMessage(stats.toString());
     }
@@ -321,10 +393,15 @@ public class MaintainDoctor {
         }
     }
 
-    
+    private String generateDoctorId() {
+        int nextId = doctorList.getNumberOfEntries() + 1;
+        return String.format("D%04d", nextId); // D0001, D0002, etc.
+    }
+
     //Ronaldo Loh Yu Fei 
     /**
      * Get all available doctors for appointment booking
+     *
      * @return List of available doctors
      */
     public ListInterface<Doctor> getAvailableDoctors() {
@@ -339,6 +416,7 @@ public class MaintainDoctor {
 
     /**
      * Find doctor by ID
+     *
      * @param doctorId Doctor ID to search for
      * @return Doctor object if found, null otherwise
      */
