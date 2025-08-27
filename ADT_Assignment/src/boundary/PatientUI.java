@@ -156,9 +156,9 @@ public class PatientUI {
         System.out.println("===============================");
         System.out.println("1. Book Appointment");
         System.out.println("2. View Today's Appointments");
-        System.out.println("3. Cancel Appointment");
-        System.out.println("4. Search Appointments by Patient ID");
-        System.out.println("5. Clear All Appointments for Patient");
+        System.out.println("3. Search Appointments by Patient ID");
+        System.out.println("4. Cancel Appointment");
+        System.out.println("5. Clear All Appointments");
         System.out.println("0. Back to Patient Main Menu");
         System.out.println("-------------------------------");
         return getMenuChoice();
@@ -174,13 +174,13 @@ public class PatientUI {
                 handleViewTodayAppointments();
                 break;
             case 3:
-                handleCancelAppointment();
-                break;
-            case 4:
                 handleSearchAppointmentsByPatientId();
                 break;
+            case 4:
+                handleCancelAppointment();
+                break;
             case 5:
-                handleClearAppointmentsByPatientId();
+                handleClearAllAppointments();
                 break;
             case 0:
                 displayMessage("Returning to Patient Menu...");
@@ -314,7 +314,6 @@ public class PatientUI {
             displayMessage("Doctor ID: " + appointment.getDoctorId());
             displayMessage("Date: " + appointment.getAppointmentDate());
             displayMessage("Time: " + appointment.getAppointmentTime());
-            displayMessage("Status: " + appointment.getStatus());
         }
 
         // FIXED: Ask specifically about booking another appointment
@@ -380,6 +379,7 @@ public class PatientUI {
         }
 
         ListInterface<Appointment> sortedAppointments = maintainPatient.getSortedAppointments(todayAppointments, sortChoice);
+        System.out.println("");
         displaySortingMessage(sortChoice);
         if (sortedAppointments != null) {
             displayAppointmentList(sortedAppointments);
@@ -390,30 +390,28 @@ public class PatientUI {
 
     // Display list of appointments - OPTIMIZED with iterator for O(n) performance
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
-        System.out.println("=".repeat(90));
-        System.out.printf("%-12s %-10s %-10s %-12s %-10s %-15s%n",
-                "Appt ID", "Patient ID", "Doctor ID", "Date", "Time", "Status");
-        System.out.println("=".repeat(90));
+        System.out.println("=".repeat(80));
+        System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
+                "Appointment ID", "Patient ID", "Doctor ID", "Date", "Time");
+        System.out.println("=".repeat(80));
 
         // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
         java.util.Iterator<Appointment> iterator = appointments.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
-            System.out.printf("%-12s %-10s %-10s %-12s %-10s %-15s%n",
+            System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
                     appointment.getAppointmentId(),
                     appointment.getPatientId(),
                     appointment.getDoctorId(),
                     appointment.getAppointmentDate(),
-                    appointment.getAppointmentTime(),
-                    appointment.getStatus());
+                    appointment.getAppointmentTime());
         }
-        System.out.println("=".repeat(90));
+        System.out.println("=".repeat(80));
     }
 
     // Handle appointment cancellation
     private void handleCancelAppointment() {
-        displayMessage("\n=== CANCEL APPOINTMENT ===");
-
+        
         // Show all appointments
         ListInterface<Appointment> allAppointments = maintainPatient.getAllAppointments();
 
@@ -423,17 +421,8 @@ public class PatientUI {
             return;
         }
 
-        // ECB COMPLIANT: Get scheduled appointments from control layer
-        ListInterface<Appointment> scheduledAppointments = maintainPatient.getScheduledAppointments();
-
-        if (scheduledAppointments.isEmpty()) {
-            displayMessage("No scheduled appointments to cancel.");
-            askToContinueOrReturnToMenu();
-            return;
-        }
-
-        displayMessage("\n=== SCHEDULED APPOINTMENTS ===");
-        displayAppointmentList(scheduledAppointments);
+        displayMessage("\n=== ALL APPOINTMENTS ===");
+        displayAppointmentList(allAppointments);
 
         // Input appointment ID to cancel
         System.out.print("\nEnter Appointment ID to cancel (or 0 to return to menu): ");
@@ -456,13 +445,12 @@ public class PatientUI {
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
-            displayMessage("\n=== CANCELLED APPOINTMENT DETAILS ===");
+            displayMessage("\n=== DELETED APPOINTMENT DETAILS ===");
             displayMessage("Appointment ID: " + appointment.getAppointmentId());
             displayMessage("Patient ID: " + appointment.getPatientId());
             displayMessage("Doctor ID: " + appointment.getDoctorId());
             displayMessage("Date: " + appointment.getAppointmentDate());
             displayMessage("Time: " + appointment.getAppointmentTime());
-            displayMessage("Status: " + appointment.getStatus());
         }
 
         askToContinueOrReturnToMenu();
@@ -470,11 +458,10 @@ public class PatientUI {
 
     // Handle searching appointments by patient ID
     private void handleSearchAppointmentsByPatientId() {
-        displayMessage("\n=== SEARCH APPOINTMENTS BY PATIENT ID ===");
-
+        
         String patientId;
         do {
-            System.out.print("Enter Patient ID to search appointments (or 0 to return to menu): ");
+            System.out.print("\nEnter Patient ID to search appointments (or 0 to return to menu): ");
             patientId = scanner.nextLine().trim();
 
             if (patientId.equals("0")) {
@@ -482,14 +469,14 @@ public class PatientUI {
             }
 
             if (patientId.isEmpty()) {
-                displayMessage("Patient ID cannot be empty. Please try again.\n");
+                displayMessage("\nPatient ID cannot be empty. Please try again.");
                 continue;
             }
 
             // Validate patient exists
             Patient patient = maintainPatient.findPatientById(patientId);
             if (patient == null) {
-                displayMessage("Patient not found. Please try again.\n");
+                displayMessage("\nPatient not found. Please try again.");
                 continue;
             }
 
@@ -498,7 +485,7 @@ public class PatientUI {
 
             if (patientAppointments.isEmpty()) {
                 displayMessage("\nNo appointments found for Patient ID: " + patientId);
-                displayMessage("Patient: " + patient.getName());
+                displayMessage("Patient: " + patient.getName() + "\n");
             } else {
                 displayMessage("\n=== APPOINTMENTS FOR PATIENT " + patientId + " ===");
                 displayMessage("Patient: " + patient.getName());
@@ -510,60 +497,32 @@ public class PatientUI {
         } while (true); // Keep prompting until user enters 0
     }
 
-    // Handle clearing all appointments for a patient
-    private void handleClearAppointmentsByPatientId() {
-        displayMessage("\n=== CLEAR ALL APPOINTMENTS FOR PATIENT ===");
-
-        System.out.print("Enter Patient ID to clear all appointments (or 0 to return to menu): ");
-        String patientId = scanner.nextLine().trim();
-
-        if (patientId.equals("0")) {
-            return; // Return to appointment menu
-        }
-
-        if (patientId.isEmpty()) {
-            displayMessage("Patient ID cannot be empty.");
-            askToContinueOrReturnToMenu();
-            return;
-        }
-
-        // Validate patient exists
-        Patient patient = maintainPatient.findPatientById(patientId);
-        if (patient == null) {
-            displayMessage("Patient not found.");
-            askToContinueOrReturnToMenu();
-            return;
-        }
-
-        // Show patient info and confirm
-        displayMessage("\nPatient found:");
-        displayMessage("ID: " + patient.getId());
-        displayMessage("Name: " + patient.getName());
-        displayMessage("IC: " + FormatUtil.formatICForDisplay(patient.getIcNumber()));
-
+    // Handle clearing all appointments
+    private void handleClearAllAppointments() {
+        
         // Show current appointments before clearing
-        ListInterface<Appointment> currentAppointments = maintainPatient.searchAppointmentsByPatientId(patientId);
+        ListInterface<Appointment> currentAppointments = maintainPatient.getAllAppointments();
         if (currentAppointments.isEmpty()) {
-            displayMessage("\nNo appointments found for this patient.");
+            displayMessage("\nNo appointments found in the system.");
             askToContinueOrReturnToMenu();
             return;
         }
 
-        displayMessage("\nCurrent appointments for this patient:");
+        displayMessage("Current appointments in the system:");
         displayAppointmentList(currentAppointments);
 
         // Confirm before clearing
-        System.out.print("\nAre you sure you want to clear ALL appointments for this patient? (y/n): ");
+        System.out.print("Are you sure you want to clear ALL appointments from the system? (y/n): ");
         String confirmation = scanner.nextLine().trim().toLowerCase();
 
         if (!confirmation.equals("y") && !confirmation.equals("yes")) {
-            displayMessage("Operation cancelled.");
+            displayMessage("\nOperation cancelled.");
             askToContinueOrReturnToMenu();
             return;
         }
 
-        // Clear appointments
-        MaintainPatient.AppointmentResult result = maintainPatient.clearAppointmentsByPatientId(patientId);
+        // Clear all appointments
+        MaintainPatient.AppointmentResult result = maintainPatient.clearAllAppointments();
 
         displayMessage("\n" + result.getMessage());
 
@@ -1986,16 +1945,16 @@ public class PatientUI {
     private void displaySortingMessage(int sortChoice) {
         switch (sortChoice) {
             case 1:
-                displayMessage("\nSorting by Appointment ID...");
+                displayMessage("Appointments sorted by ID:");
                 break;
             case 2:
-                displayMessage("\nSorting by Time...");
+                displayMessage("Appointments sorted by Time:");
                 break;
             case 0:
-                displayMessage("\nDisplaying appointments without sorting...");
+                displayMessage("Appointments (unsorted):");
                 break;
             default:
-                displayMessage("\nInvalid choice. Displaying without sorting...");
+                displayMessage("Appointments (unsorted):");
                 break;
         }
     }

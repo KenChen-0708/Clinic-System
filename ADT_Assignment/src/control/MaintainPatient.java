@@ -1272,8 +1272,7 @@ public class MaintainPatient {
         while (iterator.hasNext()) {
             Appointment existing = iterator.next();
             if (existing.getDoctorId().equals(doctorId) &&
-                existing.getAppointmentDate().equals(date) &&
-                "SCHEDULED".equals(existing.getStatus())) {
+                existing.getAppointmentDate().equals(date)) {
 
                 LocalTime existingTime = existing.getAppointmentTime();
 
@@ -1327,8 +1326,7 @@ public class MaintainPatient {
         java.util.Iterator<Appointment> iterator = appointmentList.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
-            if (appointment.getAppointmentDate().equals(today) &&
-                "SCHEDULED".equals(appointment.getStatus())) {
+            if (appointment.getAppointmentDate().equals(today)) {
                 todayAppointments.add(appointment);
             }
         }
@@ -1351,23 +1349,18 @@ public class MaintainPatient {
             return new AppointmentResult(false, "Appointment ID cannot be empty.", null);
         }
 
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
-        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
-        while (iterator.hasNext()) {
-            Appointment appointment = iterator.next();
-            if (appointment.getAppointmentId().equals(appointmentId.trim())) {
-                if ("CANCELLED".equals(appointment.getStatus())) {
-                    return new AppointmentResult(false, "Appointment is already cancelled.", appointment);
-                }
-                if ("COMPLETED".equals(appointment.getStatus())) {
-                    return new AppointmentResult(false, "Cannot cancel a completed appointment.", appointment);
-                }
+        // Find and remove the appointment from the list
+        for (int i = 1; i <= appointmentList.getNumberOfEntries(); i++) {
+            Appointment appointment = appointmentList.getEntry(i);
+            if (appointment != null && appointment.getAppointmentId().equals(appointmentId.trim())) {
+                // Store appointment details before removal
+                Appointment removedAppointment = appointment;
 
-                // Update appointment status
-                appointment.setStatus("CANCELLED");
+                // Remove from list
+                appointmentList.remove(i);
                 appointmentDAO.saveToFile(appointmentList);
 
-                return new AppointmentResult(true, "Appointment cancelled successfully.", appointment);
+                return new AppointmentResult(true, "Appointment cancelled successfully.", removedAppointment);
             }
         }
 
@@ -1404,22 +1397,7 @@ public class MaintainPatient {
         return sortedAppointments;
     }
 
-    /**
-     * Get scheduled appointments only (for cancellation)
-     * ECB COMPLIANT: Business logic in control layer
-     * @return List of scheduled appointments
-     */
-    public ListInterface<Appointment> getScheduledAppointments() {
-        ListInterface<Appointment> scheduledAppointments = new DoublyLinkedList<>();
-        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
-        while (iterator.hasNext()) {
-            Appointment appointment = iterator.next();
-            if ("SCHEDULED".equals(appointment.getStatus())) {
-                scheduledAppointments.add(appointment);
-            }
-        }
-        return scheduledAppointments;
-    }
+
 
     /**
      * Get sorted appointments by specified criteria
@@ -1456,45 +1434,25 @@ public class MaintainPatient {
     }
 
     /**
-     * Clear all appointments for a specific patient - OPTIMIZED with iterator for O(n) performance
-     * @param patientId Patient ID whose appointments to clear
+     * Clear all appointments - Since appointments are only for current date, clear entire appointment.dat
+     * ECB COMPLIANT: Business logic in control layer
      * @return AppointmentResult with success status and message
      */
-    public AppointmentResult clearAppointmentsByPatientId(String patientId) {
-        if (patientId == null || patientId.trim().isEmpty()) {
-            return new AppointmentResult(false, "Patient ID cannot be empty.", null);
+    public AppointmentResult clearAllAppointments() {
+        int totalAppointments = appointmentList.getNumberOfEntries();
+
+        if (totalAppointments == 0) {
+            return new AppointmentResult(false, "No appointments found to clear.", null);
         }
 
-        // Validate patient exists
-        Patient patient = findPatientById(patientId);
-        if (patient == null) {
-            return new AppointmentResult(false, "Patient not found.", null);
-        }
+        // Clear all appointments from the list
+        appointmentList.clear();
 
-        int cancelledCount = 0;
-        boolean hasScheduledAppointments = false;
-
-        // Use iterator to find and cancel all scheduled appointments for this patient
-        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
-        while (iterator.hasNext()) {
-            Appointment appointment = iterator.next();
-            if (appointment.getPatientId().equals(patientId.trim()) &&
-                "SCHEDULED".equals(appointment.getStatus())) {
-                hasScheduledAppointments = true;
-                appointment.setStatus("CANCELLED");
-                cancelledCount++;
-            }
-        }
-
-        if (!hasScheduledAppointments) {
-            return new AppointmentResult(false, "No scheduled appointments found for patient " + patientId + ".", null);
-        }
-
-        // Save changes to file
+        // Save empty list to file (clears appointment.dat)
         appointmentDAO.saveToFile(appointmentList);
 
-        String message = String.format("Successfully cancelled %d appointment(s) for patient %s.",
-                                     cancelledCount, patientId);
+        String message = String.format("Successfully cleared all %d appointment(s) from the system.",
+                                     totalAppointments);
         return new AppointmentResult(true, message, null);
     }
 
@@ -1525,17 +1483,9 @@ public class MaintainPatient {
             }
         }
 
-        // Sort appointments by date and time using merge sort from ADT
+        // Sort appointments by time only using merge sort from ADT
         if (!patientAppointments.isEmpty()) {
-            patientAppointments.mergeSort((a1, a2) -> {
-                // First compare by date
-                int dateComparison = a1.getAppointmentDate().compareTo(a2.getAppointmentDate());
-                if (dateComparison != 0) {
-                    return dateComparison;
-                }
-                // If dates are equal, compare by time
-                return a1.getAppointmentTime().compareTo(a2.getAppointmentTime());
-            });
+            patientAppointments.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
         }
 
         return patientAppointments;
