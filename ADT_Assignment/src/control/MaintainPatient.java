@@ -1286,8 +1286,8 @@ public class MaintainPatient {
             return new AppointmentResult(false, "Appointment time must be between 09:00 and 17:00.", null);
         }
 
-        if (hasTimeConflict(doctorId, LocalDate.now(), appointmentTime)) { // Check time conflicts
-            return new AppointmentResult(false, "Doctor already has an appointment at this time.", null);
+        if (hasTimeConflict(doctorId, LocalDate.now(), appointmentTime)) { // Check time conflicts with 30-minute gap
+            return new AppointmentResult(false, "Doctor has another appointment within 30 minutes.", null);
         }
 
         String appointmentId = generateAppointmentId(); // Generate unique ID
@@ -1310,6 +1310,22 @@ public class MaintainPatient {
         return maintainDoctor.getAvailableDoctors();
     }
 
+    public boolean isDoctorValid(String doctorId) { // Check if doctor exists
+        if (doctorId == null || doctorId.trim().isEmpty()) {
+            return false;
+        }
+        Doctor doctor = maintainDoctor.findDoctorById(doctorId);
+        return doctor != null;
+    }
+
+    public boolean isDoctorAvailable(String doctorId) { // Check if doctor is available for appointments
+        if (doctorId == null || doctorId.trim().isEmpty()) {
+            return false;
+        }
+        Doctor doctor = maintainDoctor.findDoctorById(doctorId);
+        return doctor != null && "Available".equalsIgnoreCase(doctor.getAvailability());
+    }
+
     /**
      * Check if doctor has time conflict - OPTIMIZED with iterator for O(n) performance
      * @param doctorId Doctor ID
@@ -1317,19 +1333,28 @@ public class MaintainPatient {
      * @param time Appointment time
      * @return true if conflict exists, false otherwise
      */
-    private boolean hasTimeConflict(String doctorId, LocalDate date, LocalTime time) {
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
+    private boolean hasTimeConflict(String doctorId, LocalDate date, LocalTime time) { // Check for time conflicts with 30-minute gap validation
         java.util.Iterator<Appointment> iterator = appointmentList.iterator();
         while (iterator.hasNext()) {
             Appointment existing = iterator.next();
             if (existing.getDoctorId().equals(doctorId) &&
                 existing.getAppointmentDate().equals(date) &&
-                existing.getAppointmentTime().equals(time) &&
                 "SCHEDULED".equals(existing.getStatus())) {
-                return true;
+
+                LocalTime existingTime = existing.getAppointmentTime();
+
+                // Check if new appointment is within 30 minutes of existing appointment
+                if (isWithinThirtyMinutes(time, existingTime)) {
+                    return true; // Conflict: appointments too close together
+                }
             }
         }
         return false;
+    }
+
+    private boolean isWithinThirtyMinutes(LocalTime time1, LocalTime time2) { // Check if two times are within 30 minutes of each other
+        long minutesBetween = Math.abs(java.time.Duration.between(time1, time2).toMinutes());
+        return minutesBetween < 30; // Return true if less than 30 minutes apart
     }
 
     /**

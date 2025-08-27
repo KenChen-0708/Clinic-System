@@ -185,26 +185,29 @@ public class PatientUI {
     private void handleBookAppointment() {
         displayMessage("\n=== BOOK APPOINTMENT ===");
 
-        // Input patient ID with option to return
-        System.out.print("Enter Patient ID (or 0 to return to menu): ");
-        String patientId = scanner.nextLine().trim();
+        // Input patient ID with validation loop
+        String patientId = null;
+        Patient patient = null;
 
-        if (patientId.equals("0")) {
-            return; // Return to appointment menu
-        }
+        while (patient == null) {
+            System.out.print("Enter Patient ID (or 0 to return to menu): ");
+            patientId = scanner.nextLine().trim();
 
-        if (patientId.isEmpty()) {
-            displayMessage("Patient ID cannot be empty.");
-            askToContinueOrReturnToMenu();
-            return;
-        }
+            if (patientId.equals("0")) {
+                return; // Return to appointment menu
+            }
 
-        // Validate and display patient details
-        Patient patient = maintainPatient.findPatientById(patientId);
-        if (patient == null) {
-            displayMessage("Patient not found. Please register the patient first.");
-            askToContinueOrReturnToMenu();
-            return;
+            if (patientId.isEmpty()) {
+                displayMessage("\nPatient ID cannot be empty. Please try again.\n");
+                continue;
+            }
+
+            // Find and validate patient
+            patient = maintainPatient.findPatientById(patientId);
+            if (patient == null) {
+                displayMessage("\nPatient not found. Please register the patient first or try again.\n");
+                // Continue loop to ask for patient ID again
+            }
         }
 
         // Display patient details for confirmation
@@ -223,29 +226,47 @@ public class PatientUI {
         displayMessage("\n=== AVAILABLE DOCTORS ===");
         displayDoctorList(availableDoctors);
 
-        // Input doctor ID with option to return
-        System.out.print("\nEnter Doctor ID (or 0 to return to menu): ");
-        String doctorId = scanner.nextLine().trim();
+        // Input doctor ID with validation loop
+        String doctorId = null;
+        boolean validDoctor = false;
 
-        if (doctorId.equals("0")) {
-            return; // Return to appointment menu
+        while (!validDoctor) {
+            System.out.print("\nEnter Doctor ID (or 0 to return to menu): ");
+            doctorId = scanner.nextLine().trim();
+
+            if (doctorId.equals("0")) {
+                return; // Return to appointment menu
+            }
+
+            if (doctorId.isEmpty()) {
+                displayMessage("Doctor ID cannot be empty. Please try again.");
+                continue;
+            }
+
+            // ECB COMPLIANT: Validate doctor exists immediately after input
+            if (!maintainPatient.isDoctorValid(doctorId)) {
+                displayMessage("\nDoctor not found. Please enter a valid Doctor ID.");
+                continue; // Ask for doctor ID again
+            }
+
+            // ECB COMPLIANT: Check doctor availability before proceeding
+            if (!maintainPatient.isDoctorAvailable(doctorId)) {
+                displayMessage("Doctor is not available for appointments. Please choose another doctor.");
+                continue; // Ask for doctor ID again
+            }
+
+            validDoctor = true; // Doctor is valid and available
         }
 
-        if (doctorId.isEmpty()) {
-            displayMessage("Doctor ID cannot be empty.");
-            askToContinueOrReturnToMenu();
-            return;
-        }
+        // FIXED: Input appointment time with comprehensive validation loop
+        MaintainPatient.AppointmentResult result = null;
+        boolean appointmentBooked = false;
 
-        // FIXED: Input appointment time with validation loop
-        String timeString = null;
-        boolean validTime = false;
-
-        while (!validTime) {
+        while (!appointmentBooked) {
             System.out.print("\nEnter appointment time in 24-hour format (HH:mm)\n");
             System.out.print("Example: 09:30 for 9:30 AM, 14:30 for 2:30 PM\n");
             System.out.print("\nBusiness hours: 09:00 - 17:00 (or 0 to return to menu): ");
-            timeString = scanner.nextLine().trim();
+            String timeString = scanner.nextLine().trim();
 
             if (timeString.equals("0")) {
                 return; // Return to appointment menu
@@ -256,19 +277,25 @@ public class PatientUI {
                 continue; // Ask for time again
             }
 
-            // Validate time format before booking
-            if (isValidTimeFormat(timeString)) {
-                validTime = true;
-            } else {
+            // Validate time format first
+            if (!isValidTimeFormat(timeString)) {
                 displayMessage("Invalid time format. Please use HH:mm format (e.g., 14:30).");
-                // Continue loop to ask for time again
+                continue; // Ask for time again
+            }
+
+            // Try to book appointment with validated time
+            result = maintainPatient.bookAppointment(patientId, doctorId, timeString);
+
+            if (result.isSuccess()) {
+                appointmentBooked = true; // Success - exit loop
+                displayMessage("\n" + result.getMessage());
+            } else {
+                // Display error and continue loop to ask for new time
+                displayMessage("\n" + result.getMessage());
+                displayMessage("Please choose a different time.");
+                // Loop continues to ask for new time
             }
         }
-
-        // Book appointment with validated time
-        MaintainPatient.AppointmentResult result = maintainPatient.bookAppointment(patientId, doctorId, timeString);
-
-        displayMessage("\n" + result.getMessage());
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
@@ -316,10 +343,32 @@ public class PatientUI {
             return;
         }
 
-        // ENHANCED: Show sorting submenu
+        // ENHANCED: Show sorting submenu with input validation
         displayAppointmentSortingMenu();
-        int sortChoice = scanner.nextInt();
-        scanner.nextLine(); // Consume newline
+
+        int sortChoice = -1;
+        boolean validChoice = false;
+
+        while (!validChoice) {
+            String input = scanner.nextLine().trim();
+
+            if (input.equals("0")) {
+                return; // Return to appointment menu
+            }
+
+            try {
+                sortChoice = Integer.parseInt(input);
+                if (sortChoice >= 1 && sortChoice <= 2) {
+                    validChoice = true;
+                } else {
+                    MessageUI.displayInvalidChoiceMessage();
+                    System.out.print("\nEnter your choice: ");
+                }
+            } catch (NumberFormatException e) {
+                MessageUI.displayInvalidChoiceMessage();
+                System.out.print("\nEnter your choice: ");
+            }
+        }
 
         ListInterface<Appointment> sortedAppointments = maintainPatient.getSortedAppointments(todayAppointments, sortChoice);
         displaySortingMessage(sortChoice);
@@ -1812,7 +1861,7 @@ public class PatientUI {
         displayMessage("\n=== APPOINTMENT SORTING OPTIONS ===");
         displayMessage("1. Sort by Appointment ID");
         displayMessage("2. Sort by Time");
-        displayMessage("0. View without sorting");
+        displayMessage("0. Return to menu");
         displayMessage("-----------------------------------");
         System.out.print("Enter your choice: ");
     }
