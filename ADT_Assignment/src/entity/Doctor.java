@@ -10,12 +10,12 @@ public class Doctor implements Serializable {
     private String schedule; // New field
     private String availability;
 
-    public Doctor(String id, String name, String specialization) {
+    public Doctor(String id, String name, String specialization, String schedule, String availability) {
         this.id = id;
         this.name = name;
         this.specialization = specialization;
-        this.schedule = null; // Default: no schedule
-        this.availability =  null;
+        this.schedule = schedule;
+        this.availability = availability;
     }
 
     // =========================
@@ -58,6 +58,10 @@ public class Doctor implements Serializable {
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     // =========================
