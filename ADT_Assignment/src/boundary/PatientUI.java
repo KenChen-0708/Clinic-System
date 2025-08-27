@@ -297,10 +297,10 @@ public class PatientUI {
 
             if (result.isSuccess()) {
                 appointmentBooked = true; // Success - exit loop
-                displayMessage("\n" + result.getMessage());
+                displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
             } else {
                 // Display error and continue loop to ask for new time
-                displayMessage("\n" + result.getMessage());
+                displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
                 displayMessage("Please choose a different time.");
                 // Loop continues to ask for new time
             }
@@ -441,7 +441,7 @@ public class PatientUI {
         // Cancel appointment
         MaintainPatient.AppointmentResult result = maintainPatient.cancelAppointment(appointmentId);
 
-        displayMessage("\n" + result.getMessage());
+        displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
@@ -524,7 +524,7 @@ public class PatientUI {
         // Clear all appointments
         MaintainPatient.AppointmentResult result = maintainPatient.clearAllAppointments();
 
-        displayMessage("\n" + result.getMessage());
+        displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
 
         askToContinueOrReturnToMenu();
     }
@@ -1083,10 +1083,16 @@ public class PatientUI {
 
     // Helper method to display sorted patients by ID
     private void displaySortedPatientsById(boolean ascending, String title) {
-        ListInterface<Patient> sortedData = maintainPatient.handleSortByIdChoice(ascending ? 1 : 2);
-        if (sortedData != null) {
+        ListInterface<Patient> sortedData = ascending ?
+            maintainPatient.sortPatientsByIdAscending() :
+            maintainPatient.sortPatientsByIdDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
             displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
         }
     }
@@ -1115,10 +1121,16 @@ public class PatientUI {
 
     // Helper method to display sorted patients by date
     private void displaySortedPatientsByDate(boolean ascending, String title) {
-        ListInterface<Patient> sortedData = maintainPatient.handleSortByDateChoice(ascending ? 1 : 2);
-        if (sortedData != null) {
+        ListInterface<Patient> sortedData = ascending ?
+            maintainPatient.sortPatientsByDateAscending() :
+            maintainPatient.sortPatientsByDateDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
             displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
         }
     }
@@ -1262,11 +1274,16 @@ public class PatientUI {
 
             if (foundPatients.getNumberOfEntries() > 0) {
                 displayMessage("\nFound " + foundPatients.getNumberOfEntries() + " patient(s) with name '" + name + "':");
-                for (int i = 1; i <= foundPatients.getNumberOfEntries(); i++) {
-                    displayMessage("\n--- Patient " + i + " ---");
-                    Patient p = foundPatients.getEntry(i);
+
+                // Use efficient iterator instead of O(n²) getEntry() calls
+                int patientNumber = 1;
+                java.util.Iterator<Patient> iterator = foundPatients.iterator();
+                while (iterator.hasNext()) {
+                    displayMessage("\n--- Patient " + patientNumber + " ---");
+                    Patient p = iterator.next();
                     int age = maintainPatient.getPatientAge(p.getIcNumber());
                     displayPatient(p, age);
+                    patientNumber++;
                 }
             } else {
                 displayMessage("\nNo patients found with name '" + name + "'.");
@@ -1897,8 +1914,11 @@ public class PatientUI {
             System.out.println(lineDash);
 
             ListInterface<String> months = monthlyCount.getKeys();
-            for (int i = 1; i <= months.getNumberOfEntries(); i++) {
-                String month = months.getEntry(i);
+
+            // Use efficient iterator instead of O(n²) getEntry() calls
+            java.util.Iterator<String> monthIterator = months.iterator();
+            while (monthIterator.hasNext()) {
+                String month = monthIterator.next();
                 Integer count = monthlyCount.get(month);
                 System.out.printf("%-20s %-20s%n", month, count + " patients");
             }
@@ -1987,5 +2007,32 @@ public class PatientUI {
         System.out.printf(" IC             : %s%n", formattedIC);
         System.out.printf(" Queue Position : %d%n", queuePosition);
         System.out.println("-------------------------------------");
+    }
+
+    /**
+     * Convert appointment result codes to user-friendly messages
+     * ECB COMPLIANT: UI messages handled in boundary layer
+     */
+    private String getAppointmentResultMessage(MaintainPatient.OperationResult resultCode) {
+        switch (resultCode) {
+            case SUCCESS:
+                return "Operation completed successfully!";
+            case PATIENT_NOT_FOUND:
+                return "Patient not found. Please register the patient first.";
+            case DOCTOR_NOT_FOUND:
+                return "Doctor not found.";
+            case DOCTOR_UNAVAILABLE:
+                return "Doctor is not available for appointments or has a scheduling conflict.";
+            case INVALID_TIME_FORMAT:
+                return "Invalid time format. Please use HH:mm format (e.g., 14:30).";
+            case INVALID_BUSINESS_HOURS:
+                return "Appointment time must be between 09:00 and 17:00.";
+            case APPOINTMENT_NOT_FOUND:
+                return "No appointments found.";
+            case INVALID_INPUT:
+                return "Invalid input provided. Please check your data and try again.";
+            default:
+                return "An error occurred during the operation.";
+        }
     }
 }
