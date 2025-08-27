@@ -7,6 +7,8 @@ import adt.MapInterface;
 import boundary.DoctorUI;
 import dao.DoctorDAO;
 import entity.Doctor;
+import java.util.Arrays;
+import java.util.Scanner;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -17,6 +19,10 @@ public class MaintainDoctor {
     private final MapInterface<String, Doctor> doctorMap = new HashMap<>(); // Fast lookups
     private final DoctorDAO doctorDAO;
     private final DoctorUI doctorUI;
+    private final Scanner scanner = new Scanner(System.in);
+    private static final String[] SPECIALIZATIONS = {
+        "Cardiology", "Pediatrics", "Dermatology", "General Medicine", "Neurology"
+    };
 
     public MaintainDoctor() {
         doctorDAO = new DoctorDAO();
@@ -37,11 +43,10 @@ public class MaintainDoctor {
     // Core CRUD Operations
     // =========================
     public void addDoctor() {
-        // Ask UI for name & specialization only
-        String name = doctorUI.inputDoctorName();
-        String specialization = doctorUI.inputSpecialization();
-        String availability = doctorUI.inputAvailability();
-        String schedule = doctorUI.inputSchedule();
+        String name = inputDoctorName();
+        String specialization = inputSpecialization();
+        String availability = inputAvailability();
+        String schedule = inputSchedule();
 
         // Auto-generate ID
         String newId = generateDoctorId();
@@ -61,7 +66,7 @@ public class MaintainDoctor {
     }
 
     public void removeDoctor() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor toRemove = doctorMap.get(id);
         if (toRemove != null) {
             int index = getDoctorIndexById(id);
@@ -77,11 +82,11 @@ public class MaintainDoctor {
     }
 
     public void updateDoctorDetails() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor doctor = doctorMap.get(id);
         if (doctor != null) {
-            String newName = doctorUI.inputDoctorName();
-            String newSpecialization = doctorUI.inputSpecialization();
+            String newName = inputDoctorName();
+            String newSpecialization = inputSpecialization();
             doctor.setName(newName);
             doctor.setSpecialization(newSpecialization);
             save();
@@ -95,45 +100,26 @@ public class MaintainDoctor {
     // Display & Search
     // =========================
     public void displayAllDoctors() {
-        if (doctorList.isEmpty()) {
-            doctorUI.displayMessage("No doctors found.");
-            return;
-        }
-        StringBuilder output = new StringBuilder();
-        int counter = 1;
-        for (Doctor d : doctorDAO.getIterable(doctorList)) {
-            output.append(counter++).append(". ")
-                    .append(d.getId()).append(" - ")
-                    .append(d.getName()).append(" | ")
-                    .append("Specialization: ").append(d.getSpecialization());
-            if (d.getSchedule() != null) {
-                output.append(" | Schedule: ").append(d.getSchedule());
-            }
-            if (d.getAvailability() != null) {
-                output.append(" | Availability: ").append(d.getAvailability());
-            }
-            output.append("\n");
-        }
-        doctorUI.displayDoctorList(output.toString());
+        doctorUI.displayAllDoctors(doctorList, doctorDAO);
     }
 
     public void searchDoctorById() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor doc = doctorMap.get(id);
         if (doc != null) {
-            displayDoctorDetails(doc);
+            doctorUI.displayDoctorDetails(doc);
         } else {
             doctorUI.displayMessage("Doctor not found.");
         }
     }
 
     public void searchDoctorByName() {
-        String name = doctorUI.inputDoctorName().toLowerCase();
+        String name = inputDoctorName().toLowerCase();
         searchDoctors(d -> d.getName().toLowerCase().contains(name));
     }
 
     public void searchDoctorBySpecialization() {
-        String specialization = doctorUI.inputSpecialization().toLowerCase();
+        String specialization = inputSpecialization().toLowerCase();
         searchDoctors(d -> d.getSpecialization().toLowerCase().contains(specialization));
     }
 
@@ -164,10 +150,10 @@ public class MaintainDoctor {
     // Schedule Management
     // =========================
     public void setDoctorSchedule() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor doc = doctorMap.get(id);
         if (doc != null) {
-            String schedule = doctorUI.inputSchedule();
+            String schedule = inputSchedule();
             doc.setSchedule(schedule);
             save();
             doctorUI.displayMessage("Schedule set successfully for Doctor ID: " + id);
@@ -177,7 +163,7 @@ public class MaintainDoctor {
     }
 
     public void displayDoctorSchedule() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor doc = doctorMap.get(id);
         if (doc != null) {
             doctorUI.displayMessage("Doctor Schedule: "
@@ -191,10 +177,10 @@ public class MaintainDoctor {
     // Availability Management
     // =========================
     public void setDoctorAvailability() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor doc = doctorMap.get(id);
         if (doc != null) {
-            String availability = doctorUI.inputAvailability();
+            String availability = inputAvailability();
             doc.setAvailability(availability);
             save();
             doctorUI.displayMessage("Availability updated for Doctor ID: " + id);
@@ -204,7 +190,7 @@ public class MaintainDoctor {
     }
 
     public void displayDoctorAvailability() {
-        String id = doctorUI.inputDoctorId();
+        String id = inputDoctorId();
         Doctor doc = doctorMap.get(id);
         if (doc != null) {
             doctorUI.displayMessage("Doctor Availability: "
@@ -249,102 +235,20 @@ public class MaintainDoctor {
             return;
         }
 
-        // Date & time
-        String generatedDate = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
-
-        int totalDoctors = doctorList.getNumberOfEntries();
         MapInterface<String, Integer> specializationCount = new HashMap<>();
         MapInterface<String, Integer> availabilityCount = new HashMap<>();
 
-        // Count specializations & availability
         for (Doctor doc : doctorDAO.getIterable(doctorList)) {
-            // Specialization
             String spec = doc.getSpecialization() != null ? doc.getSpecialization() : "Not specified";
             Integer specCount = specializationCount.get(spec);
             specializationCount.put(spec, (specCount != null ? specCount : 0) + 1);
 
-            // Availability
             String avail = doc.getAvailability() != null ? doc.getAvailability() : "Not set";
             Integer availCount = availabilityCount.get(avail);
             availabilityCount.put(avail, (availCount != null ? availCount : 0) + 1);
         }
 
-        // Find most common specialization
-        String topSpec = "None";
-        int maxSpec = 0;
-        for (String key : doctorDAO.getIterable(specializationCount.getKeys())) {
-            int count = specializationCount.get(key);
-            if (count > maxSpec) {
-                maxSpec = count;
-                topSpec = key;
-            }
-        }
-
-        // Find most common availability
-        String topAvail = "None";
-        int maxAvail = 0;
-        for (String key : doctorDAO.getIterable(availabilityCount.getKeys())) {
-            int count = availabilityCount.get(key);
-            if (count > maxAvail) {
-                maxAvail = count;
-                topAvail = key;
-            }
-        }
-
-        StringBuilder stats = new StringBuilder();
-        stats.append("\n=====================================================================================================================\n");
-        stats.append("                               Tunku Abdul Rahman University Of Management And Technology                              \n");
-        stats.append("=====================================================================================================================\n");
-        stats.append(String.format(" Report Generated On: %s\n", generatedDate));
-        stats.append("=====================================================================================================================\n");
-        stats.append("                                                   📊 Doctor Statistics Report                                         \n");
-        stats.append("=====================================================================================================================\n");
-
-        // Doctor list (wide table)
-        stats.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
-                "ID", "Name", "Specialization", "Schedule", "Availability"));
-        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
-
-        for (Doctor doc : doctorDAO.getIterable(doctorList)) {
-            stats.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
-                    doc.getId(),
-                    doc.getName(),
-                    (doc.getSpecialization() != null ? doc.getSpecialization() : "Not specified"),
-                    (doc.getSchedule() != null ? doc.getSchedule() : "Not set"),
-                    (doc.getAvailability() != null ? doc.getAvailability() : "Not set")));
-        }
-
-        stats.append("=====================================================================================================================\n");
-
-        // Detailed Statistics Summary
-        stats.append("\n🔹 Summary Statistics:\n");
-        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
-        stats.append(" Total Doctors: ").append(totalDoctors).append("\n\n");
-
-        // Specialization breakdown with percentage
-        stats.append(" Specialization Breakdown:\n");
-        for (String key : doctorDAO.getIterable(specializationCount.getKeys())) {
-            int count = specializationCount.get(key);
-            double percentage = (count * 100.0) / totalDoctors;
-            stats.append(String.format("   %-20s : %d (%.1f%%)\n", key, count, percentage));
-        }
-
-        stats.append("\n Availability Breakdown:\n");
-        for (String key : doctorDAO.getIterable(availabilityCount.getKeys())) {
-            int count = availabilityCount.get(key);
-            double percentage = (count * 100.0) / totalDoctors;
-            stats.append(String.format("   %-20s : %d (%.1f%%)\n", key, count, percentage));
-        }
-
-        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
-        stats.append(String.format(" Most Common Specialization : %s (%d doctors)\n", topSpec, maxSpec));
-        stats.append(String.format(" Majority Availability      : %s (%d doctors)\n", topAvail, maxAvail));
-        stats.append("---------------------------------------------------------------------------------------------------------------------\n");
-        stats.append(" This report is confidential and intended for TAR UMT Medical Department use only.\n");
-        stats.append("=====================================================================================================================\n");
-
-        doctorUI.displayMessage(stats.toString());
+        doctorUI.displayStatistics(doctorList, doctorDAO, specializationCount, availabilityCount);
     }
 
     // =========================
@@ -361,14 +265,103 @@ public class MaintainDoctor {
         return -1;
     }
 
-    private void displayDoctorDetails(Doctor doc) {
-        String msg = "\nDoctor Found:\n"
-                + "ID            : " + doc.getId() + "\n"
-                + "Name          : " + doc.getName() + "\n"
-                + "Specialization: " + doc.getSpecialization() + "\n"
-                + "Schedule      : " + (doc.getSchedule() != null ? doc.getSchedule() : "Not set") + "\n"
-                + "Availability  : " + (doc.getAvailability() != null ? doc.getAvailability() : "Not set") + "\n";
-        doctorUI.displayMessage(msg);
+    // =========================
+    // Input Methods (moved from UI)
+    // =========================
+    private String inputDoctorId() {
+        String id;
+        do {
+            doctorUI.displayMessage("Enter Doctor ID (e.g., D0001): ");
+            id = scanner.nextLine().trim();
+            if (id.isEmpty()) {
+                doctorUI.displayMessage("❌ Doctor ID cannot be empty.");
+            } else if (!id.matches("D\\d{4}")) {
+                doctorUI.displayMessage("❌ Invalid format. Use 'D' followed by 4 digits.");
+            }
+        } while (id.isEmpty() || !id.matches("D\\d{4}"));
+        return id;
+    }
+
+    private String inputDoctorName() {
+        String name;
+        do {
+            doctorUI.displayMessage("Enter Doctor Name: ");
+            name = scanner.nextLine().trim();
+            if (name.isEmpty()) {
+                doctorUI.displayMessage("❌ Name cannot be empty.");
+            } else if (!name.matches("[a-zA-Z ]+")) {
+                doctorUI.displayMessage("❌ Name can only contain letters and spaces.");
+            }
+        } while (name.isEmpty() || !name.matches("[a-zA-Z ]+"));
+        return name;
+    }
+
+    private String inputSpecialization() {
+        String specialization;
+        do {
+            doctorUI.displayMessage("Enter Specialization " + Arrays.toString(SPECIALIZATIONS) + ": ");
+            specialization = scanner.nextLine().trim();
+            boolean valid = false;
+            for (String s : SPECIALIZATIONS) {
+                if (s.equals(specialization)) { valid = true; break; }
+            }
+            if (specialization.isEmpty()) {
+                doctorUI.displayMessage("❌ Specialization cannot be empty.");
+            } else if (!valid) {
+                doctorUI.displayMessage("❌ Invalid specialization. Allowed: " + Arrays.toString(SPECIALIZATIONS));
+            }
+        } while (specialization.isEmpty() || !Arrays.asList(SPECIALIZATIONS).contains(specialization));
+        return specialization;
+    }
+
+    private String inputSchedule() {
+        final String day = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)";
+        final String time12 = "(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\\s?(?:[AaPp][Mm])";
+        final String time24 = "(?:[01]?\\d|2[0-3])(?::[0-5][0-9])";
+        final String time = "(?:" + time12 + "|" + time24 + ")";
+        final String timeRange = time + "\\s?-\\s?" + time;
+        final String optionalDayOrRange = "(?:" + day + "(?:\\s?-\\s?" + day + ")?\\s+)?";
+        final String pattern = "(?i)^" + optionalDayOrRange + timeRange + "$";
+
+        doctorUI.displayMessage("Enter Schedule (e.g., Mon-Fri 9am-6pm, Tue 10:30am-4pm, 9am-6pm). Leave blank for default: ");
+        while (true) {
+            String schedule = scanner.nextLine().trim();
+            if (schedule.isEmpty()) {
+                return "";
+            }
+            if (schedule.matches(pattern)) {
+                return normalizeSchedule(schedule);
+            }
+            doctorUI.displayMessage("❌ Invalid format.");
+            doctorUI.displayMessage("   Examples: Mon-Fri 9am-6pm | Tue 10:30am-4pm | 9am-6pm | 09:00-17:30");
+            doctorUI.displayMessage("Enter Schedule: ");
+        }
+    }
+
+    private String normalizeSchedule(String s) {
+        s = s.trim().replaceAll("\\s+", " ");
+        s = s.replaceAll("\\s?-\\s?", "-");
+        s = s.replaceAll("(?i)am", "AM").replaceAll("(?i)pm", "PM");
+        return s;
+    }
+
+    private String inputAvailability() {
+        String availability;
+        String[] options = {"Available", "On Duty", "Off Duty", "On Leave"};
+        do {
+            doctorUI.displayMessage("Enter Doctor Availability " + Arrays.toString(options) + ": ");
+            availability = scanner.nextLine().trim();
+            boolean valid = false;
+            for (String s : options) {
+                if (s.equals(availability)) { valid = true; break; }
+            }
+            if (availability.isEmpty()) {
+                doctorUI.displayMessage("❌ Availability cannot be empty.");
+            } else if (!valid) {
+                doctorUI.displayMessage("❌ Invalid availability. Allowed: " + Arrays.toString(options));
+            }
+        } while (availability.isEmpty() || !Arrays.asList(options).contains(availability));
+        return availability;
     }
 
     private void save() {
