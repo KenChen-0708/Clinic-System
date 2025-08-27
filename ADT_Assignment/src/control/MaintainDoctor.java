@@ -203,6 +203,23 @@ public class MaintainDoctor {
         }
     }
 
+    /**
+     * Set doctor availability programmatically (for service calls) used by Patient Module
+     */
+    public boolean setDoctorAvailability(String doctorId, String availability) {
+        if (doctorId == null || availability == null) {
+            return false;
+        }
+
+        Doctor doc = doctorMap.get(doctorId);
+        if (doc != null) {
+            doc.setAvailability(availability);
+            save();
+            return true;
+        }
+        return false;
+    }
+
     public void displayDoctorAvailability() {
         String id = doctorUI.inputDoctorId();
         Doctor doc = doctorMap.get(id);

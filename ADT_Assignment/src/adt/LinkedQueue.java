@@ -140,6 +140,10 @@ public class LinkedQueue<T> implements QueueInterface<T> {
 
     @Override
     public int getPosition(T data) {
+        if (data == null || isEmpty()) {
+            return 0;
+        }
+
         Node<T> current = front;
         int position = 1;
         while (current != null) {
@@ -149,7 +153,7 @@ public class LinkedQueue<T> implements QueueInterface<T> {
             current = current.next;
             position++;
         }
-        return -1; // Data not found
+        return 0; // Data not found - consistent with other methods
     }
 
     @Override
@@ -286,4 +290,20 @@ public class LinkedQueue<T> implements QueueInterface<T> {
         sb.append("]");
         return sb.toString();
     }
+
+    /**
+     * Create a snapshot of the queue without modifying the original queue
+     * This provides a read-only view of the queue contents in FIFO order
+     * @return ListInterface containing queue elements in order
+     */
+    public ListInterface<T> createSnapshot() {
+        ListInterface<T> snapshot = new DoublyLinkedList<>();
+        Node<T> current = front;
+        while (current != null) {
+            snapshot.add(current.data);
+            current = current.next;
+        }
+        return snapshot;
+    }
+
 }

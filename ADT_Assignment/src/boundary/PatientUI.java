@@ -252,22 +252,22 @@ public class PatientUI {
                 continue;
             }
 
-            // ECB COMPLIANT: Validate doctor exists immediately after input
+            // Validate doctor exists
             if (!maintainPatient.isDoctorValid(doctorId)) {
                 displayMessage("\nDoctor not found. Please enter a valid Doctor ID.");
-                continue; // Ask for doctor ID again
+                continue;
             }
 
-            // ECB COMPLIANT: Check doctor availability before proceeding
+            // Check doctor availability
             if (!maintainPatient.isDoctorAvailable(doctorId)) {
                 displayMessage("Doctor is not available for appointments. Please choose another doctor.");
-                continue; // Ask for doctor ID again
+                continue;
             }
 
-            validDoctor = true; // Doctor is valid and available
+            validDoctor = true;
         }
 
-        // FIXED: Input appointment time with comprehensive validation loop
+        // Input appointment time with validation
         MaintainPatient.AppointmentResult result = null;
         boolean appointmentBooked = false;
 
@@ -287,7 +287,7 @@ public class PatientUI {
             }
 
             // Validate time format first
-            if (!isValidTimeFormat(timeString)) {
+            if (!ValidationUtil.isValidTimeFormat(timeString)) {
                 displayMessage("Invalid time format. Please use HH:mm format (e.g., 14:30).");
                 continue; // Ask for time again
             }
@@ -316,11 +316,11 @@ public class PatientUI {
             displayMessage("Time: " + appointment.getAppointmentTime());
         }
 
-        // FIXED: Ask specifically about booking another appointment
+        // Ask about booking another appointment
         askToBookAnotherAppointment();
     }
 
-    // Display list of doctors - OPTIMIZED with iterator for O(n) performance
+    // Display list of doctors
     private void displayDoctorList(ListInterface<Doctor> doctors) {
         System.out.println("=".repeat(80));
         System.out.printf("%-10s %-25s %-20s %-15s%n", "Doctor ID", "Name", "Specialization", "Availability");
@@ -351,7 +351,7 @@ public class PatientUI {
             return;
         }
 
-        // ENHANCED: Show sorting submenu with input validation
+        // Show sorting submenu with input validation
         displayAppointmentSortingMenu();
 
         int sortChoice = -1;
@@ -388,7 +388,7 @@ public class PatientUI {
         askToContinueOrReturnToMenu();
     }
 
-    // Display list of appointments - OPTIMIZED with iterator for O(n) performance
+    // Display list of appointments
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
         System.out.println("=".repeat(80));
         System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
@@ -433,7 +433,7 @@ public class PatientUI {
         }
 
         if (appointmentId.isEmpty()) {
-            displayMessage("Appointment ID cannot be empty.");
+            displayMessage("\nAppointment ID cannot be empty.");
             askToContinueOrReturnToMenu();
             return;
         }
@@ -508,11 +508,11 @@ public class PatientUI {
             return;
         }
 
-        displayMessage("Current appointments in the system:");
+        displayMessage("\nCurrent appointments in the system:");
         displayAppointmentList(currentAppointments);
 
         // Confirm before clearing
-        System.out.print("Are you sure you want to clear ALL appointments from the system? (y/n): ");
+        System.out.print("\nAre you sure you want to clear ALL appointments from the system? (y/n): ");
         String confirmation = scanner.nextLine().trim().toLowerCase();
 
         if (!confirmation.equals("y") && !confirmation.equals("yes")) {
@@ -1177,9 +1177,7 @@ public class PatientUI {
     }
 
     /**
-     * Format queue data for table display - UI layer responsibility FIXED: Uses
-     * list instead of array to avoid ClassCastException Maintains FIFO order
-     * with efficient iterator traversal
+     * Format queue data for table display
      */
     private String[][] formatQueueTableData() {
         ListInterface<Patient> queueList = maintainPatient.getQueueList();
@@ -1383,7 +1381,7 @@ public class PatientUI {
         displayMessage("\n=== NEW PATIENT REGISTRATION ===");
         Patient patient = inputRemainingPatientDetails(icNumber);
 
-        // FIXED: Get the registered patient with generated ID
+        // Register the patient
         Patient registeredPatient = maintainPatient.registerNewPatient(patient);
 
         if (registeredPatient != null) {
@@ -1396,12 +1394,12 @@ public class PatientUI {
                 if (queueNum != null) {
                     displayMessage("\nPatient " + registeredPatient.getName() + " has been added to the line-up queue.");
                     displayMessage("Queue Number: " + queueNum);
-                    displayMessage("Total patients in queue: " + maintainPatient.getQueueSize() + "\n");
+                    displayMessage("Total patients in queue: " + maintainPatient.getQueueSize());
                 } else {
-                    displayMessage("\nFailed to add patient to queue. Please try again.\n");
+                    displayMessage("\nFailed to add patient to queue. Please try again.");
                 }
             } else {
-                displayMessage("\nPatient not added to queue.\n");
+                displayMessage("\nPatient not added to queue.");
             }
         } else {
             displayMessage("\nRegistration failed. IC number may already exist.");
@@ -1492,7 +1490,6 @@ public class PatientUI {
 
                     if (removeSuccess) {
                         displayMessage("\nPatient removed successfully.");
-                        displayMessage("Patient also removed from line-up queue if present.");
                     }
                 } else {
                     displayMessage("\nPatient removal cancelled.");
@@ -1937,9 +1934,7 @@ public class PatientUI {
     }
 
     /**
-     * Display sorting message based on user choice ECB COMPLIANT: Only UI
-     * display logic in boundary layer
-     *
+     * Display sorting message based on user choice
      * @param sortChoice User's sorting choice
      */
     private void displaySortingMessage(int sortChoice) {
@@ -1965,29 +1960,7 @@ public class PatientUI {
      * @param timeString Time string to validate
      * @return true if valid format, false otherwise
      */
-    private boolean isValidTimeFormat(String timeString) {
-        if (timeString == null || timeString.length() != 5) {
-            return false;
-        }
 
-        if (timeString.charAt(2) != ':') {
-            return false;
-        }
-
-        try {
-            String[] parts = timeString.split(":");
-            if (parts.length != 2) {
-                return false;
-            }
-
-            int hours = Integer.parseInt(parts[0]);
-            int minutes = Integer.parseInt(parts[1]);
-
-            return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
 
     /**
      * Display formatted queue information with better layout
