@@ -7,6 +7,7 @@ import adt.MapInterface;
 import boundary.DoctorUI;
 import dao.DoctorDAO;
 import entity.Doctor;
+import entity.Treatment;
 import java.util.Arrays;
 import java.util.Scanner;
 import java.time.LocalDateTime;
@@ -146,6 +147,16 @@ public class MaintainDoctor {
         doctorUI.displayMessage("Doctors sorted by specialization.");
     }
 
+    public void sortDoctorsById() {
+        if (doctorList.isEmpty()) {
+            doctorUI.displayMessage("No doctors to sort.");
+            return;
+        }
+        doctorList.mergeSort(Comparator.comparing(Doctor::getId, String.CASE_INSENSITIVE_ORDER));
+        save();
+        doctorUI.displayMessage("Doctors sorted by ID.");
+    }
+
     // =========================
     // Schedule Management
     // =========================
@@ -248,7 +259,142 @@ public class MaintainDoctor {
             availabilityCount.put(avail, (availCount != null ? availCount : 0) + 1);
         }
 
-        doctorUI.displayStatistics(doctorList, doctorDAO, specializationCount, availabilityCount);
+        // Doctor workload section
+        MapInterface<String, Integer> totalTreatmentsByDoctor = new HashMap<>();
+        MapInterface<String, Integer> completedTreatmentsByDoctor = new HashMap<>();
+        MapInterface<String, Integer> uniquePatientsByDoctor = new HashMap<>();
+
+        MaintainTreatment treatmentControl = new MaintainTreatment();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            String docId = d.getId();
+            ListInterface<Treatment> ts = treatmentControl.findTreatmentsByDoctorId(docId);
+            int total = 0;
+            int completed = 0;
+            ListInterface<String> uniquePatients = new DoublyLinkedList<>();
+            for (int i = 1; i <= ts.getNumberOfEntries(); i++) {
+                Treatment t = ts.getEntry(i);
+                total++;
+                if ("Completed".equalsIgnoreCase(t.getStatus())) completed++;
+                String pid = t.getPatientId();
+                if (!uniquePatients.contains(pid)) uniquePatients.add(pid);
+            }
+            totalTreatmentsByDoctor.put(docId, total);
+            completedTreatmentsByDoctor.put(docId, completed);
+            uniquePatientsByDoctor.put(docId, uniquePatients.getNumberOfEntries());
+        }
+
+        doctorUI.displayStatistics(
+                doctorList,
+                doctorDAO,
+                specializationCount,
+                availabilityCount,
+                totalTreatmentsByDoctor,
+                completedTreatmentsByDoctor,
+                uniquePatientsByDoctor
+        );
+    }
+
+    // =========================
+    // Grouping
+    // =========================
+    public MapInterface<String, ListInterface<Doctor>> groupDoctorsBySpecialization() {
+        MapInterface<String, ListInterface<Doctor>> grouped = new HashMap<>();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            String key = d.getSpecialization() != null ? d.getSpecialization() : "Not specified";
+            ListInterface<Doctor> list = grouped.get(key);
+            if (list == null) {
+                list = new DoublyLinkedList<>();
+                grouped.put(key, list);
+            }
+            list.add(d);
+        }
+        return grouped;
+    }
+
+    public MapInterface<String, ListInterface<Doctor>> groupDoctorsByAvailability() {
+        MapInterface<String, ListInterface<Doctor>> grouped = new HashMap<>();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            String key = d.getAvailability() != null ? d.getAvailability() : "Not set";
+            ListInterface<Doctor> list = grouped.get(key);
+            if (list == null) {
+                list = new DoublyLinkedList<>();
+                grouped.put(key, list);
+            }
+            list.add(d);
+        }
+        return grouped;
+    }
+
+    public MapInterface<String, ListInterface<Doctor>> groupDoctorsBySchedule() {
+        MapInterface<String, ListInterface<Doctor>> grouped = new HashMap<>();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            String key = d.getSchedule() != null && !d.getSchedule().isEmpty() ? d.getSchedule() : "Not set";
+            ListInterface<Doctor> list = grouped.get(key);
+            if (list == null) {
+                list = new DoublyLinkedList<>();
+                grouped.put(key, list);
+            }
+            list.add(d);
+        }
+        return grouped;
+    }
+
+    public void displayGroupBySpecialization() {
+        MapInterface<String, ListInterface<Doctor>> grouped = groupDoctorsBySpecialization();
+        doctorUI.displayGroupedDoctors("Doctors by Specialization", grouped, doctorDAO);
+    }
+
+    public void displayGroupByAvailability() {
+        MapInterface<String, ListInterface<Doctor>> grouped = groupDoctorsByAvailability();
+        doctorUI.displayGroupedDoctors("Doctors by Availability", grouped, doctorDAO);
+    }
+
+    public void displayGroupBySchedule() {
+        MapInterface<String, ListInterface<Doctor>> grouped = groupDoctorsBySchedule();
+        doctorUI.displayGroupedDoctors("Doctors by Schedule", grouped, doctorDAO);
+    }
+
+    // =========================
+    // Workload / Productivity
+    // =========================
+    public void displayDoctorWorkload() {
+        String doctorId = inputDoctorId();
+
+        // Use Treatment module to fetch treatments by doctor
+        MaintainTreatment treatmentControl = new MaintainTreatment();
+        ListInterface<Treatment> doctorTreatments = treatmentControl.findTreatmentsByDoctorId(doctorId);
+
+        int totalTreatments = 0;
+        int completedTreatments = 0;
+        ListInterface<String> uniquePatients = new DoublyLinkedList<>();
+
+        for (int i = 1; i <= doctorTreatments.getNumberOfEntries(); i++) {
+            Treatment t = doctorTreatments.getEntry(i);
+            totalTreatments++;
+            if ("Completed".equalsIgnoreCase(t.getStatus())) {
+                completedTreatments++;
+            }
+            String pid = t.getPatientId();
+            if (!uniquePatients.contains(pid)) {
+                uniquePatients.add(pid);
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n================ Doctor Workload ================\n");
+        sb.append("Doctor ID         : ").append(doctorId).append("\n");
+        Doctor doc = doctorMap.get(doctorId);
+        if (doc != null) {
+            sb.append("Doctor Name       : ").append(doc.getName()).append("\n");
+            sb.append("Specialization    : ").append(doc.getSpecialization()).append("\n");
+        }
+        sb.append("------------------------------------------------\n");
+        sb.append(String.format("Total Treatments  : %d\n", totalTreatments));
+        sb.append(String.format("Completed         : %d\n", completedTreatments));
+        sb.append(String.format("Unique Patients   : %d\n", uniquePatients.getNumberOfEntries()));
+        sb.append("================================================\n");
+
+        doctorUI.displayMessage(sb.toString());
     }
 
     // =========================
@@ -387,8 +533,20 @@ public class MaintainDoctor {
     }
 
     private String generateDoctorId() {
-        int nextId = doctorList.getNumberOfEntries() + 1;
-        return String.format("D%04d", nextId); // D0001, D0002, etc.
+        int maxNumeric = 0;
+        for (Doctor doc : doctorDAO.getIterable(doctorList)) {
+            String id = doc.getId();
+            if (id != null && id.matches("D\\d{4}")) {
+                try {
+                    int numeric = Integer.parseInt(id.substring(1));
+                    if (numeric > maxNumeric) {
+                        maxNumeric = numeric;
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return String.format("D%04d", maxNumeric + 1);
     }
 
     //Ronaldo Loh Yu Fei 
@@ -419,4 +577,6 @@ public class MaintainDoctor {
         }
         return doctorMap.get(doctorId.trim());
     }
+    
+    
 }
