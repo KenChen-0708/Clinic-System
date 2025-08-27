@@ -22,6 +22,7 @@ import java.time.format.DateTimeParseException;
 
 public class MaintainPatient {
 
+    // Patient data management
     private final PatientDAO patientDAO = new PatientDAO();
     private final ListInterface<Patient> patientList = patientDAO.retrieveFromFile();
     private final MaintainTreatment maintainTreatment = new MaintainTreatment();
@@ -31,19 +32,27 @@ public class MaintainPatient {
     private final ListInterface<Appointment> appointmentList = appointmentDAO.retrieveFromFile();
     private final MaintainDoctor maintainDoctor = new MaintainDoctor();
 
+    // Patient queue for managing waiting patients in FIFO order
     private final QueueInterface<Patient> patientQueue = new LinkedQueue<>();
-    private final MapInterface<String, Patient> patientMap = new HashMap<>();
-    private final MapInterface<String, Patient> icMap = new HashMap<>();
-    private final MapInterface<String, Patient> nameMap = new HashMap<>();
-    private final MapInterface<String, Boolean> queueMap = new HashMap<>();
-    private final MapInterface<String, Patient> queueNameMap = new HashMap<>();
-    private final MapInterface<String, Patient> queueIcMap = new HashMap<>();
-    private final MapInterface<String, Integer> queuePositionMap = new HashMap<>();
+
+    // Patient lookup maps - enable instant patient retrieval without list traversal
+    private final MapInterface<String, Patient> patientMap = new HashMap<>(); // Find patient by ID instantly
+    private final MapInterface<String, Patient> icMap = new HashMap<>(); // Find patient by IC number instantly
+    private final MapInterface<String, Patient> nameMap = new HashMap<>(); // Find patient by exact name instantly
+
+    // Queue management maps - track queue state without disrupting queue operations
+    private final MapInterface<String, Boolean> queueMap = new HashMap<>(); // Check if patient is queued without searching
+    private final MapInterface<String, Patient> queueNameMap = new HashMap<>(); // Find queued patients by name without queue traversal
+    private final MapInterface<String, Patient> queueIcMap = new HashMap<>(); // Find queued patients by IC without queue traversal
+    private final MapInterface<String, Integer> queuePositionMap = new HashMap<>(); // Get queue position instantly without counting
 
     public MaintainPatient() {
         populateMaps();
     }
 
+    /**
+     * Initialize lookup maps from patient list for fast searching
+     */
     private void populateMaps() {
         patientMap.clear();
         icMap.clear();
@@ -60,6 +69,9 @@ public class MaintainPatient {
         }
     }
 
+    /**
+     * Update patient in all data structures atomically
+     */
     private boolean updateAllDataStructures(Patient oldPatient, Patient newPatient) {
         if (oldPatient == null || newPatient == null ||
             oldPatient.getId() == null || newPatient.getId() == null ||
@@ -134,6 +146,9 @@ public class MaintainPatient {
         }
     }
 
+    /**
+     * Add patient to all data structures
+     */
     private void addToAllDataStructures(Patient patient) {
         if (patient != null && patient.getId() != null && patient.getIcNumber() != null && patient.getName() != null) {
             try {
@@ -158,6 +173,9 @@ public class MaintainPatient {
         }
     }
 
+    /**
+     * Remove patient from all data structures
+     */
     private void removeFromAllDataStructures(Patient patient) {
         if (patient == null || patient.getId() == null) {
             return;
@@ -194,6 +212,9 @@ public class MaintainPatient {
         patientDAO.saveToFile(patientList);
     }
 
+    /**
+     * Add patient to queue with tracking
+     */
     private void enqueuePatient(Patient patient) {
         if (patient != null && patient.getId() != null && patient.getName() != null && patient.getIcNumber() != null) {
             patientQueue.enqueueWithNumber(patient);
@@ -208,6 +229,9 @@ public class MaintainPatient {
         }
     }
 
+    /**
+     * Remove and return next patient from queue
+     */
     private Patient dequeuePatient() {
         if (!patientQueue.isEmpty()) {
             Patient patient = patientQueue.dequeue();
@@ -233,10 +257,16 @@ public class MaintainPatient {
         return null;
     }
 
+    /**
+     * Check if patient is currently in queue
+     */
     private boolean isInQueue(Patient patient) {
         return patient != null && patient.getId() != null && queueMap.containsKey(patient.getId());
     }
 
+    /**
+     * Clear all queue data and tracking maps
+     */
     private void clearAllQueueMaps() {
         patientQueue.clear();
         queueMap.clear();
@@ -288,7 +318,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Serve next patient in queue - Capture queue number before dequeuing
+     * Serve next patient in queue
      * @return QueueOperationResult with served patient data
      */
     public QueueOperationResult serveNextPatient() {
@@ -296,14 +326,14 @@ public class MaintainPatient {
             return new QueueOperationResult(false, "QUEUE_EMPTY", null, null, 0);
         }
 
-        // Get queue number BEFORE dequeuing the patient
-        Patient nextPatient = patientQueue.peek(); // Get patient without removing
-        String queueNum = patientQueue.getQueueNumber(nextPatient); // Get queue number while still in queue
+        // Get queue number before dequeuing
+        Patient nextPatient = patientQueue.peek();
+        String queueNum = patientQueue.getQueueNumber(nextPatient);
 
-        // Now safely dequeue the patient using helper method
+        // Remove patient from queue
         nextPatient = dequeuePatient();
         if (nextPatient != null) {
-            // Check for available doctor
+            // Find available doctor
             MaintainDoctor maintainDoctor = new MaintainDoctor();
             Doctor availableDoctor = maintainDoctor.findAvailableDoctor();
 
@@ -481,11 +511,11 @@ public class MaintainPatient {
 
 
 
-    // Generate next patient ID
+    /**
+     * Generate next available patient ID by finding highest existing ID
+     */
     private String generateNextPatientId() {
         int max = 0;
-
-        // Use iterator for efficient traversal of DoublyLinkedList
         java.util.Iterator<Patient> iterator = patientList.iterator();
         while (iterator.hasNext()) {
             String id = iterator.next().getId();
@@ -540,8 +570,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if patients exist for viewing
-     * returns boolean for UI to handle
+     * Check if any patients are registered in the system
      */
     public boolean hasPatients() {
         return patientList.getNumberOfEntries() > 0;
@@ -596,8 +625,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Get patient list for UI display - returns raw patient objects
-     * UI layer handles formatting
+     * Get all registered patients for display
      */
     public ListInterface<Patient> getPatientList() {
         return patientList;
@@ -667,6 +695,9 @@ public class MaintainPatient {
 
 
 
+    /**
+     * Find patient by ID
+     */
     public Patient findPatientById(String id) {
         if (id == null || id.trim().isEmpty()) {
             return null;
@@ -720,7 +751,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Find patient by exact name using O(1) HashMap lookup
+     * Find patient by exact name
      * @param name Exact patient name to search for
      * @return Patient if found, null otherwise
      */
@@ -728,7 +759,7 @@ public class MaintainPatient {
         if (name == null || name.trim().isEmpty()) {
             return null;
         }
-        // O(1) HashMap lookup for exact name match
+
         return nameMap.get(name.trim().toLowerCase());
     }
 
@@ -743,7 +774,7 @@ public class MaintainPatient {
         }
 
         String cleanIC = ic.replaceAll("-", "").trim();
-        // O(1) HashMap lookup - fast and efficient
+
         return icMap.get(cleanIC);
     }
 
@@ -789,20 +820,26 @@ public class MaintainPatient {
         return icMap.get(cleanIC);
     }
 
-    public Patient registerNewPatient(Patient patient) { // Register new patient and return with generated ID
+    /**
+     * Register new patient and return with generated ID
+     */
+    public Patient registerNewPatient(Patient patient) {
         if (patient == null) {
             return null;
         }
 
-        if (checkExistingPatient(patient.getIcNumber()) != null) { // Check IC uniqueness
+        // Check IC uniqueness
+        if (checkExistingPatient(patient.getIcNumber()) != null) {
             return null;
         }
 
-        String newId = generateNextPatientId(); // Generate unique ID
+        // Generate unique ID and create patient with today's registration date
+        String newId = generateNextPatientId();
         Patient patientWithId = new Patient(newId, patient.getName(), patient.getIcNumber(),
                                           patient.getPhone(), patient.getGender(), java.time.LocalDate.now());
 
-        addToAllDataStructures(patientWithId); // Add to all data structures
+        // Add to all data structures and save to file
+        addToAllDataStructures(patientWithId);
 
         return patientWithId;
     }
@@ -826,7 +863,7 @@ public class MaintainPatient {
             return null;
         }
 
-        //Only check if patient is already in queue if they have valid data
+        // Check if patient is already in queue
         if (patient.getName() != null && patient.getIcNumber() != null) {
             // Check if patient is already in queue
             if (isInQueue(patient)) {
@@ -841,8 +878,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Get current queue size
-     * @return number of patients in queue
+     * Get number of patients currently waiting in queue
      */
     public int getQueueSize() {
         return patientQueue.size();
@@ -881,12 +917,15 @@ public class MaintainPatient {
         return true;
     }
 
-    private ListInterface<Patient> sortPatientsByRegistrationDate(boolean ascending) { // Sort patients by registration date
+    /**
+     * Sort patients by registration date
+     */
+    private ListInterface<Patient> sortPatientsByRegistrationDate(boolean ascending) {
         ListInterface<Patient> sortedList = createPatientListCopy();
 
-        sortedList.mergeSort((p1, p2) -> p1.getRegistrationDate().compareTo(p2.getRegistrationDate())); // Use ADT merge sort
+        sortedList.mergeSort((p1, p2) -> p1.getRegistrationDate().compareTo(p2.getRegistrationDate()));
 
-        if (!ascending) { // Reverse for descending order
+        if (!ascending) {
             sortedList.reverse();
         }
 
@@ -899,13 +938,13 @@ public class MaintainPatient {
      * @return sorted list of patients
      */
     private ListInterface<Patient> sortPatientsByID(boolean ascending) {
-        // Create a copy of the patient list for sorting
+
         ListInterface<Patient> sortedList = createPatientListCopy();
 
-        // Sort by ID using List ADT sorting function
+        // Sort by ID
         sortedList.mergeSort((p1, p2) -> p1.getId().compareTo(p2.getId()));
 
-        // Reverse if descending order is requested
+        // Reverse for descending order
         if (!ascending) {
             sortedList.reverse();
         }
@@ -918,10 +957,10 @@ public class MaintainPatient {
      * @return sorted list of patients by name (A-Z)
      */
     private ListInterface<Patient> sortPatientsByName() {
-        // Create a copy of the patient list for sorting
+
         ListInterface<Patient> sortedList = createPatientListCopy();
 
-        // Sort by Name using List ADT sorting function (case-insensitive)
+        // Sort by name (case-insensitive)
         sortedList.mergeSort((p1, p2) -> p1.getName().compareToIgnoreCase(p2.getName()));
 
         return sortedList;
@@ -932,10 +971,10 @@ public class MaintainPatient {
      * @return sorted list of patients by age (youngest first)
      */
     private ListInterface<Patient> sortPatientsByAge() {
-        // Create a copy of the patient list for sorting
+
         ListInterface<Patient> sortedList = createPatientListCopy();
 
-        // Sort by Age using List ADT sorting function
+        // Sort by age
         sortedList.mergeSort((p1, p2) -> {
             int age1 = ValidationUtil.calculateAgeFromIC(p1.getIcNumber());
             int age2 = ValidationUtil.calculateAgeFromIC(p2.getIcNumber());
@@ -949,11 +988,13 @@ public class MaintainPatient {
      * Helper method to create a copy of the patient list
      * @return new list containing all patients from the main list
      */
-    // Create copy of patient list using iterator for efficient traversal
+    /**
+     * Create copy of patient list
+     */
     private ListInterface<Patient> createPatientListCopy() {
         ListInterface<Patient> copyList = new DoublyLinkedList<>();
 
-        // Use iterator for efficient traversal of DoublyLinkedList
+
         java.util.Iterator<Patient> iterator = patientList.iterator();
         while (iterator.hasNext()) {
             copyList.add(iterator.next());
@@ -962,20 +1003,23 @@ public class MaintainPatient {
     }
 
 
+    /**
+     * Find patient in queue by name
+     */
     private Patient findPatientInQueueByName(String name) {
-        // O(1) lookup using secondary queue name map
         return queueNameMap.get(name.toLowerCase());
     }
 
+    /**
+     * Find patient in queue by IC number
+     */
     private Patient findPatientInQueueByIC(String ic) {
-        // O(1) lookup using secondary queue IC map
-        String searchIC = ic.replaceAll("-", ""); // Remove dashes for consistent lookup
+        String searchIC = ic.replaceAll("-", "");
         return queueIcMap.get(searchIC);
     }
 
 
-    // Removed unnecessary consistency checking methods
-    // HashMap is trusted for O(1) lookups without validation overhead
+
 
     /**
      * Generate patient treatment statistics data using custom ADT sorting
@@ -986,11 +1030,11 @@ public class MaintainPatient {
             return null;
         }
 
-        // Create sorted list of patients by ID using custom ADT merge sort
+        // Create sorted list of patients by ID
         ListInterface<Patient> sortedPatients = createPatientListCopy();
         sortedPatients.mergeSort((p1, p2) -> p1.getId().compareToIgnoreCase(p2.getId()));
 
-        // Build treatment statistics using iterator
+        // Build treatment statistics
         ListInterface<PatientTreatmentInfo> treatmentStats = new DoublyLinkedList<>();
         int totalPatients = 0;
         int totalTreatments = 0;
@@ -1115,8 +1159,7 @@ public class MaintainPatient {
 
 
     /**
-     * Check if patients exist for reports
-     * @return true if patients exist, false otherwise
+     * Check if patients exist for generating reports
      */
     public boolean hasPatientsForReport() {
         return patientList.getNumberOfEntries() > 0;
@@ -1134,11 +1177,11 @@ public class MaintainPatient {
         // sort patients by registration date
         ListInterface<Patient> sortedList = sortPatientsByDate();
 
-        // calculate statistics
+        // Get first and last patients
         Patient firstPatient = sortedList.getEntry(1);
         Patient lastPatient = sortedList.getEntry(sortedList.getNumberOfEntries());
 
-        // Count gender distribution using iterator
+        // Count gender distribution
         int maleCount = 0, femaleCount = 0;
         java.util.Iterator<Patient> genderIterator = sortedList.iterator();
         while (genderIterator.hasNext()) {
@@ -1149,7 +1192,7 @@ public class MaintainPatient {
             }
         }
 
-        // Calculate monthly breakdown using iterator
+        // Calculate monthly breakdown
         MapInterface<String, Integer> monthlyCount = new HashMap<>();
         java.util.Iterator<Patient> monthIterator = sortedList.iterator();
         while (monthIterator.hasNext()) {
@@ -1165,7 +1208,7 @@ public class MaintainPatient {
             }
         }
 
-        // Return structured data object with raw patient list (not formatted UI data)
+
         return new RegistrationTimelineData(sortedList, firstPatient, lastPatient, maleCount, femaleCount, monthlyCount);
     }
 
@@ -1190,7 +1233,7 @@ public class MaintainPatient {
             this.monthlyCount = monthlyCount;
         }
 
-        // Getter methods for UI layer to access raw data
+        // Getter methods for accessing report data
         public ListInterface<Patient> getPatientList() {
             return patientList;
         }
@@ -1217,11 +1260,15 @@ public class MaintainPatient {
      * @return sorted list of patients by registration date (oldest first)
      */
     private ListInterface<Patient> sortPatientsByDate() {
-        // Use the new parameterized method with ascending order (oldest first)
+
         return sortPatientsByRegistrationDate(true);
     }
-    public AppointmentResult bookAppointment(String patientId, String doctorId, String timeString) { // Book new appointment with validation
-        Patient patient = findPatientById(patientId); // Validate patient exists
+    /**
+     * Book new appointment with validation
+     */
+    public AppointmentResult bookAppointment(String patientId, String doctorId, String timeString) {
+
+        Patient patient = findPatientById(patientId);
         if (patient == null) {
             return new AppointmentResult(false, "Patient not found. Please register the patient first.", null);
         }
@@ -1322,7 +1369,7 @@ public class MaintainPatient {
      */
     private String generateAppointmentId() {
         int maxId = 0;
-        // Find highest existing appointment ID
+
         java.util.Iterator<Appointment> iterator = appointmentList.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
@@ -1357,7 +1404,7 @@ public class MaintainPatient {
             }
         }
 
-        // Sort appointments by time using merge sort from ADT
+        // Sort appointments by time
         if (!todayAppointments.isEmpty()) {
             todayAppointments.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
         }
@@ -1398,24 +1445,23 @@ public class MaintainPatient {
      * @return List of all appointments sorted by date and time
      */
     public ListInterface<Appointment> getAllAppointments() {
-        // Create a copy of the appointment list for sorting
+
         ListInterface<Appointment> sortedAppointments = new DoublyLinkedList<>();
 
-        // Copy all appointments
+
         java.util.Iterator<Appointment> iterator = appointmentList.iterator();
         while (iterator.hasNext()) {
             sortedAppointments.add(iterator.next());
         }
 
-        // Sort appointments by date first, then by time using merge sort from ADT
+        // Sort appointments by date and time
         if (!sortedAppointments.isEmpty()) {
             sortedAppointments.mergeSort((a1, a2) -> {
-                // First compare by date
                 int dateComparison = a1.getAppointmentDate().compareTo(a2.getAppointmentDate());
                 if (dateComparison != 0) {
                     return dateComparison;
                 }
-                // If dates are equal, compare by time
+                // Compare by time if same date
                 return a1.getAppointmentTime().compareTo(a2.getAppointmentTime());
             });
         }
@@ -1432,10 +1478,10 @@ public class MaintainPatient {
      * @return Sorted appointment list
      */
     public ListInterface<Appointment> getSortedAppointments(ListInterface<Appointment> appointments, int sortType) {
-        // Create a copy for sorting to preserve original
+
         ListInterface<Appointment> sortedList = new DoublyLinkedList<>();
 
-        // Copy all appointments
+
         java.util.Iterator<Appointment> iterator = appointments.iterator();
         while (iterator.hasNext()) {
             sortedList.add(iterator.next());
@@ -1443,15 +1489,15 @@ public class MaintainPatient {
 
         switch (sortType) {
             case 1:
-                // Sort by Appointment ID using merge sort from ADT
+                // Sort by Appointment ID
                 sortedList.mergeSort((a1, a2) -> a1.getAppointmentId().compareTo(a2.getAppointmentId()));
                 break;
             case 2:
-                // Sort by Time using merge sort from ADT
+                // Sort by Time
                 sortedList.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
                 break;
             default:
-                // No sorting - return copy as is
+                // No sorting
                 break;
         }
 
@@ -1492,13 +1538,13 @@ public class MaintainPatient {
             return patientAppointments; // Return empty list
         }
 
-        // Validate patient exists
+
         Patient patient = findPatientById(patientId);
         if (patient == null) {
-            return patientAppointments; // Return empty list if patient not found
+            return patientAppointments;
         }
 
-        // Use iterator for efficient O(n) traversal to find all appointments for this patient
+        // Find all appointments for this patient
         java.util.Iterator<Appointment> iterator = appointmentList.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
@@ -1507,7 +1553,7 @@ public class MaintainPatient {
             }
         }
 
-        // Sort appointments by time only using merge sort from ADT
+        // Sort appointments by time
         if (!patientAppointments.isEmpty()) {
             patientAppointments.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
         }

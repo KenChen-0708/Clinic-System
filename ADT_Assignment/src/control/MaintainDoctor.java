@@ -204,7 +204,7 @@ public class MaintainDoctor {
     }
 
     /**
-     * Set doctor availability programmatically (for service calls) used by Patient Module
+     * Set doctor availability programmatically (for service calls)
      */
     public boolean setDoctorAvailability(String doctorId, String availability) {
         if (doctorId == null || availability == null) {
