@@ -7,6 +7,7 @@ import entity.Appointment;
 import adt.*;
 import utility.MessageUI;
 import utility.FormatUtil;
+import utility.ValidationUtil;
 
 import java.util.Scanner;
 
@@ -155,7 +156,9 @@ public class PatientUI {
         System.out.println("===============================");
         System.out.println("1. Book Appointment");
         System.out.println("2. View Today's Appointments");
-        System.out.println("3. Cancel Appointment");
+        System.out.println("3. Search Appointments by Patient ID");
+        System.out.println("4. Cancel Appointment");
+        System.out.println("5. Clear All Appointments");
         System.out.println("0. Back to Patient Main Menu");
         System.out.println("-------------------------------");
         return getMenuChoice();
@@ -171,7 +174,13 @@ public class PatientUI {
                 handleViewTodayAppointments();
                 break;
             case 3:
+                handleSearchAppointmentsByPatientId();
+                break;
+            case 4:
                 handleCancelAppointment();
+                break;
+            case 5:
+                handleClearAllAppointments();
                 break;
             case 0:
                 displayMessage("Returning to Patient Menu...");
@@ -305,7 +314,6 @@ public class PatientUI {
             displayMessage("Doctor ID: " + appointment.getDoctorId());
             displayMessage("Date: " + appointment.getAppointmentDate());
             displayMessage("Time: " + appointment.getAppointmentTime());
-            displayMessage("Status: " + appointment.getStatus());
         }
 
         // FIXED: Ask specifically about booking another appointment
@@ -371,6 +379,7 @@ public class PatientUI {
         }
 
         ListInterface<Appointment> sortedAppointments = maintainPatient.getSortedAppointments(todayAppointments, sortChoice);
+        System.out.println("");
         displaySortingMessage(sortChoice);
         if (sortedAppointments != null) {
             displayAppointmentList(sortedAppointments);
@@ -381,30 +390,28 @@ public class PatientUI {
 
     // Display list of appointments - OPTIMIZED with iterator for O(n) performance
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
-        System.out.println("=".repeat(90));
-        System.out.printf("%-12s %-10s %-10s %-12s %-10s %-15s%n",
-                "Appt ID", "Patient ID", "Doctor ID", "Date", "Time", "Status");
-        System.out.println("=".repeat(90));
+        System.out.println("=".repeat(80));
+        System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
+                "Appointment ID", "Patient ID", "Doctor ID", "Date", "Time");
+        System.out.println("=".repeat(80));
 
         // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
         java.util.Iterator<Appointment> iterator = appointments.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
-            System.out.printf("%-12s %-10s %-10s %-12s %-10s %-15s%n",
+            System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
                     appointment.getAppointmentId(),
                     appointment.getPatientId(),
                     appointment.getDoctorId(),
                     appointment.getAppointmentDate(),
-                    appointment.getAppointmentTime(),
-                    appointment.getStatus());
+                    appointment.getAppointmentTime());
         }
-        System.out.println("=".repeat(90));
+        System.out.println("=".repeat(80));
     }
 
     // Handle appointment cancellation
     private void handleCancelAppointment() {
-        displayMessage("\n=== CANCEL APPOINTMENT ===");
-
+        
         // Show all appointments
         ListInterface<Appointment> allAppointments = maintainPatient.getAllAppointments();
 
@@ -414,17 +421,8 @@ public class PatientUI {
             return;
         }
 
-        // ECB COMPLIANT: Get scheduled appointments from control layer
-        ListInterface<Appointment> scheduledAppointments = maintainPatient.getScheduledAppointments();
-
-        if (scheduledAppointments.isEmpty()) {
-            displayMessage("No scheduled appointments to cancel.");
-            askToContinueOrReturnToMenu();
-            return;
-        }
-
-        displayMessage("\n=== SCHEDULED APPOINTMENTS ===");
-        displayAppointmentList(scheduledAppointments);
+        displayMessage("\n=== ALL APPOINTMENTS ===");
+        displayAppointmentList(allAppointments);
 
         // Input appointment ID to cancel
         System.out.print("\nEnter Appointment ID to cancel (or 0 to return to menu): ");
@@ -447,14 +445,86 @@ public class PatientUI {
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
-            displayMessage("\n=== CANCELLED APPOINTMENT DETAILS ===");
+            displayMessage("\n=== DELETED APPOINTMENT DETAILS ===");
             displayMessage("Appointment ID: " + appointment.getAppointmentId());
             displayMessage("Patient ID: " + appointment.getPatientId());
             displayMessage("Doctor ID: " + appointment.getDoctorId());
             displayMessage("Date: " + appointment.getAppointmentDate());
             displayMessage("Time: " + appointment.getAppointmentTime());
-            displayMessage("Status: " + appointment.getStatus());
         }
+
+        askToContinueOrReturnToMenu();
+    }
+
+    // Handle searching appointments by patient ID
+    private void handleSearchAppointmentsByPatientId() {
+        
+        String patientId;
+        do {
+            System.out.print("\nEnter Patient ID to search appointments (or 0 to return to menu): ");
+            patientId = scanner.nextLine().trim();
+
+            if (patientId.equals("0")) {
+                return; // Return to appointment menu
+            }
+
+            if (patientId.isEmpty()) {
+                displayMessage("\nPatient ID cannot be empty. Please try again.");
+                continue;
+            }
+
+            // Validate patient exists
+            Patient patient = maintainPatient.findPatientById(patientId);
+            if (patient == null) {
+                displayMessage("\nPatient not found. Please try again.");
+                continue;
+            }
+
+            // Search appointments for this patient
+            ListInterface<Appointment> patientAppointments = maintainPatient.searchAppointmentsByPatientId(patientId);
+
+            if (patientAppointments.isEmpty()) {
+                displayMessage("\nNo appointments found for Patient ID: " + patientId);
+                displayMessage("Patient: " + patient.getName() + "\n");
+            } else {
+                displayMessage("\n=== APPOINTMENTS FOR PATIENT " + patientId + " ===");
+                displayMessage("Patient: " + patient.getName());
+                displayMessage("Total appointments found: " + patientAppointments.getNumberOfEntries());
+                displayMessage("");
+                displayAppointmentList(patientAppointments);
+            }
+
+        } while (true); // Keep prompting until user enters 0
+    }
+
+    // Handle clearing all appointments
+    private void handleClearAllAppointments() {
+        
+        // Show current appointments before clearing
+        ListInterface<Appointment> currentAppointments = maintainPatient.getAllAppointments();
+        if (currentAppointments.isEmpty()) {
+            displayMessage("\nNo appointments found in the system.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        displayMessage("Current appointments in the system:");
+        displayAppointmentList(currentAppointments);
+
+        // Confirm before clearing
+        System.out.print("Are you sure you want to clear ALL appointments from the system? (y/n): ");
+        String confirmation = scanner.nextLine().trim().toLowerCase();
+
+        if (!confirmation.equals("y") && !confirmation.equals("yes")) {
+            displayMessage("\nOperation cancelled.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        // Clear all appointments
+        MaintainPatient.AppointmentResult result = maintainPatient.clearAllAppointments();
+
+        displayMessage("\n" + result.getMessage());
 
         askToContinueOrReturnToMenu();
     }
@@ -548,7 +618,7 @@ public class PatientUI {
             }
 
             // Validate IC number
-            MaintainPatient.ValidationResult result = maintainPatient.validateIC(icNumber);
+            ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icNumber);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -580,7 +650,7 @@ public class PatientUI {
             System.out.print("Enter Name      : ");
             name = scanner.nextLine().trim();
 
-            MaintainPatient.ValidationResult result = maintainPatient.validateName(name);
+            ValidationUtil.ValidationResult result = ValidationUtil.validateName(name);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -597,7 +667,7 @@ public class PatientUI {
             System.out.print("Enter IC Number (12 digits): ");
             icNumber = scanner.nextLine().trim();
 
-            MaintainPatient.ValidationResult result = maintainPatient.validateIC(icNumber);
+            ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icNumber);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -616,7 +686,7 @@ public class PatientUI {
             phone = scanner.nextLine().trim();
 
             // Validate phone number
-            MaintainPatient.ValidationResult result = maintainPatient.validatePhone(phone);
+            ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phone);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
             } else {
@@ -811,7 +881,7 @@ public class PatientUI {
             name = currentPatient.getName();
         } else {
             while (true) {
-                MaintainPatient.ValidationResult result = maintainPatient.validateName(nameInput);
+                ValidationUtil.ValidationResult result = ValidationUtil.validateName(nameInput);
                 if (!result.isValid()) {
                     System.out.println("\n" + result.getErrorMessage() + "\n");
                     System.out.print("Name [" + currentPatient.getName() + "]: ");
@@ -857,7 +927,7 @@ public class PatientUI {
             icNumber = currentPatient.getIcNumber();
         } else {
             while (true) {
-                MaintainPatient.ValidationResult result = maintainPatient.validateIC(icInput);
+                ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icInput);
                 if (!result.isValid()) {
                     System.out.println("\n" + result.getErrorMessage() + "\n");
                     System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
@@ -881,7 +951,7 @@ public class PatientUI {
             phone = currentPatient.getPhone();
         } else {
             while (true) {
-                MaintainPatient.ValidationResult result = maintainPatient.validatePhone(phoneInput);
+                ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phoneInput);
                 if (!result.isValid()) {
                     System.out.println("\n" + result.getErrorMessage() + "\n");
                     System.out.print("Phone [" + currentPatient.getPhone() + "]: ");
@@ -1875,16 +1945,16 @@ public class PatientUI {
     private void displaySortingMessage(int sortChoice) {
         switch (sortChoice) {
             case 1:
-                displayMessage("\nSorting by Appointment ID...");
+                displayMessage("Appointments sorted by ID:");
                 break;
             case 2:
-                displayMessage("\nSorting by Time...");
+                displayMessage("Appointments sorted by Time:");
                 break;
             case 0:
-                displayMessage("\nDisplaying appointments without sorting...");
+                displayMessage("Appointments (unsorted):");
                 break;
             default:
-                displayMessage("\nInvalid choice. Displaying without sorting...");
+                displayMessage("Appointments (unsorted):");
                 break;
         }
     }

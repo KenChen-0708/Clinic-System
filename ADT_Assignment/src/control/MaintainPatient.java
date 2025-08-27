@@ -581,18 +581,7 @@ public class MaintainPatient {
     }
 
 
-    public static class ValidationResult {
-        private final boolean valid;
-        private final String errorMessage;
 
-        public ValidationResult(boolean valid, String errorMessage) {
-            this.valid = valid;
-            this.errorMessage = errorMessage;
-        }
-
-        public boolean isValid() { return valid; }
-        public String getErrorMessage() { return errorMessage; }
-    }
 
     /**
      * Queue operation result class
@@ -651,62 +640,7 @@ public class MaintainPatient {
         public int getQueuePosition() { return queuePosition; }
     }
 
-    /**
-     * Validate IC number format
-     * @param icNumber IC number to validate
-     * @return ValidationResult with status and error message
-     */
-    public ValidationResult validateIC(String icNumber) {
-        if (icNumber == null || icNumber.trim().isEmpty()) {
-            return new ValidationResult(false, "IC Number cannot be empty.");
-        }
 
-        String cleanIC = icNumber.replaceAll("-", "").trim();
-        if (!cleanIC.matches("\\d{12}")) {
-            return new ValidationResult(false, "IC Number must be exactly 12 digits (Malaysian format: YYMMDDPBXXXX).");
-        }
-
-        if (!ValidationUtil.isValidMalaysianIC(cleanIC)) {
-            return new ValidationResult(false, "Invalid Malaysian IC format. Please enter a valid IC number.");
-        }
-
-        return new ValidationResult(true, null);
-    }
-
-    /**
-     * Validate name format
-     * @param name Name to validate
-     * @return ValidationResult with status and error message
-     */
-    public ValidationResult validateName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return new ValidationResult(false, "Name cannot be empty.");
-        }
-
-        if (!ValidationUtil.isValidName(name.trim())) {
-            return new ValidationResult(false, "Name must contain only letters and spaces and be at least 2 characters long.");
-        }
-
-        return new ValidationResult(true, null);
-    }
-
-    /**
-     * Validate phone number format
-     * @param phone Phone number to validate
-     * @return ValidationResult with status and error message
-     */
-    public ValidationResult validatePhone(String phone) {
-        if (phone == null || phone.trim().isEmpty()) {
-            return new ValidationResult(false, "Phone number cannot be empty.");
-        }
-
-        String cleanPhone = phone.replaceAll("[\\s-]", "");
-        if (!ValidationUtil.isValidPhone(cleanPhone)) {
-            return new ValidationResult(false, "Invalid Malaysian phone number format. Must be 10-11 digits.");
-        }
-
-        return new ValidationResult(true, null);
-    }
 
 
 
@@ -1338,8 +1272,7 @@ public class MaintainPatient {
         while (iterator.hasNext()) {
             Appointment existing = iterator.next();
             if (existing.getDoctorId().equals(doctorId) &&
-                existing.getAppointmentDate().equals(date) &&
-                "SCHEDULED".equals(existing.getStatus())) {
+                existing.getAppointmentDate().equals(date)) {
 
                 LocalTime existingTime = existing.getAppointmentTime();
 
@@ -1393,8 +1326,7 @@ public class MaintainPatient {
         java.util.Iterator<Appointment> iterator = appointmentList.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
-            if (appointment.getAppointmentDate().equals(today) &&
-                "SCHEDULED".equals(appointment.getStatus())) {
+            if (appointment.getAppointmentDate().equals(today)) {
                 todayAppointments.add(appointment);
             }
         }
@@ -1417,23 +1349,18 @@ public class MaintainPatient {
             return new AppointmentResult(false, "Appointment ID cannot be empty.", null);
         }
 
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
-        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
-        while (iterator.hasNext()) {
-            Appointment appointment = iterator.next();
-            if (appointment.getAppointmentId().equals(appointmentId.trim())) {
-                if ("CANCELLED".equals(appointment.getStatus())) {
-                    return new AppointmentResult(false, "Appointment is already cancelled.", appointment);
-                }
-                if ("COMPLETED".equals(appointment.getStatus())) {
-                    return new AppointmentResult(false, "Cannot cancel a completed appointment.", appointment);
-                }
+        // Find and remove the appointment from the list
+        for (int i = 1; i <= appointmentList.getNumberOfEntries(); i++) {
+            Appointment appointment = appointmentList.getEntry(i);
+            if (appointment != null && appointment.getAppointmentId().equals(appointmentId.trim())) {
+                // Store appointment details before removal
+                Appointment removedAppointment = appointment;
 
-                // Update appointment status
-                appointment.setStatus("CANCELLED");
+                // Remove from list
+                appointmentList.remove(i);
                 appointmentDAO.saveToFile(appointmentList);
 
-                return new AppointmentResult(true, "Appointment cancelled successfully.", appointment);
+                return new AppointmentResult(true, "Appointment cancelled successfully.", removedAppointment);
             }
         }
 
@@ -1470,22 +1397,7 @@ public class MaintainPatient {
         return sortedAppointments;
     }
 
-    /**
-     * Get scheduled appointments only (for cancellation)
-     * ECB COMPLIANT: Business logic in control layer
-     * @return List of scheduled appointments
-     */
-    public ListInterface<Appointment> getScheduledAppointments() {
-        ListInterface<Appointment> scheduledAppointments = new DoublyLinkedList<>();
-        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
-        while (iterator.hasNext()) {
-            Appointment appointment = iterator.next();
-            if ("SCHEDULED".equals(appointment.getStatus())) {
-                scheduledAppointments.add(appointment);
-            }
-        }
-        return scheduledAppointments;
-    }
+
 
     /**
      * Get sorted appointments by specified criteria
@@ -1519,6 +1431,64 @@ public class MaintainPatient {
         }
 
         return sortedList;
+    }
+
+    /**
+     * Clear all appointments - Since appointments are only for current date, clear entire appointment.dat
+     * ECB COMPLIANT: Business logic in control layer
+     * @return AppointmentResult with success status and message
+     */
+    public AppointmentResult clearAllAppointments() {
+        int totalAppointments = appointmentList.getNumberOfEntries();
+
+        if (totalAppointments == 0) {
+            return new AppointmentResult(false, "No appointments found to clear.", null);
+        }
+
+        // Clear all appointments from the list
+        appointmentList.clear();
+
+        // Save empty list to file (clears appointment.dat)
+        appointmentDAO.saveToFile(appointmentList);
+
+        String message = String.format("Successfully cleared all %d appointment(s) from the system.",
+                                     totalAppointments);
+        return new AppointmentResult(true, message, null);
+    }
+
+    /**
+     * Search appointments by patient ID - OPTIMIZED with iterator for O(n) performance
+     * @param patientId Patient ID to search appointments for
+     * @return List of appointments for the specified patient
+     */
+    public ListInterface<Appointment> searchAppointmentsByPatientId(String patientId) {
+        ListInterface<Appointment> patientAppointments = new DoublyLinkedList<>();
+
+        if (patientId == null || patientId.trim().isEmpty()) {
+            return patientAppointments; // Return empty list
+        }
+
+        // Validate patient exists
+        Patient patient = findPatientById(patientId);
+        if (patient == null) {
+            return patientAppointments; // Return empty list if patient not found
+        }
+
+        // Use iterator for efficient O(n) traversal to find all appointments for this patient
+        java.util.Iterator<Appointment> iterator = appointmentList.iterator();
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            if (appointment.getPatientId().equals(patientId.trim())) {
+                patientAppointments.add(appointment);
+            }
+        }
+
+        // Sort appointments by time only using merge sort from ADT
+        if (!patientAppointments.isEmpty()) {
+            patientAppointments.mergeSort((a1, a2) -> a1.getAppointmentTime().compareTo(a2.getAppointmentTime()));
+        }
+
+        return patientAppointments;
     }
 
     /**

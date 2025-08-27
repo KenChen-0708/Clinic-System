@@ -16,40 +16,36 @@ public class Appointment implements Serializable {
     private String doctorId;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
-    private String status; // "SCHEDULED", "COMPLETED", "CANCELLED"
     
     /**
      * Default constructor
      */
     public Appointment() {
         this.appointmentDate = LocalDate.now();
-        this.status = "SCHEDULED";
     }
     
     /**
      * Constructor with all fields
      */
-    public Appointment(String appointmentId, String patientId, String doctorId, 
-                      LocalDate appointmentDate, LocalTime appointmentTime, String status) {
+    public Appointment(String appointmentId, String patientId, String doctorId,
+                      LocalDate appointmentDate, LocalTime appointmentTime) {
         this.appointmentId = appointmentId;
         this.patientId = patientId;
         this.doctorId = doctorId;
         this.appointmentDate = appointmentDate;
         this.appointmentTime = appointmentTime;
-        this.status = status;
     }
     
     /**
      * Constructor for new appointment
      */
-    public Appointment(String appointmentId, String patientId, String doctorId, 
+    public Appointment(String appointmentId, String patientId, String doctorId,
                       LocalTime appointmentTime) {
         this.appointmentId = appointmentId;
         this.patientId = patientId;
         this.doctorId = doctorId;
         this.appointmentDate = LocalDate.now();
         this.appointmentTime = appointmentTime;
-        this.status = "SCHEDULED";
     }
     
     // Getters
@@ -58,20 +54,18 @@ public class Appointment implements Serializable {
     public String getDoctorId() { return doctorId; }
     public LocalDate getAppointmentDate() { return appointmentDate; }
     public LocalTime getAppointmentTime() { return appointmentTime; }
-    public String getStatus() { return status; }
-    
+
     // Setters
     public void setAppointmentId(String appointmentId) { this.appointmentId = appointmentId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
     public void setAppointmentDate(LocalDate appointmentDate) { this.appointmentDate = appointmentDate; }
     public void setAppointmentTime(LocalTime appointmentTime) { this.appointmentTime = appointmentTime; }
-    public void setStatus(String status) { this.status = status; }
     
     @Override
     public String toString() {
-        return String.format("Appointment{id='%s', patientId='%s', doctorId='%s', date=%s, time=%s, status='%s'}", 
-                           appointmentId, patientId, doctorId, appointmentDate, appointmentTime, status);
+        return String.format("Appointment{id='%s', patientId='%s', doctorId='%s', date=%s, time=%s}",
+                           appointmentId, patientId, doctorId, appointmentDate, appointmentTime);
     }
     
     @Override
