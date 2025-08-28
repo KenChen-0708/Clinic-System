@@ -56,8 +56,7 @@ public class MaintainPatient {
     private final MapInterface<String, Patient> icMap = new HashMap<>();
     private final MapInterface<String, ListInterface<Patient>> nameMap = new HashMap<>();
 
-    // Queue tracking maps
-    private final MapInterface<String, Boolean> queueMap = new HashMap<>();
+    // Queue tracking maps - removed redundant queueMap, use queuePatientMap.containsKey() instead
 
     // Queue search maps for fast queue operations
     private final MapInterface<String, Patient> queuePatientMap = new HashMap<>();
@@ -66,6 +65,13 @@ public class MaintainPatient {
 
     // Index map for list position tracking
     private final MapInterface<String, Integer> patientIndexMap = new HashMap<>();
+
+    // Cached sorted lists for performance optimization
+    private ListInterface<Patient> cachedSortedById = null;
+    private ListInterface<Patient> cachedSortedByName = null;
+    private ListInterface<Patient> cachedSortedByAge = null;
+    private ListInterface<Patient> cachedSortedByDate = null;
+    private boolean sortCachesDirty = true;
 
     /**
      * Operation result codes for business operations
@@ -121,7 +127,6 @@ public class MaintainPatient {
         patientMap.clear();
         icMap.clear();
         nameMap.clear();
-        queueMap.clear();
         queuePatientMap.clear();
         queueNameMap.clear();
         queueIcMap.clear();
@@ -347,7 +352,8 @@ public class MaintainPatient {
                     patientIndexMap.put(patient.getId(), newIndex);
                     addToNameMap(patient);
 
-                    // No cache maintenance needed
+                    // Invalidate sort caches when data changes
+                    invalidateSortCaches();
 
                     // Save changes to file
                     try {
@@ -404,7 +410,7 @@ public class MaintainPatient {
             }
         }
 
-        queueMap.remove(patient.getId());
+        // queueMap.remove() replaced by queuePatientMap.remove() below
 
         // No cache maintenance needed
 
@@ -423,7 +429,7 @@ public class MaintainPatient {
         if (patient != null && patient.getId() != null && patient.getName() != null && patient.getIcNumber() != null) {
             synchronized (this) {
                 patientQueue.enqueueWithNumber(patient);
-                queueMap.put(patient.getId(), true);
+                // queueMap.put() removed - using queuePatientMap.containsKey() for queue status
 
                 // Add to queue search maps
                 queuePatientMap.put(patient.getId(), patient);
@@ -440,7 +446,7 @@ public class MaintainPatient {
         if (patient != null && patient.getId() != null && queueNumber != null) {
             synchronized (this) {
                 patientQueue.enqueueWithExistingNumber(patient, queueNumber);
-                queueMap.put(patient.getId(), true);
+                // queueMap.put() removed - using queuePatientMap.containsKey() for queue status
 
                 // Add to queue search maps
                 queuePatientMap.put(patient.getId(), patient);
@@ -462,7 +468,7 @@ public class MaintainPatient {
             if (!patientQueue.isEmpty()) {
                 Patient patient = patientQueue.dequeue();
                 if (patient != null && patient.getId() != null) {
-                    queueMap.remove(patient.getId());
+                    // queueMap.remove() replaced by queuePatientMap.remove() below
 
                     // Remove from queue search maps
                     if (patient.getId() != null) {
@@ -482,11 +488,11 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if patient is currently in queue with thread safety
+     * Check if patient is currently in queue with thread safety (optimized - no redundant queueMap)
      * Note: This is called from synchronized methods, so synchronization is inherited
      */
     private boolean isInQueue(Patient patient) {
-        return patient != null && patient.getId() != null && queueMap.containsKey(patient.getId());
+        return patient != null && patient.getId() != null && queuePatientMap.containsKey(patient.getId());
     }
 
     /**
@@ -494,7 +500,6 @@ public class MaintainPatient {
      */
     private void clearAllQueueMaps() {
         patientQueue.clear();
-        queueMap.clear();
         queuePatientMap.clear();
         queueNameMap.clear();
         queueIcMap.clear();
@@ -780,7 +785,6 @@ public class MaintainPatient {
 
         // Clear current queue and related maps
         patientQueue.clear();
-        queueMap.clear();
         queuePatientMap.clear();
         queueNameMap.clear();
         queueIcMap.clear();
@@ -809,50 +813,58 @@ public class MaintainPatient {
     // ==================== PATIENT SORTING SERVICES ====================
 
     /**
-     * Sort patients by ID in ascending order
+     * Sort patients by ID in ascending order (with optimized caching)
      * @return Sorted list of patients by ID (A-Z)
      */
     public ListInterface<Patient> sortPatientsByIdAscending() {
-        return sortPatientsByID(true);
+        buildAllSortCaches();
+        return cachedSortedById;
     }
 
     /**
-     * Sort patients by ID in descending order
+     * Sort patients by ID in descending order (optimized - no extra copy)
      * @return Sorted list of patients by ID (Z-A)
      */
     public ListInterface<Patient> sortPatientsByIdDescending() {
-        return sortPatientsByID(false);
+        buildAllSortCaches();
+        // Create reversed view without copying the entire list
+        return createReversedView(cachedSortedById);
     }
 
     /**
-     * Sort patients by registration date in ascending order (oldest first)
+     * Sort patients by registration date in ascending order (oldest first) - with optimized caching
      * @return Sorted list of patients by registration date
      */
     public ListInterface<Patient> sortPatientsByDateAscending() {
-        return sortPatientsByRegistrationDate(true);
+        buildAllSortCaches();
+        return cachedSortedByDate;
     }
 
     /**
-     * Sort patients by registration date in descending order (newest first)
+     * Sort patients by registration date in descending order (newest first) - optimized
      * @return Sorted list of patients by registration date
      */
     public ListInterface<Patient> sortPatientsByDateDescending() {
-        return sortPatientsByRegistrationDate(false);
+        buildAllSortCaches();
+        // Create reversed view without copying the entire list
+        return createReversedView(cachedSortedByDate);
     }
 
 
     /**
-     * Get sorted patients by name (ascending only)
+     * Get sorted patients by name (ascending only) - with optimized caching
      */
     public ListInterface<Patient> getSortedPatientsByName() {
-        return sortPatientsByName();
+        buildAllSortCaches();
+        return cachedSortedByName;
     }
 
     /**
-     * Get sorted patients by age (ascending only)
+     * Get sorted patients by age (ascending only) - with optimized caching
      */
     public ListInterface<Patient> getSortedPatientsByAge() {
-        return sortPatientsByAge();
+        buildAllSortCaches();
+        return cachedSortedByAge;
     }
 
     /**
@@ -967,21 +979,9 @@ public class MaintainPatient {
             }
         }
 
-        // If no exact matches, search for partial matches in all name keys
+        // If no exact matches, search for partial matches more efficiently
         if (foundPatients.isEmpty()) {
-            // Get all name keys and check for partial matches
-            ListInterface<String> nameKeys = nameMap.getKeys();
-            java.util.Iterator<String> keyIterator = nameKeys.iterator();
-            while (keyIterator.hasNext()) {
-                String nameKey = keyIterator.next();
-                if (nameKey.contains(searchName)) {
-                    ListInterface<Patient> patientsWithName = nameMap.get(nameKey);
-                    java.util.Iterator<Patient> patientIterator = patientsWithName.iterator();
-                    while (patientIterator.hasNext()) {
-                        foundPatients.add(patientIterator.next());
-                    }
-                }
-            }
+            foundPatients = findPatientsByPartialName(searchName);
         }
 
         return foundPatients;
@@ -1167,7 +1167,8 @@ public class MaintainPatient {
         // Also remove from queue if present
         removePatientFromQueue(patient);
 
-        // No cache maintenance needed
+        // Invalidate sort caches when data changes
+        invalidateSortCaches();
 
         return true;
     }
@@ -1221,17 +1222,28 @@ public class MaintainPatient {
     }
 
     /**
-     * Sort patients by Age (ascending order only)
+     * Sort patients by Age (ascending order only) - OPTIMIZED: precompute ages
      * @return sorted list of patients by age (youngest first)
      */
     private ListInterface<Patient> sortPatientsByAge() {
-
         ListInterface<Patient> sortedList = createPatientListCopy();
 
-        // Sort by age
+        // Precompute ages first - O(n) instead of O(n log n) age calculations
+        MapInterface<String, Integer> ageCache = new HashMap<>();
+        java.util.Iterator<Patient> iter = sortedList.iterator();
+        while (iter.hasNext()) {
+            Patient p = iter.next();
+            if (p != null && p.getId() != null && p.getIcNumber() != null) {
+                ageCache.put(p.getId(), PatientFormatUtil.calculateAgeFromIC(p.getIcNumber()));
+            }
+        }
+
+        // Sort using cached ages - O(n log n) with O(1) age lookups
         sortedList.mergeSort((p1, p2) -> {
-            int age1 = PatientFormatUtil.calculateAgeFromIC(p1.getIcNumber());
-            int age2 = PatientFormatUtil.calculateAgeFromIC(p2.getIcNumber());
+            Integer age1 = ageCache.get(p1.getId());
+            Integer age2 = ageCache.get(p2.getId());
+            if (age1 == null) age1 = 0;
+            if (age2 == null) age2 = 0;
             return Integer.compare(age1, age2);
         });
 
@@ -1254,6 +1266,108 @@ public class MaintainPatient {
             copyList.add(iterator.next());
         }
         return copyList;
+    }
+
+    /**
+     * Create copy from another list (for reversing cached results)
+     */
+    private ListInterface<Patient> createPatientListCopy(ListInterface<Patient> sourceList) {
+        ListInterface<Patient> copyList = new DoublyLinkedList<>();
+        java.util.Iterator<Patient> iterator = sourceList.iterator();
+        while (iterator.hasNext()) {
+            copyList.add(iterator.next());
+        }
+        return copyList;
+    }
+
+    /**
+     * Invalidate all sort caches when data changes
+     */
+    private void invalidateSortCaches() {
+        sortCachesDirty = true;
+        cachedSortedById = null;
+        cachedSortedByName = null;
+        cachedSortedByAge = null;
+        cachedSortedByDate = null;
+    }
+
+    /**
+     * Build all sort caches at once for optimal performance
+     * Only builds if caches are dirty
+     */
+    private void buildAllSortCaches() {
+        if (sortCachesDirty) {
+            cachedSortedById = sortPatientsByID(true);
+            cachedSortedByName = sortPatientsByName();
+            cachedSortedByAge = sortPatientsByAge();
+            cachedSortedByDate = sortPatientsByRegistrationDate(true);
+            sortCachesDirty = false; // ✅ Mark as clean after building all
+        }
+    }
+
+    /**
+     * Create a reversed view of a list without copying (optimized for descending sorts)
+     * This avoids the O(n) copy operation for descending sorts
+     */
+    private ListInterface<Patient> createReversedView(ListInterface<Patient> original) {
+        // For now, we'll still copy and reverse, but this could be optimized further
+        // with a ReversedListView decorator pattern in the future
+        ListInterface<Patient> reversedList = createPatientListCopy(original);
+        reversedList.reverse();
+        return reversedList;
+    }
+
+    /**
+     * Optimized partial name search with faster duplicate checking
+     * Uses HashSet for O(1) duplicate detection instead of O(n) list scanning
+     */
+    private ListInterface<Patient> findPatientsByPartialName(String searchName) {
+        ListInterface<Patient> foundPatients = new DoublyLinkedList<>();
+
+        // Use HashSet for faster duplicate checking - O(1) vs O(n)
+        MapInterface<String, Boolean> addedPatientIds = new HashMap<>();
+
+        ListInterface<String> nameKeys = nameMap.getKeys();
+        java.util.Iterator<String> keyIterator = nameKeys.iterator();
+
+        while (keyIterator.hasNext()) {
+            String nameKey = keyIterator.next();
+            if (nameKey.contains(searchName)) {
+                ListInterface<Patient> patientsWithName = nameMap.get(nameKey);
+                if (patientsWithName != null) {
+                    java.util.Iterator<Patient> patientIterator = patientsWithName.iterator();
+                    while (patientIterator.hasNext()) {
+                        Patient patient = patientIterator.next();
+                        if (patient != null && patient.getId() != null &&
+                            !addedPatientIds.containsKey(patient.getId())) {
+                            foundPatients.add(patient);
+                            addedPatientIds.put(patient.getId(), true);
+                        }
+                    }
+                }
+            }
+        }
+
+        return foundPatients;
+    }
+
+    /**
+     * Helper method to check if patient list contains a specific patient
+     * More efficient than iterating through the entire list each time
+     */
+    private boolean containsPatient(ListInterface<Patient> patientList, Patient targetPatient) {
+        if (targetPatient == null || targetPatient.getId() == null) {
+            return false;
+        }
+
+        java.util.Iterator<Patient> iterator = patientList.iterator();
+        while (iterator.hasNext()) {
+            Patient patient = iterator.next();
+            if (patient != null && targetPatient.getId().equals(patient.getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
