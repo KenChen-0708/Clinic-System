@@ -86,9 +86,9 @@ public class TreatmentUI {
     public void displaySearchMenu() {
         int choice;
         do {
-            System.out.println("\n==============================");
-            System.out.println("     SEARCH TREATMENTS        ");
-            System.out.println("==============================");
+            System.out.println("\n==================================");
+            System.out.println("        SEARCH TREATMENTS         ");
+            System.out.println("==================================");
             System.out.println("1. Search by Medicine");
             System.out.println("2. Search by Treatment ID");
             System.out.println("3. Search Patient Treatment History");
@@ -130,9 +130,9 @@ public class TreatmentUI {
      * medicines used in treatments for user selection
      */
     private void searchByMedicineSelection() {
-        System.out.println("\n===============================");
-        System.out.println("     SEARCH BY MEDICINE        ");
-        System.out.println("===============================");
+        System.out.println("\n==================================");
+        System.out.println("        SEARCH BY MEDICINE        ");
+        System.out.println("==================================");
 
         // Get all medicines used in treatments
         ListInterface<String> medicinesUsed = maintainTreatment.getAllMedicinesUsedInTreatments();
@@ -183,9 +183,9 @@ public class TreatmentUI {
      * treatment
      */
     private void searchByTreatmentId() {
-        System.out.println("\n===============================");
-        System.out.println("     SEARCH BY TREATMENT ID    ");
-        System.out.println("===============================");
+        System.out.println("\n==================================");
+        System.out.println("      SEARCH BY TREATMENT ID      ");
+        System.out.println("==================================");
 
         String treatmentId = getValidInput("Enter Treatment ID to search: ");
         if (treatmentId == null) {
@@ -198,9 +198,9 @@ public class TreatmentUI {
         if (foundTreatments.isEmpty()) {
             System.out.println("No treatment found with ID: " + treatmentId);
         } else {
-            System.out.println("\n==========================");
-            System.out.println("     TREATMENT FOUND       ");
-            System.out.println("==========================");
+            System.out.println("\n==================================");
+            System.out.println("          TREATMENT FOUND         ");
+            System.out.println("==================================");
             displayTreatmentDetails(foundTreatments.getEntry(1));
         }
     }
@@ -210,9 +210,9 @@ public class TreatmentUI {
      * recent-first order
      */
     private void searchPatientHistory() {
-        System.out.println("\n===============================");
-        System.out.println("   PATIENT TREATMENT HISTORY   ");
-        System.out.println("===============================");
+        System.out.println("\n==================================");
+        System.out.println("     PATIENT TREATMENT HISTORY    ");
+        System.out.println("==================================");
 
         String patientId = getValidInput("Enter Patient ID: ");
         if (patientId == null) {
@@ -238,9 +238,9 @@ public class TreatmentUI {
     public void displayTreatmentMenu() {
         int choice;
         do {
-            System.out.println("\n==============================");
-            System.out.println("     TREATMENT MANAGEMENT     ");
-            System.out.println("==============================");
+            System.out.println("\n==================================");
+            System.out.println("       TREATMENT MANAGEMENT       ");
+            System.out.println("==================================");
             System.out.println("1. View Treatment");
             System.out.println("2. Update Treatment");
             System.out.println("3. Delete Treatment");
@@ -281,9 +281,9 @@ public class TreatmentUI {
     // VIEW TREATMENT METHODS USING ADT
     // ================================
     public void viewTreatment() {
-        System.out.println("\n==========================");
-        System.out.println("     VIEW TREATMENT     ");
-        System.out.println("==========================");
+        System.out.println("\n==================================");
+        System.out.println("          VIEW TREATMENT          ");
+        System.out.println("==================================");
 
         ListInterface<String> viewOptions = createViewOptions();
         int choice = selectFromOptions("Select view option", viewOptions);
@@ -339,9 +339,9 @@ public class TreatmentUI {
 
         Treatment treatment = maintainTreatment.findTreatmentById(treatmentId);
         if (treatment != null) {
-            System.out.println("\n==========================");
-            System.out.println("     TREATMENT FOUND    ");
-            System.out.println("==========================");
+            System.out.println("\n==================================");
+            System.out.println("         TREATMENT FOUND          ");
+            System.out.println("==================================");
             displayTreatmentDetails(treatment);
         } else {
             System.out.println("Treatment with ID '" + treatmentId + "' not found.");
@@ -382,9 +382,9 @@ public class TreatmentUI {
     // UPDATE TREATMENT METHODS USING ADT
     // ================================
     public void updateTreatment() {
-        System.out.println("\n==========================");
-        System.out.println("     UPDATE TREATMENT    ");
-        System.out.println("==========================");
+        System.out.println("\n==================================");
+        System.out.println("         UPDATE TREATMENT         ");
+        System.out.println("==================================");
 
         String treatmentId = getValidInput("Enter Treatment ID to update: ");
         if (treatmentId == null) {
@@ -467,9 +467,9 @@ public class TreatmentUI {
     }
 
     private void addMedicineToTreatment(String treatmentId) {
-        System.out.println("\n====================================");
+        System.out.println("\n==================================");
         System.out.println("     ADD MEDICINE TO TREATMENT    ");
-        System.out.println("====================================");
+        System.out.println("==================================");
 
         TreatmentMedicineList medicine = createSingleMedicine(treatmentId);
         if (medicine == null) {
@@ -485,9 +485,9 @@ public class TreatmentUI {
     }
 
     private void updateAllMedicines(String treatmentId) {
-        System.out.println("\n============================");
-        System.out.println("     UPDATE ALL MEDICINES    ");
-        System.out.println("============================");
+        System.out.println("\n==================================");
+        System.out.println("       UPDATE ALL MEDICINES       ");
+        System.out.println("==================================");
         System.out.println("This will replace all existing medicines for this treatment.");
 
         if (!askYesNo("Do you want to continue?")) {
@@ -513,9 +513,9 @@ public class TreatmentUI {
     // DELETE TREATMENT METHODS USING ADT
     // ================================
     public void deleteTreatment() {
-        System.out.println("\n==========================");
-        System.out.println("     DELETE TREATMENT    ");
-        System.out.println("==========================");
+        System.out.println("\n==================================");
+        System.out.println("         DELETE TREATMENT         ");
+        System.out.println("==================================");
 
         ListInterface<String> deleteOptions = createDeleteOptions();
         int choice = selectFromOptions("Select delete option", deleteOptions);
@@ -668,7 +668,7 @@ public class TreatmentUI {
             System.out.println("No active consultation.");
         }
         System.out.println("Waiting: " + statusData.getWaitingPatients() + " patients");
-        System.out.println("===============================\n");
+        System.out.println("==================================\n");
     }
 
     // ================================
@@ -677,9 +677,9 @@ public class TreatmentUI {
     private ListInterface<TreatmentMedicineList> createMedicineList() {
         ListInterface<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
 
-        System.out.println("\n========================");
-        System.out.println("     ADD MEDICINES    ");
-        System.out.println("========================");
+        System.out.println("\n==================================");
+        System.out.println("           ADD MEDICINES          ");
+        System.out.println("==================================");
 
         if (maintainTreatment.getAvailableMedicines().isEmpty()) {
             System.out.println("No available medicines in the pharmacy.");
@@ -784,9 +784,9 @@ public class TreatmentUI {
     private void displayTreatmentDetails(Treatment treatment) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        System.out.println("------------------------");
+        System.out.println("----------------------------------");
         System.out.println("Treatment Information:");
-        System.out.println("------------------------");
+        System.out.println("----------------------------------");
         System.out.println("Treatment ID     : " + treatment.getTreatmentId());
         System.out.println("Patient ID       : " + treatment.getPatientId());
         System.out.println("Doctor ID        : " + treatment.getDoctorId());
@@ -1013,9 +1013,9 @@ public class TreatmentUI {
     public void generateTreatmentReport() {
         int choice;
         do {
-            System.out.println("\n==============================");
-            System.out.println("     TREATMENT REPORTS        ");
-            System.out.println("==============================");
+            System.out.println("\n==================================");
+            System.out.println("        TREATMENT REPORTS         ");
+            System.out.println("==================================");
             System.out.println("1. Treatment Summary Report");
             System.out.println("2. Treatment Distribution Report");
             System.out.println("0. Back to Treatment Menu");

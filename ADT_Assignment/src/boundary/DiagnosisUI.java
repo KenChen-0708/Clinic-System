@@ -1,9 +1,8 @@
 // Lee Siu Yee
-
 package boundary;
 
 import adt.DoublyLinkedList;
-import adt.ListInterface;    
+import adt.ListInterface;
 import control.MaintainDiagnosis;
 import control.MaintainTreatment;
 import control.MaintainDoctor;
@@ -17,7 +16,6 @@ import java.util.Scanner;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-
 public class DiagnosisUI {
 
     private static final Scanner scanner = new Scanner(System.in);
@@ -30,7 +28,9 @@ public class DiagnosisUI {
         int choice;
 
         do {
-            displayMenuHeader("DIAGNOSIS MANAGEMENT");
+            System.out.println("\n==================================");
+            System.out.println("       DIAGNOSIS MANAGEMENT       ");
+            System.out.println("==================================");
             displayMenuOptions(menuOptions);
             choice = getMenuChoice(menuOptions.getNumberOfEntries());
 
@@ -73,7 +73,9 @@ public class DiagnosisUI {
 
     // ===== CREATE DIAGNOSIS USING ADT OPERATIONS =====
     public void createDiagnosis() {
-        displayMenuHeader("CREATE DIAGNOSIS");
+        System.out.println("\n==================================");
+        System.out.println("         CREATE DIAGNOSIS         ");
+        System.out.println("==================================");
 
         if (!validateServingQueue()) {
             return;
@@ -138,7 +140,7 @@ public class DiagnosisUI {
     }
 
     private void displayCurrentPatientInfo(Patient patient, Doctor doctor) {
-        System.out.println("=== CURRENT PATIENT BEING SERVED ===");
+        System.out.println("\n=== CURRENT PATIENT BEING SERVED ===");
         System.out.println("Patient ID: " + patient.getId());
         System.out.println("Patient Name: " + patient.getName());
         System.out.println("Doctor ID: " + doctor.getId());
@@ -152,7 +154,7 @@ public class DiagnosisUI {
     public void displayServingStatus() {
         System.out.println("\n=== CURRENT SERVING STATUS ===");
         ServingStatusData statusData = MaintainTreatment.getServingStatusData();
-        
+
         if (statusData.hasActiveConsultation()) {
             System.out.println("Currently serving:");
             System.out.println("  Patient: " + statusData.getCurrentPatient().getId() + " (" + statusData.getCurrentPatient().getName() + ")");
@@ -161,11 +163,13 @@ public class DiagnosisUI {
             System.out.println("No active consultation.");
         }
         System.out.println("Waiting: " + statusData.getWaitingPatients() + " patients");
-        System.out.println("===============================\n");
+        System.out.println("==================================\n");
     }
 
     private void createAutomaticTreatment(Patient patient, Doctor doctor) {
-        displayMenuHeader("AUTOMATICALLY CREATING TREATMENT");
+        System.out.println("\n==================================");
+        System.out.println(" AUTOMATICALLY CREATING TREATMENT ");
+        System.out.println("==================================");
 
         LocalDate treatmentDate = LocalDate.now();
         System.out.println("Treatment Date: " + treatmentDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
@@ -188,7 +192,9 @@ public class DiagnosisUI {
 
     private ListInterface<TreatmentMedicineList> getMedicinesFromUser() {
         ListInterface<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
-        displayMenuHeader("ADD MEDICINES");
+        System.out.println("\n==================================");
+        System.out.println("           ADD MEDICINES          ");
+        System.out.println("==================================");
 
         ListInterface<String> availableMedicines = md.getAvailableMedicines();
         if (availableMedicines.isEmpty()) {
@@ -254,7 +260,10 @@ public class DiagnosisUI {
     // ===== VIEW DIAGNOSIS USING ADT OPERATIONS =====
     public void viewDiagnosis() {
         ListInterface<String> viewOptions = createViewOptions();
-        displayMenuHeader("VIEW DIAGNOSIS");
+        System.out.println("\n==================================");
+        System.out.println("          VIEW DIAGNOSIS          ");
+        System.out.println("==================================");
+
         displayViewOptions(viewOptions);
 
         int choice = getMenuChoice(viewOptions.getNumberOfEntries());
@@ -300,7 +309,10 @@ public class DiagnosisUI {
 
     private void viewAllDiagnoses() {
         ListInterface<Diagnosis> diagnoses = md.getAllDiagnoses();
-        displayDiagnosisList(diagnoses, "ALL DIAGNOSES");
+        System.out.println("\n==================================");
+        System.out.println("           ALL DIAGNOSES          ");
+        System.out.println("==================================");
+        displayDiagnosisList(diagnoses, "       ALL DIAGNOSES");
     }
 
     private void viewDiagnosisById() {
@@ -311,7 +323,9 @@ public class DiagnosisUI {
 
         Diagnosis diagnosis = md.findDiagnosisById(diagnosisId);
         if (diagnosis != null) {
-            displayMenuHeader("DIAGNOSIS FOUND");
+            System.out.println("\n==================================");
+            System.out.println("          DIAGNOSIS FOUND         ");
+            System.out.println("==================================");
             System.out.println(diagnosis);
         } else {
             System.out.println("Diagnosis with ID '" + diagnosisId + "' not found.");
@@ -330,7 +344,9 @@ public class DiagnosisUI {
 
     // ===== UPDATE DIAGNOSIS USING ADT OPERATIONS =====
     public void updateDiagnosis() {
-        displayMenuHeader("UPDATE DIAGNOSIS");
+        System.out.println("\n==================================");
+        System.out.println("         UPDATE DIAGNOSIS         ");
+        System.out.println("==================================");
 
         String diagnosisId = getValidInput("Enter Diagnosis ID to update: ");
         if (diagnosisId == null) {
@@ -402,7 +418,9 @@ public class DiagnosisUI {
     // ===== DELETE DIAGNOSIS USING ADT OPERATIONS =====
     public void deleteDiagnosis() {
         ListInterface<String> deleteOptions = createDeleteOptions();
-        displayMenuHeader("DELETE DIAGNOSIS");
+        System.out.println("\n==================================");
+        System.out.println("         DELETE DIAGNOSIS         ");
+        System.out.println("==================================");
         displayDeleteOptions(deleteOptions);
 
         int choice = getMenuChoice(deleteOptions.getNumberOfEntries());
@@ -521,7 +539,9 @@ public class DiagnosisUI {
             return;
         }
 
-        displayMenuHeader(title);
+        System.out.println("\n==================================");
+        System.out.println("           " + title + "           ");
+        System.out.println("==================================");
         for (int i = 1; i <= diagnoses.getNumberOfEntries(); i++) {
             System.out.println(diagnoses.getEntry(i));
         }
@@ -587,13 +607,6 @@ public class DiagnosisUI {
             scanner.nextLine();
             return selectFromList(options, itemType, allowSkip);
         }
-    }
-
-    // ===== UI HELPER METHODS =====
-    private void displayMenuHeader(String title) {
-        System.out.println("\n==============================");
-        System.out.println("     " + title + "     ");
-        System.out.println("==============================");
     }
 
     private void displayMenuOptions(ListInterface<String> options) {
