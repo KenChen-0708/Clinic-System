@@ -1,18 +1,22 @@
+// Lee Siu Yee
+
 package entity;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;
 import java.io.Serializable;
 import java.time.LocalDate;
 
 public class Treatment implements Serializable {
-
+    
+    private static final long serialVersionUID = 1L;
     private static int counter = 1; // Static counter to generate unique treatmentId
     private String treatmentId;
     private String patientId;
     private String doctorId;
     private String status;
     private LocalDate treatmentDate;  // Field for treatment date
-    private DoublyLinkedList<TreatmentMedicineList> medicineList;  // List of medicines
+    private ListInterface<TreatmentMedicineList> medicineList;  // List of medicines
 
     // Constructor for creating a new treatment with treatment date and medicine list
     public Treatment(String patientId, String doctorId, String status, LocalDate treatmentDate) {
@@ -71,11 +75,11 @@ public class Treatment implements Serializable {
         this.treatmentDate = treatmentDate;
     }
 
-    public DoublyLinkedList<TreatmentMedicineList> getMedicineList() {
+    public ListInterface<TreatmentMedicineList> getMedicineList() {
         return medicineList;
     }
 
-    public void setMedicineList(DoublyLinkedList<TreatmentMedicineList> medicineList) {
+    public void setMedicineList(ListInterface<TreatmentMedicineList> medicineList) {
         this.medicineList = medicineList;
     }
 

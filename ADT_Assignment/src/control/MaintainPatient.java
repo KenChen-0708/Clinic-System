@@ -1426,7 +1426,7 @@ public class MaintainPatient {
             totalPatients++;
 
             // Get treatment count for this patient from treatment module
-            DoublyLinkedList<entity.Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patient.getId());
+            ListInterface<entity.Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patient.getId());
             int treatmentCount = patientTreatments.getNumberOfEntries();
             totalTreatments += treatmentCount;
 

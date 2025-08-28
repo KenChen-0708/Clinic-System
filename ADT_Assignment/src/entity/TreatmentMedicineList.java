@@ -1,15 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+// Lee Siu Yee
+
 package entity;
 
 import java.io.Serializable;
 
-/**
- *
- * @author siuye
- */
 public class TreatmentMedicineList implements Serializable{
     private String treatmentId;  // Link to Treatment
     private String prescription;
