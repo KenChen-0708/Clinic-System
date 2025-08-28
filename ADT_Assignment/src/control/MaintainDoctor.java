@@ -405,6 +405,30 @@ public class MaintainDoctor {
         return grouped;
     }
 
+    public MapInterface<String, ListInterface<Doctor>> groupDoctorsByAlphabet() {
+        MapInterface<String, ListInterface<Doctor>> grouped = new HashMap<>();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            String name = d.getName() != null && !d.getName().isEmpty() ? d.getName().toUpperCase() : "#";
+            String key = name.substring(0, 1); // first character
+            if (!key.matches("[A-Z]")) {
+                key = "#"; // group non-alphabet names under "#"
+            }
+
+            ListInterface<Doctor> list = grouped.get(key);
+            if (list == null) {
+                list = new DoublyLinkedList<>();
+                grouped.put(key, list);
+            }
+            list.add(d);
+        }
+        return grouped;
+    }
+
+    public void displayGroupByAlphabet() {
+        MapInterface<String, ListInterface<Doctor>> grouped = groupDoctorsByAlphabet();
+        doctorUI.displayGroupedDoctorsByAlphabet(grouped, doctorDAO);
+    }
+
     public void displayGroupBySpecialization() {
         MapInterface<String, ListInterface<Doctor>> grouped = groupDoctorsBySpecialization();
         doctorUI.displayGroupedDoctors("Doctors by Specialization", grouped, doctorDAO);
