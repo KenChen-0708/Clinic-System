@@ -9,6 +9,7 @@ import java.time.LocalDate;
 
 public class Treatment implements Serializable {
     
+    private static final long serialVersionUID = 1L;
     private static int counter = 1; // Static counter to generate unique treatmentId
     private String treatmentId;
     private String patientId;
