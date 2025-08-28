@@ -993,6 +993,7 @@ public class PatientUI {
         System.out.println("2. Sort by Name");
         System.out.println("3. Sort by Age");
         System.out.println("4. Sort by Registration Date");
+        System.out.println("5. Group by Gender");
         System.out.println("0. Return to Main Menu");
         System.out.println("==========================");
         return getMenuChoice();
@@ -1013,6 +1014,34 @@ public class PatientUI {
     }
 
     /**
+     * Display submenu for Name sorting options
+     *
+     * @return user's choice for sorting order
+     */
+    public int displaySortByNameMenu() {
+        System.out.println("\n=== SORT BY NAME ===");
+        System.out.println("1. Ascending Order (A-Z)");
+        System.out.println("2. Descending Order (Z-A)");
+        System.out.println("0. Back to View Menu");
+        System.out.println("==========================");
+        return getMenuChoice();
+    }
+
+    /**
+     * Display submenu for Age sorting options
+     *
+     * @return user's choice for sorting order
+     */
+    public int displaySortByAgeMenu() {
+        System.out.println("\n=== SORT BY AGE ===");
+        System.out.println("1. Ascending Order (Youngest First)");
+        System.out.println("2. Descending Order (Oldest First)");
+        System.out.println("0. Back to View Menu");
+        System.out.println("==================================");
+        return getMenuChoice();
+    }
+
+    /**
      * Display submenu for Registration Date sorting options
      *
      * @return user's choice for sorting order
@@ -1022,7 +1051,7 @@ public class PatientUI {
         System.out.println("1. Ascending Order (Oldest First)");
         System.out.println("2. Descending Order (Newest First)");
         System.out.println("0. Back to View Menu");
-        System.out.println("==================================");
+        System.out.println("==========================");
         return getMenuChoice();
     }
 
@@ -1034,16 +1063,20 @@ public class PatientUI {
                 handleSortByIdSubmenu();
                 break;
             case 2:
-                // Name sorting (ascending only)
-                displaySortedPatients("name", true, "Sorted by Name (A-Z)");
+                // Name sorting with submenu
+                handleSortByNameSubmenu();
                 break;
             case 3:
-                // Age sorting (ascending only)
-                displaySortedPatients("age", true, "Sorted by Age (Youngest First)");
+                // Age sorting with submenu
+                handleSortByAgeSubmenu();
                 break;
             case 4:
                 // Registration Date sorting with submenu
                 handleSortByDateSubmenu();
+                break;
+            case 5:
+                // Group by Gender
+                displayPatientsByGender();
                 break;
             case 0:
                 // Return handled by calling method
@@ -1096,11 +1129,87 @@ public class PatientUI {
         }
     }
 
+    // Handle Name sorting submenu
+    private void handleSortByNameSubmenu() {
+        boolean continueNameSorting = true;
+        while (continueNameSorting) {
+            int choice = displaySortByNameMenu();
+
+            switch (choice) {
+                case 1:
+                    displaySortedPatientsByName(true, "Sorted by Name (A-Z)");
+                    break;
+                case 2:
+                    displaySortedPatientsByName(false, "Sorted by Name (Z-A)");
+                    break;
+                case 0:
+                    continueNameSorting = false;
+                    break;
+                default:
+                    displayMessage("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    // Handle Age sorting submenu
+    private void handleSortByAgeSubmenu() {
+        boolean continueAgeSorting = true;
+        while (continueAgeSorting) {
+            int choice = displaySortByAgeMenu();
+
+            switch (choice) {
+                case 1:
+                    displaySortedPatientsByAge(true, "Sorted by Age (Youngest First)");
+                    break;
+                case 2:
+                    displaySortedPatientsByAge(false, "Sorted by Age (Oldest First)");
+                    break;
+                case 0:
+                    continueAgeSorting = false;
+                    break;
+                default:
+                    displayMessage("Invalid choice. Please try again.");
+            }
+        }
+    }
+
     // Helper method to display sorted patients by ID
     private void displaySortedPatientsById(boolean ascending, String title) {
         ListInterface<Patient> sortedData = ascending ?
             maintainPatient.sortPatientsByIdAscending() :
             maintainPatient.sortPatientsByIdDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
+            String[][] tableData = formatPatientTableData(sortedData);
+            displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
+            askToContinueOrReturnToMenu();
+        }
+    }
+
+    // Helper method to display sorted patients by Name
+    private void displaySortedPatientsByName(boolean ascending, String title) {
+        ListInterface<Patient> sortedData = ascending ?
+            maintainPatient.getSortedPatientsByName() :
+            maintainPatient.getSortedPatientsByNameDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
+            String[][] tableData = formatPatientTableData(sortedData);
+            displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
+            askToContinueOrReturnToMenu();
+        }
+    }
+
+    // Helper method to display sorted patients by Age
+    private void displaySortedPatientsByAge(boolean ascending, String title) {
+        ListInterface<Patient> sortedData = ascending ?
+            maintainPatient.getSortedPatientsByAge() :
+            maintainPatient.getSortedPatientsByAgeDescending();
 
         if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
@@ -1148,6 +1257,37 @@ public class PatientUI {
             displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
         }
+    }
+
+    // Display patients grouped by gender
+    private void displayPatientsByGender() {
+        Object[][] genderGroups = maintainPatient.getPatientsByGenderGrouped();
+
+        if (genderGroups.length == 0) {
+            displayMessage("No patients found to display.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        displayMessage("\n=== PATIENTS GROUPED BY GENDER ===");
+
+        for (Object[] group : genderGroups) {
+            String gender = (String) group[0];
+            Integer count = (Integer) group[1];
+            String[][] patientData = (String[][]) group[2];
+
+            displayMessage("\n" + "=".repeat(80));
+            displayMessage("GENDER: " + gender.toUpperCase() + " (Total: " + count + " patients)");
+            displayMessage("=".repeat(80));
+
+            if (patientData.length > 0) {
+                displayPatientsTableWithData(patientData, "Patients - " + gender);
+            } else {
+                displayMessage("No patients in this gender group.");
+            }
+        }
+
+        askToContinueOrReturnToMenu();
     }
 
     /**
