@@ -1,11 +1,18 @@
+// Lee Siu Yee
+
 package boundary;
 
 import adt.DoublyLinkedList;
 import adt.ListInterface;
 import control.MaintainTreatment;
 import control.MaintainDiagnosis;
+import entity.Diagnosis;
+import entity.DiagnosisDistribution;
+import entity.MedicineDistribution;
+import entity.ServingStatusData;
 import entity.Treatment;
 import entity.TreatmentMedicineList;
+import entity.TreatmentReportData;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -47,9 +54,9 @@ public class TreatmentUI {
         System.out.println("\n==================================");
         System.out.println("     TREATMENT MANAGEMENT MENU    ");
         System.out.println("==================================");
-        System.out.println("1. Diagnosis Management");
-        System.out.println("2. Treatment Management");
-        System.out.println("3. Report");
+        System.out.println("1. Manage Diagnosis");
+        System.out.println("2. Manage Treatment");
+        System.out.println("3. Generate Treatment Report");
         System.out.println("0. Back to Main Menu");
         System.out.print("Enter choice: ");
     }
@@ -63,13 +70,165 @@ public class TreatmentUI {
                 displayTreatmentMenu();
                 break;
             case 3:
-                displayTreatmentReport();
+                generateTreatmentReport();
                 break;
             case 0:
                 System.out.println("Returning to main menu...");
                 break;
             default:
                 System.out.println("Invalid choice! Please try again.");
+        }
+    }
+
+    // ================================
+    // SEARCH MENU USING ADT
+    // ================================
+    public void displaySearchMenu() {
+        int choice;
+        do {
+            System.out.println("\n==============================");
+            System.out.println("     SEARCH TREATMENTS        ");
+            System.out.println("==============================");
+            System.out.println("1. Search by Medicine");
+            System.out.println("2. Search by Treatment ID");
+            System.out.println("3. Search Patient Treatment History");
+            System.out.println("0. Back to Treatment Menu");
+            System.out.print("Enter choice: ");
+
+            try {
+                choice = scanner.nextInt();
+                scanner.nextLine();
+                switch (choice) {
+                    case 1:
+                        searchByMedicineSelection();
+                        break;
+                    case 2:
+                        searchByTreatmentId();
+                        break;
+                    case 3:
+                        searchPatientHistory();
+                        break;
+                    case 0:
+                        System.out.println("Returning to Treatment Menu...");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                }
+            } catch (Exception e) {
+                System.out.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
+                choice = -1;
+            }
+        } while (choice != 0);
+    }
+
+    // ================================
+    // SEARCH METHODS USING LINEAR SEARCH
+    // ================================
+    /**
+     * Search treatments by selecting medicine from numbered list Shows all
+     * medicines used in treatments for user selection
+     */
+    private void searchByMedicineSelection() {
+        System.out.println("\n===============================");
+        System.out.println("     SEARCH BY MEDICINE        ");
+        System.out.println("===============================");
+
+        // Get all medicines used in treatments
+        ListInterface<String> medicinesUsed = maintainTreatment.getAllMedicinesUsedInTreatments();
+
+        if (medicinesUsed.isEmpty()) {
+            System.out.println("No medicines found in any treatments.");
+            return;
+        }
+
+        // Display medicines with numbering
+        System.out.println("Select medicine from the list:");
+        for (int i = 1; i <= medicinesUsed.getNumberOfEntries(); i++) {
+            System.out.println(i + ". " + medicinesUsed.getEntry(i));
+        }
+        System.out.println("0. Back");
+
+        try {
+            System.out.print("Enter your choice: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (choice == 0) {
+                return;
+            }
+
+            if (choice >= 1 && choice <= medicinesUsed.getNumberOfEntries()) {
+                String selectedMedicine = medicinesUsed.getEntry(choice);
+                System.out.println("Searching treatments with medicine: " + selectedMedicine);
+
+                ListInterface<Treatment> foundTreatments = maintainTreatment.searchTreatmentsBySelectedMedicine(selectedMedicine);
+
+                if (foundTreatments.isEmpty()) {
+                    System.out.println("No treatments found with medicine: " + selectedMedicine);
+                } else {
+                    displayTreatmentList(foundTreatments, "TREATMENTS WITH MEDICINE: " + selectedMedicine.toUpperCase());
+                }
+            } else {
+                System.out.println("Invalid choice! Please select a number from the list.");
+            }
+        } catch (Exception e) {
+            System.out.println("Invalid input! Please enter a valid number.");
+            scanner.nextLine();
+        }
+    }
+
+    /**
+     * Search treatment by treatment ID Simple and direct search for specific
+     * treatment
+     */
+    private void searchByTreatmentId() {
+        System.out.println("\n===============================");
+        System.out.println("     SEARCH BY TREATMENT ID    ");
+        System.out.println("===============================");
+
+        String treatmentId = getValidInput("Enter Treatment ID to search: ");
+        if (treatmentId == null) {
+            return;
+        }
+
+        System.out.println("Searching for treatment: " + treatmentId);
+        ListInterface<Treatment> foundTreatments = maintainTreatment.searchTreatmentById(treatmentId);
+
+        if (foundTreatments.isEmpty()) {
+            System.out.println("No treatment found with ID: " + treatmentId);
+        } else {
+            System.out.println("\n==========================");
+            System.out.println("     TREATMENT FOUND       ");
+            System.out.println("==========================");
+            displayTreatmentDetails(foundTreatments.getEntry(1));
+        }
+    }
+
+    /**
+     * Search patient treatment history Shows all treatments for a patient in
+     * recent-first order
+     */
+    private void searchPatientHistory() {
+        System.out.println("\n===============================");
+        System.out.println("   PATIENT TREATMENT HISTORY   ");
+        System.out.println("===============================");
+
+        String patientId = getValidInput("Enter Patient ID: ");
+        if (patientId == null) {
+            return;
+        }
+
+        System.out.println("Searching treatment history for Patient: " + patientId);
+
+        ListInterface<Treatment> foundTreatments = maintainTreatment.searchPatientTreatmentHistory(patientId);
+
+        if (foundTreatments.isEmpty()) {
+            System.out.println("No treatment history found for Patient: " + patientId);
+        } else {
+            System.out.println("\nFound " + foundTreatments.getNumberOfEntries()
+                    + " treatments (showing most recent first):");
+            displayTreatmentList(foundTreatments, "TREATMENT HISTORY - PATIENT: " + patientId);
         }
     }
 
@@ -85,6 +244,7 @@ public class TreatmentUI {
             System.out.println("1. View Treatment");
             System.out.println("2. Update Treatment");
             System.out.println("3. Delete Treatment");
+            System.out.println("4. Search Treatment");
             System.out.println("0. Back to Treatment Management Menu");
             System.out.print("Enter choice: ");
             try {
@@ -99,6 +259,9 @@ public class TreatmentUI {
                         break;
                     case 3:
                         deleteTreatment();
+                        break;
+                    case 4:
+                        displaySearchMenu();
                         break;
                     case 0:
                         System.out.println("Returning to Treatment Management...");
@@ -122,7 +285,7 @@ public class TreatmentUI {
         System.out.println("     VIEW TREATMENT     ");
         System.out.println("==========================");
 
-        DoublyLinkedList<String> viewOptions = createViewOptions();
+        ListInterface<String> viewOptions = createViewOptions();
         int choice = selectFromOptions("Select view option", viewOptions);
 
         if (choice == -1 || choice == 0) {
@@ -153,8 +316,8 @@ public class TreatmentUI {
         }
     }
 
-    private DoublyLinkedList<String> createViewOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createViewOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("View all treatments");
         options.add("View treatment by ID");
         options.add("View treatments by Patient ID");
@@ -164,7 +327,7 @@ public class TreatmentUI {
     }
 
     private void viewAllTreatments() {
-        DoublyLinkedList<Treatment> treatments = maintainTreatment.getAllTreatments();
+        ListInterface<Treatment> treatments = maintainTreatment.getAllTreatments();
         displayTreatmentList(treatments, "ALL TREATMENTS");
     }
 
@@ -191,7 +354,7 @@ public class TreatmentUI {
             return;
         }
 
-        DoublyLinkedList<Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patientId);
+        ListInterface<Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patientId);
         displayTreatmentList(patientTreatments, "TREATMENTS FOR PATIENT " + patientId);
     }
 
@@ -201,7 +364,7 @@ public class TreatmentUI {
             return;
         }
 
-        DoublyLinkedList<Treatment> doctorTreatments = maintainTreatment.findTreatmentsByDoctorId(doctorId);
+        ListInterface<Treatment> doctorTreatments = maintainTreatment.findTreatmentsByDoctorId(doctorId);
         displayTreatmentList(doctorTreatments, "TREATMENTS FOR DOCTOR " + doctorId);
     }
 
@@ -211,7 +374,7 @@ public class TreatmentUI {
             return;
         }
 
-        DoublyLinkedList<Treatment> statusTreatments = maintainTreatment.findTreatmentsByStatus(status);
+        ListInterface<Treatment> statusTreatments = maintainTreatment.findTreatmentsByStatus(status);
         displayTreatmentList(statusTreatments, "TREATMENTS WITH STATUS: " + status.toUpperCase());
     }
 
@@ -237,7 +400,7 @@ public class TreatmentUI {
         System.out.println("Current treatment details:");
         displayTreatmentDetails(existingTreatment);
 
-        DoublyLinkedList<String> updateOptions = createUpdateOptions();
+        ListInterface<String> updateOptions = createUpdateOptions();
         int choice = selectFromOptions("What would you like to update?", updateOptions);
 
         if (choice == -1 || choice == 0) {
@@ -265,8 +428,8 @@ public class TreatmentUI {
         }
     }
 
-    private DoublyLinkedList<String> createUpdateOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createUpdateOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("Update Status");
         options.add("Update Treatment Date");
         options.add("Add Medicine");
@@ -332,7 +495,7 @@ public class TreatmentUI {
             return;
         }
 
-        DoublyLinkedList<TreatmentMedicineList> newMedicines = createMedicineList();
+        ListInterface<TreatmentMedicineList> newMedicines = createMedicineList();
         if (newMedicines.isEmpty()) {
             System.out.println("No medicines added. Update cancelled.");
             return;
@@ -354,7 +517,7 @@ public class TreatmentUI {
         System.out.println("     DELETE TREATMENT    ");
         System.out.println("==========================");
 
-        DoublyLinkedList<String> deleteOptions = createDeleteOptions();
+        ListInterface<String> deleteOptions = createDeleteOptions();
         int choice = selectFromOptions("Select delete option", deleteOptions);
 
         if (choice == -1 || choice == 0) {
@@ -382,8 +545,8 @@ public class TreatmentUI {
         }
     }
 
-    private DoublyLinkedList<String> createDeleteOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createDeleteOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("Delete specific treatment by ID");
         options.add("Delete all treatments for a patient");
         options.add("Delete all treatments for a doctor");
@@ -424,7 +587,7 @@ public class TreatmentUI {
             return;
         }
 
-        DoublyLinkedList<Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patientId);
+        ListInterface<Treatment> patientTreatments = maintainTreatment.findTreatmentsByPatientId(patientId);
         if (patientTreatments.isEmpty()) {
             System.out.println("No treatments found for patient ID: " + patientId);
             return;
@@ -446,7 +609,7 @@ public class TreatmentUI {
             return;
         }
 
-        DoublyLinkedList<Treatment> doctorTreatments = maintainTreatment.findTreatmentsByDoctorId(doctorId);
+        ListInterface<Treatment> doctorTreatments = maintainTreatment.findTreatmentsByDoctorId(doctorId);
         if (doctorTreatments.isEmpty()) {
             System.out.println("No treatments found for doctor ID: " + doctorId);
             return;
@@ -463,7 +626,7 @@ public class TreatmentUI {
     }
 
     private void deleteAllTreatments() {
-        DoublyLinkedList<Treatment> allTreatments = maintainTreatment.getAllTreatments();
+        ListInterface<Treatment> allTreatments = maintainTreatment.getAllTreatments();
         if (allTreatments.isEmpty()) {
             System.out.println("No treatments to delete.");
             return;
@@ -492,24 +655,27 @@ public class TreatmentUI {
     }
 
     // ================================
-    // REPORT METHODS
+    // SERVING STATUS DISPLAY
     // ================================
-    private void displayTreatmentReport() {
-        System.out.println("\n==========================");
-        System.out.println("     TREATMENT REPORT    ");
-        System.out.println("==========================");
-        String report = maintainTreatment.getTreatmentReport();
-        System.out.println(report);
-
-        System.out.print("Press Enter to continue...");
-        scanner.nextLine();
+    public void displayServingStatus() {
+        System.out.println("\n=== CURRENT SERVING STATUS ===");
+        ServingStatusData statusData = maintainTreatment.getServingStatusData();
+        if (statusData.hasActiveConsultation()) {
+            System.out.println("Currently serving:");
+            System.out.println("  Patient: " + statusData.getCurrentPatient().getId() + " (" + statusData.getCurrentPatient().getName() + ")");
+            System.out.println("  Doctor: " + statusData.getCurrentDoctor().getId() + " (" + statusData.getCurrentDoctor().getName() + ")");
+        } else {
+            System.out.println("No active consultation.");
+        }
+        System.out.println("Waiting: " + statusData.getWaitingPatients() + " patients");
+        System.out.println("===============================\n");
     }
 
     // ================================
     // MEDICINE CREATION METHODS USING ADT
     // ================================
-    private DoublyLinkedList<TreatmentMedicineList> createMedicineList() {
-        DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
+    private ListInterface<TreatmentMedicineList> createMedicineList() {
+        ListInterface<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
 
         System.out.println("\n========================");
         System.out.println("     ADD MEDICINES    ");
@@ -607,7 +773,7 @@ public class TreatmentUI {
         System.out.println("Total treatments: " + treatments.getNumberOfEntries());
     }
 
-    private void displayTreatmentSummary(DoublyLinkedList<Treatment> treatments, String title) {
+    private void displayTreatmentSummary(ListInterface<Treatment> treatments, String title) {
         System.out.println(title + ":");
         for (int i = 1; i <= treatments.getNumberOfEntries(); i++) {
             Treatment treatment = treatments.getEntry(i);
@@ -628,7 +794,7 @@ public class TreatmentUI {
         System.out.println("Treatment Date   : " + (treatment.getTreatmentDate() != null
                 ? treatment.getTreatmentDate().format(formatter) : "Not set"));
 
-        DoublyLinkedList<TreatmentMedicineList> medicines = treatment.getMedicineList();
+        ListInterface<TreatmentMedicineList> medicines = treatment.getMedicineList();
         if (medicines != null && !medicines.isEmpty()) {
             System.out.println("Medicines        :");
             for (int i = 1; i <= medicines.getNumberOfEntries(); i++) {
@@ -647,7 +813,7 @@ public class TreatmentUI {
 
     private void displayMedicineOptions() {
         System.out.println("Available Medicines:");
-        DoublyLinkedList<String> availableMedicines = maintainTreatment.getAvailableMedicines();
+        ListInterface<String> availableMedicines = maintainTreatment.getAvailableMedicines();
         for (int i = 1; i <= availableMedicines.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + availableMedicines.getEntry(i));
         }
@@ -706,10 +872,29 @@ public class TreatmentUI {
         }
     }
 
+    // Helper method for search functionality date input
+    private LocalDate getDateInput(String prompt) {
+        System.out.print(prompt);
+        String dateInput = scanner.nextLine().trim();
+
+        if (dateInput.isEmpty()) {
+            System.out.println("Date input cannot be empty!");
+            return null;
+        }
+
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            return LocalDate.parse(dateInput, formatter);
+        } catch (DateTimeParseException e) {
+            System.out.println("Invalid date format! Please use dd/MM/yyyy format.");
+            return null;
+        }
+    }
+
     // ================================
     // SELECTION UTILITY METHODS USING ADT
     // ================================
-    private int selectFromOptions(String title, DoublyLinkedList<String> options) {
+    private int selectFromOptions(String title, ListInterface<String> options) {
         System.out.println(title + ":");
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
@@ -735,7 +920,7 @@ public class TreatmentUI {
     }
 
     private String selectFromStatusOptions(String title) {
-        DoublyLinkedList<String> statusOptions = maintainTreatment.getStatusOptions();
+        ListInterface<String> statusOptions = maintainTreatment.getStatusOptions();
         System.out.println(title + ":");
         for (int i = 1; i <= statusOptions.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + statusOptions.getEntry(i));
@@ -750,7 +935,7 @@ public class TreatmentUI {
             if (choice == 0) {
                 return null;
             }
-            
+
             if (choice >= 1 && choice <= statusOptions.getNumberOfEntries()) {
                 return statusOptions.getEntry(choice);
             } else {
@@ -765,7 +950,7 @@ public class TreatmentUI {
     }
 
     private String selectFromMealTimingOptions(String title) {
-        DoublyLinkedList<String> mealTimingOptions = maintainTreatment.getMealTimingOptions();
+        ListInterface<String> mealTimingOptions = maintainTreatment.getMealTimingOptions();
         System.out.println(title + ":");
         for (int i = 1; i <= mealTimingOptions.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + mealTimingOptions.getEntry(i));
@@ -780,7 +965,7 @@ public class TreatmentUI {
             if (choice == 0) {
                 return null;
             }
-            
+
             if (choice >= 1 && choice <= mealTimingOptions.getNumberOfEntries()) {
                 return mealTimingOptions.getEntry(choice);
             } else {
@@ -795,7 +980,7 @@ public class TreatmentUI {
     }
 
     private String selectMedicine() {
-        DoublyLinkedList<String> availableMedicines = maintainTreatment.getAvailableMedicines();
+        ListInterface<String> availableMedicines = maintainTreatment.getAvailableMedicines();
 
         try {
             System.out.print("Select medicine by number (1-" + availableMedicines.getNumberOfEntries() + ") or 0 to skip: ");
@@ -818,4 +1003,368 @@ public class TreatmentUI {
             return selectMedicine();
         }
     }
+
+    // ================================
+    // REPORT GENERATION METHODS USING MERGE SORT
+    // ================================
+    /**
+     * Display report generation menu and handle user selection
+     */
+    public void generateTreatmentReport() {
+        int choice;
+        do {
+            System.out.println("\n==============================");
+            System.out.println("     TREATMENT REPORTS        ");
+            System.out.println("==============================");
+            System.out.println("1. Treatment Summary Report");
+            System.out.println("2. Treatment Distribution Report");
+            System.out.println("0. Back to Treatment Menu");
+            System.out.print("Enter choice: ");
+
+            try {
+                choice = scanner.nextInt();
+                scanner.nextLine();
+
+                switch (choice) {
+                    case 1:
+                        displayTreatmentSummaryReport();
+                        break;
+                    case 2:
+                        displayTreatmentDistributionReport();
+                        break;
+                    case 0:
+                        System.out.println("Returning to Treatment Menu...");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                }
+            } catch (Exception e) {
+                System.out.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
+                choice = -1;
+            }
+        } while (choice != 0);
+    }
+
+    /**
+     * Display Treatment Summary Report using mergeSort sorted data Shows
+     * comprehensive treatment statistics and insights
+     */
+    private void displayTreatmentSummaryReport() {
+        System.out.println("\nGenerating Treatment Summary Report...");
+        TreatmentReportData reportData = maintainTreatment.generateTreatmentSummaryReportData();
+
+        if (reportData.getTotalTreatments() == 0) {
+            System.out.println("No treatment data available to generate report.");
+            return;
+        }
+
+        displayTreatmentSummaryHeader();
+        displayTreatmentTable(reportData);
+        displaySummaryStatistics(reportData);
+        displayKeyInsights(reportData);
+        displayTreatmentSummaryFooter();
+    }
+
+    /**
+     * Display Treatment Distribution Report using mergeSort sorted data Shows
+     * distribution patterns with visual representations
+     */
+    private void displayTreatmentDistributionReport() {
+        System.out.println("\nGenerating Treatment Distribution Report...");
+        TreatmentReportData reportData = maintainTreatment.generateTreatmentDistributionReportData();
+
+        if (reportData.getDiagnosisDistributions() == null || reportData.getDiagnosisDistributions().isEmpty()) {
+            System.out.println("No treatment data available to generate distribution report.");
+            return;
+        }
+
+        displayDistributionHeader();
+        displayDiagnosisDistribution(reportData);
+        displayMedicineDistribution(reportData);
+        displayTreatmentTypeDistribution(reportData);
+        displayDistributionFooter();
+    }
+
+    // ================================
+    // TREATMENT SUMMARY REPORT DISPLAY METHODS
+    // ================================
+    private void displayTreatmentSummaryHeader() {
+        System.out.println("\n" + "=".repeat(100));
+        System.out.println("                    TUNKU ABDUL RAHMAN UNIVERSITY OF MANAGEMENT AND TECHNOLOGY");
+        System.out.println("                                      CLINIC MANAGEMENT SYSTEM");
+        System.out.println("=".repeat(100));
+        System.out.println("                                      TREATMENT SUMMARY REPORT");
+        System.out.println("=".repeat(100));
+        System.out.println("Generated at: " + java.time.LocalDateTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM dd yyyy, hh:mm a")));
+        System.out.println("-".repeat(100));
+        System.out.println();
+    }
+
+    private void displayTreatmentTable(TreatmentReportData reportData) {
+        System.out.println("-".repeat(100));
+        System.out.println("TreatmentID   | PatientID   | Diagnosis    | DoctorID    | Medicines          | Status   ");
+        System.out.println("-".repeat(100));
+        // Get all treatments for table display
+        ListInterface<Treatment> allTreatments = maintainTreatment.getAllTreatments();
+
+        for (int i = 1; i <= allTreatments.getNumberOfEntries(); i++) {
+            Treatment treatment = allTreatments.getEntry(i);
+
+            // Get diagnosis for this treatment
+            String diagnosisName = getDiagnosisForTreatment(treatment);
+
+            // Get medicines list
+            String medicinesStr = getMedicinesStringForTreatment(treatment);
+
+            // Format and display row
+            System.out.printf("%-13s | %-11s | %-12s | %-11s | %-18s | %-10s%n",
+                    treatment.getTreatmentId(),
+                    treatment.getPatientId(),
+                    truncateString(diagnosisName, 12),
+                    treatment.getDoctorId(),
+                    truncateString(medicinesStr, 38),
+                    treatment.getStatus()
+            );
+        }
+        System.out.println("-".repeat(100));
+        System.out.println();
+    }
+
+    private void displaySummaryStatistics(TreatmentReportData reportData) {
+        System.out.printf("Total patients treated        : %d%n", reportData.getTotalPatients());
+        System.out.printf("Total treatments administered : %d%n", reportData.getTotalTreatments());
+        System.out.printf("Total doctors involved        : %d%n", reportData.getTotalDoctors());
+        System.out.println();
+    }
+
+    private void displayKeyInsights(TreatmentReportData reportData) {
+        System.out.println("Key Insights:");
+
+        if (reportData.getTopDoctor() != null) {
+            System.out.printf("* Doctor with highest workload  : %s (%d treatments)%n",
+                    reportData.getTopDoctor(), reportData.getTopDoctorTreatments());
+        }
+
+        if (reportData.getTopPatient() != null) {
+            System.out.printf("* Patient with most treatments  : %s (%d treatments)%n",
+                    reportData.getTopPatient(), reportData.getTopPatientTreatments());
+        }
+
+        if (reportData.getTopDiagnosis() != null) {
+            System.out.printf("* Most common diagnosis         : %s (%d cases)%n",
+                    reportData.getTopDiagnosis(), reportData.getTopDiagnosisCount());
+        }
+
+        if (reportData.getTopMedicine() != null) {
+            System.out.printf("* Most prescribed medicine      : %s (%d times)%n",
+                    reportData.getTopMedicine(), reportData.getTopMedicineCount());
+        }
+        System.out.println();
+    }
+
+    private void displayTreatmentSummaryFooter() {
+        System.out.println("-".repeat(100));
+        System.out.println("                                        END OF REPORT");
+        System.out.println("=".repeat(100));
+    }
+
+    // ================================
+    // TREATMENT DISTRIBUTION REPORT DISPLAY METHODS
+    // ================================
+    private void displayDistributionHeader() {
+        System.out.println("\n" + "=".repeat(100));
+        System.out.println("                    TUNKU ABDUL RAHMAN UNIVERSITY OF MANAGEMENT AND TECHNOLOGY");
+        System.out.println("                                      CLINIC MANAGEMENT SYSTEM");
+        System.out.println("=".repeat(100));
+        System.out.println("                                    TREATMENT DISTRIBUTION REPORT");
+        System.out.println("=".repeat(100));
+        System.out.println("Generated at: " + java.time.LocalDateTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM dd yyyy, hh:mm a")));
+        System.out.println("-".repeat(100));
+        System.out.println();
+    }
+
+    private void displayDiagnosisDistribution(TreatmentReportData reportData) {
+        System.out.println("-".repeat(100));
+        System.out.println("Diagnosis Distribution");
+        System.out.println("-".repeat(100));
+
+        ListInterface<DiagnosisDistribution> distributions = reportData.getDiagnosisDistributions();
+
+        if (distributions != null && !distributions.isEmpty()) {
+            for (int i = 1; i <= distributions.getNumberOfEntries(); i++) {
+                DiagnosisDistribution dist = distributions.getEntry(i);
+                String visualBar = generateVisualBar(dist.getCount());
+                System.out.printf("%-20s [%-40s] %d (%.0f%%)%n",
+                        truncateString(dist.getDiagnosisName(), 20),
+                        visualBar,
+                        dist.getCount(),
+                        dist.getPercentage()
+                );
+            }
+
+            System.out.println("Scale: # = 1 treatment");
+            System.out.println("-".repeat(100));
+
+            // Add insight for top diagnosis
+            if (distributions.getNumberOfEntries() > 0) {
+                DiagnosisDistribution top = distributions.getEntry(1);
+                System.out.printf("* %s is the most common diagnosis, making up %.0f%% of all cases.%n",
+                        top.getDiagnosisName(), top.getPercentage());
+            }
+        }
+        System.out.println();
+        System.out.println();
+    }
+
+    private void displayMedicineDistribution(TreatmentReportData reportData) {
+        System.out.println("-".repeat(100));
+        System.out.println("Medicine Distribution");
+        System.out.println("-".repeat(100));
+
+        ListInterface<MedicineDistribution> distributions = reportData.getMedicineDistributions();
+
+        if (distributions != null && !distributions.isEmpty()) {
+            for (int i = 1; i <= distributions.getNumberOfEntries(); i++) {
+                MedicineDistribution dist = distributions.getEntry(i);
+                String visualBar = generateVisualBar(dist.getCount());
+                System.out.printf("%-20s [%-40s] %d (%.0f%%)%n",
+                        truncateString(dist.getMedicineName(), 20),
+                        visualBar,
+                        dist.getCount(),
+                        dist.getPercentage()
+                );
+            }
+
+            System.out.println("Scale: # = 1 prescription");
+            System.out.println("-".repeat(100));
+
+            // Add insight for top medicine
+            if (distributions.getNumberOfEntries() > 0) {
+                MedicineDistribution top = distributions.getEntry(1);
+                System.out.printf("* %s is the most prescribed medicine, used in %.0f%% of treatments.%n",
+                        top.getMedicineName(), top.getPercentage());
+            }
+        }
+        System.out.println();
+        System.out.println();
+    }
+
+    private void displayTreatmentTypeDistribution(TreatmentReportData reportData) {
+        System.out.println("-".repeat(100));
+        System.out.println("Treatment Type Distribution");
+        System.out.println("-".repeat(100));
+
+        int withMedicine = reportData.getTreatmentsWithMedicine();
+        int withoutMedicine = reportData.getTreatmentsWithoutMedicine();
+        int total = withMedicine + withoutMedicine;
+
+        if (total > 0) {
+            double withMedicinePercent = (withMedicine * 100.0) / total;
+            double withoutMedicinePercent = (withoutMedicine * 100.0) / total;
+
+            String withMedicineBar = generateVisualBar(withMedicine);
+            String withoutMedicineBar = generateVisualBar(withoutMedicine);
+
+            System.out.printf("%-20s [%-40s] %d (%.0f%%)%n",
+                    "With Medicine", withMedicineBar, withMedicine, withMedicinePercent);
+            System.out.printf("%-20s [%-40s] %d (%.0f%%)%n",
+                    "Without Medicine", withoutMedicineBar, withoutMedicine, withoutMedicinePercent);
+
+            System.out.println("Scale: # = 1 treatment");
+            System.out.println("-".repeat(100));
+
+            if (withMedicine > withoutMedicine) {
+                System.out.println("* Most treatments include medicine, while only a few are without medication.");
+                System.out.println();
+            } else if (withoutMedicine > withMedicine) {
+                System.out.println("* Most treatments are without medicine, focusing on non-pharmaceutical approaches.");
+                System.out.println();
+            } else {
+                System.out.println("* Treatments are evenly split between with and without medicine.");
+                System.out.println();
+            }
+        }
+    }
+
+    private void displayDistributionFooter() {
+        System.out.println("-".repeat(100));
+        System.out.println("                                        END OF REPORT");
+        System.out.println("=".repeat(100));
+    }
+
+    // ================================
+    // HELPER METHODS FOR REPORT DISPLAY
+    // ================================
+    /**
+     * Get diagnosis name for a treatment by matching patient and doctor
+     */
+    private String getDiagnosisForTreatment(Treatment treatment) {
+        ListInterface<Diagnosis> patientDiagnoses = maintainDiagnosis.findDiagnosesByPatientId(treatment.getPatientId());
+
+        for (int i = 1; i <= patientDiagnoses.getNumberOfEntries(); i++) {
+            Diagnosis diagnosis = patientDiagnoses.getEntry(i);
+            if (diagnosis.getDoctorId().equals(treatment.getDoctorId())) {
+                return diagnosis.getDiagnosisDetails();
+            }
+        }
+        return "-";
+    }
+
+    /**
+     * Get medicines string for a treatment (comma-separated)
+     */
+    private String getMedicinesStringForTreatment(Treatment treatment) {
+        ListInterface<TreatmentMedicineList> medicines = treatment.getMedicineList();
+
+        if (medicines == null || medicines.isEmpty()) {
+            return "-";
+        }
+
+        StringBuilder medicinesStr = new StringBuilder();
+        for (int i = 1; i <= medicines.getNumberOfEntries(); i++) {
+            if (i > 1) {
+                medicinesStr.append(", ");
+            }
+            medicinesStr.append(medicines.getEntry(i).getPrescription());
+        }
+
+        return medicinesStr.toString();
+    }
+
+    /**
+     * Generate visual bar representation for counts
+     */
+    private String generateVisualBar(int count) {
+        StringBuilder bar = new StringBuilder();
+        int maxBars = 10; // Maximum number of # symbols
+        int barsToShow = Math.min(count, maxBars);
+
+        for (int i = 0; i < barsToShow; i++) {
+            bar.append("#");
+        }
+
+        // Fill remaining spaces
+        for (int i = barsToShow; i < maxBars; i++) {
+            bar.append(" ");
+        }
+
+        return bar.toString();
+    }
+
+    /**
+     * Truncate string to specified length with ellipsis if needed
+     */
+    private String truncateString(String str, int maxLength) {
+        if (str == null) {
+            return "-";
+        }
+        if (str.length() <= maxLength) {
+            return str;
+        }
+        return str.substring(0, maxLength - 3) + "...";
+    }
+
 }
