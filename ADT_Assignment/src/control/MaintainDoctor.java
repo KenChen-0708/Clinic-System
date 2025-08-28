@@ -232,6 +232,20 @@ public class MaintainDoctor {
         }
     }
 
+    public boolean setDoctorAvailability(String doctorId, String availability) {
+        if (doctorId == null || availability == null) {
+            return false;
+        }
+
+        Doctor doc = doctorMap.get(doctorId);
+        if (doc != null) {
+            doc.setAvailability(availability);
+            save();
+            return true;
+        }
+        return false;
+    }
+
     public void displayDoctorAvailability() {
         String id = inputDoctorId();
         Doctor doc = doctorMap.get(id);
@@ -389,6 +403,30 @@ public class MaintainDoctor {
             list.add(d);
         }
         return grouped;
+    }
+
+    public MapInterface<String, ListInterface<Doctor>> groupDoctorsByAlphabet() {
+        MapInterface<String, ListInterface<Doctor>> grouped = new HashMap<>();
+        for (Doctor d : doctorDAO.getIterable(doctorList)) {
+            String name = d.getName() != null && !d.getName().isEmpty() ? d.getName().toUpperCase() : "#";
+            String key = name.substring(0, 1); // first character
+            if (!key.matches("[A-Z]")) {
+                key = "#"; // group non-alphabet names under "#"
+            }
+
+            ListInterface<Doctor> list = grouped.get(key);
+            if (list == null) {
+                list = new DoublyLinkedList<>();
+                grouped.put(key, list);
+            }
+            list.add(d);
+        }
+        return grouped;
+    }
+
+    public void displayGroupByAlphabet() {
+        MapInterface<String, ListInterface<Doctor>> grouped = groupDoctorsByAlphabet();
+        doctorUI.displayGroupedDoctorsByAlphabet(grouped, doctorDAO);
     }
 
     public void displayGroupBySpecialization() {

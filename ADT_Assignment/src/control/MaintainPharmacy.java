@@ -1,3 +1,4 @@
+// Author: Chen Kai Jian
 package control;
 
 import adt.DoublyLinkedList;
@@ -1245,7 +1246,7 @@ public class MaintainPharmacy implements Serializable {
      */
     private String formatReportWithBody(String title, String body) {
         StringBuilder sb = new StringBuilder(renderHeader(title));
-        sb.append(body).append(renderFooter());
+        sb.append(body).append("\n").append(renderFooter());
         return sb.toString();
     }
 

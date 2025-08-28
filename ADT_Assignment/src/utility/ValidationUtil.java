@@ -10,6 +10,23 @@ public final class ValidationUtil {
     private ValidationUtil() {
         throw new UnsupportedOperationException("Utility class cannot be instantiated");
     }
+
+    /**
+     * ValidationResult class for returning validation status and error messages
+     * ECB-compliant: Simple data transfer object
+     */
+    public static class ValidationResult {
+        private final boolean valid;
+        private final String errorMessage;
+
+        public ValidationResult(boolean valid, String errorMessage) {
+            this.valid = valid;
+            this.errorMessage = errorMessage;
+        }
+
+        public boolean isValid() { return valid; }
+        public String getErrorMessage() { return errorMessage; }
+    }
     
     /**
      * Validates patient name format
@@ -157,5 +174,91 @@ public final class ValidationUtil {
         }
         
         return phone; // Return original if can't format
+    }
+
+    /**
+     * Validate IC number format with detailed error messages
+     * @param icNumber IC number to validate
+     * @return ValidationResult with status and error message
+     */
+    public static ValidationResult validateIC(String icNumber) {
+        if (icNumber == null || icNumber.trim().isEmpty()) {
+            return new ValidationResult(false, "IC Number cannot be empty.");
+        }
+
+        String cleanIC = icNumber.replaceAll("-", "").trim();
+        if (!cleanIC.matches("\\d{12}")) {
+            return new ValidationResult(false, "IC Number must be exactly 12 digits (Malaysian format: YYMMDDPBXXXX).");
+        }
+
+        if (!isValidMalaysianIC(cleanIC)) {
+            return new ValidationResult(false, "Invalid Malaysian IC format. Please enter a valid IC number.");
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    /**
+     * Validate name format with detailed error messages
+     * @param name Name to validate
+     * @return ValidationResult with status and error message
+     */
+    public static ValidationResult validateName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return new ValidationResult(false, "Name cannot be empty.");
+        }
+
+        if (!isValidName(name.trim())) {
+            return new ValidationResult(false, "Name must contain only letters and spaces and be at least 2 characters long.");
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    /**
+     * Validate phone number format with detailed error messages
+     * @param phone Phone number to validate
+     * @return ValidationResult with status and error message
+     */
+    public static ValidationResult validatePhone(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return new ValidationResult(false, "Phone number cannot be empty.");
+        }
+
+        String cleanPhone = phone.replaceAll("[\\s-]", "");
+        if (!isValidPhone(cleanPhone)) {
+            return new ValidationResult(false, "Invalid Malaysian phone number format. Must be 10-11 digits.");
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    /**
+     * Validate time format (HH:mm)
+     * @param timeString Time string to validate
+     * @return true if valid format, false otherwise
+     */
+    public static boolean isValidTimeFormat(String timeString) {
+        if (timeString == null || timeString.length() != 5) {
+            return false;
+        }
+
+        if (timeString.charAt(2) != ':') {
+            return false;
+        }
+
+        try {
+            String[] parts = timeString.split(":");
+            if (parts.length != 2) {
+                return false;
+            }
+
+            int hours = Integer.parseInt(parts[0]);
+            int minutes = Integer.parseInt(parts[1]);
+
+            return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

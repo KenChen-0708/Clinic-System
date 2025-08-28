@@ -18,6 +18,8 @@ public interface QueueInterface<T> {
 
     void enqueueWithNumber(T data); // Add to rear with auto-generated queue number
 
+    void enqueueWithExistingNumber(T data, String existingQueueNumber); // Add with existing queue number (for restoration)
+
     String getQueueNumber(T data);  // Get queue number for specific data
 
     int getPosition(T data);        // Get position of data in queue (1-based)
@@ -30,4 +32,6 @@ public interface QueueInterface<T> {
     T[] toArray();                  // Get queue elements as array in FIFO order
 
     String[] getQueueNumbers();     // Get queue numbers as array in FIFO order
+
+    ListInterface<T> createSnapshot(); // Create read-only snapshot of queue contents
 }

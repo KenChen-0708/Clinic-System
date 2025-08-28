@@ -58,6 +58,23 @@ public class LinkedQueue<T> implements QueueInterface<T> {
         size++;
     }
 
+    /**
+     * Enqueue with existing queue number - for restoration purposes
+     * Does NOT increment the counter - preserves original queue numbers
+     * @param data The data to enqueue
+     * @param existingQueueNumber The existing queue number to preserve
+     */
+    public void enqueueWithExistingNumber(T data, String existingQueueNumber) {
+        Node<T> newNode = new Node<>(data, existingQueueNumber);
+        if (isEmpty()) {
+            front = newNode;
+        } else {
+            rear.next = newNode;
+        }
+        rear = newNode;
+        size++;
+    }
+
     @Override
     public T dequeue() {
         if (isEmpty()) {
@@ -123,6 +140,10 @@ public class LinkedQueue<T> implements QueueInterface<T> {
 
     @Override
     public int getPosition(T data) {
+        if (data == null || isEmpty()) {
+            return 0;
+        }
+
         Node<T> current = front;
         int position = 1;
         while (current != null) {
@@ -132,7 +153,7 @@ public class LinkedQueue<T> implements QueueInterface<T> {
             current = current.next;
             position++;
         }
-        return -1; // Data not found
+        return 0; // Data not found - consistent with other methods
     }
 
     @Override
@@ -269,4 +290,20 @@ public class LinkedQueue<T> implements QueueInterface<T> {
         sb.append("]");
         return sb.toString();
     }
+
+    /**
+     * Create a snapshot of the queue without modifying the original queue
+     * This provides a read-only view of the queue contents in FIFO order
+     * @return ListInterface containing queue elements in order
+     */
+    public ListInterface<T> createSnapshot() {
+        ListInterface<T> snapshot = new DoublyLinkedList<>();
+        Node<T> current = front;
+        while (current != null) {
+            snapshot.add(current.data);
+            current = current.next;
+        }
+        return snapshot;
+    }
+
 }
