@@ -1,3 +1,4 @@
+// Author: Chen Kai Jian
 package boundary;
 
 import adt.ListInterface;
@@ -492,6 +493,14 @@ public class PharmacyUI {
         return readIntInRangeLoop(0, 2, "Please enter 0-2: ");
     }
 
+    public int confirmDispenseAll() {
+        System.out.println("1. Dispense all medicines");
+        System.out.println("0. Discard");
+        System.out.println("--------------------------------");
+        System.out.print("Enter your choice (0-1): ");
+        return readIntInRangeLoop(0, 1, "Please enter 0 or 1: ");
+    }
+
 
     /* =========================================================
      * Reporting Menus & Printers
@@ -522,7 +531,7 @@ public class PharmacyUI {
         System.out.println("0. Back");
         System.out.println("--------------------------------");
         System.out.print("Enter choice: ");
-        
+
         return readIntInRangeLoop(0, 3, "Please enter 0-3: ");
     }
 
@@ -536,7 +545,7 @@ public class PharmacyUI {
         System.out.println("0. Back");
         System.out.println("--------------------------------");
         System.out.print("Enter choice: ");
-        
+
         return readIntInRangeLoop(0, 5, "Please enter 0-5: ");
     }
 
@@ -545,20 +554,24 @@ public class PharmacyUI {
      */
     public int getPostReportAction() {
         System.out.println("\n--- What would you like to do? ---");
-        System.out.println("1. Export to file");
+        System.out.println("1. Export to TXT");
+        System.out.println("2. Export to CSV");
         System.out.println("0. Back");
         System.out.println("----------------------------------");
         System.out.print("Enter choice: ");
 
         while (true) {
             String s = scanner.nextLine().trim();
-            if ("0".equals(s)) {
-                return 0;
+            switch (s) {
+                case "0":
+                    return 0;
+                case "1":
+                    return 1;
+                case "2":
+                    return 2;
+                default:
+                    System.out.print("Please enter 0, 1 or 2: ");
             }
-            if ("1".equals(s)) {
-                return 1;
-            }
-            System.out.print("Please enter 0 or 1: ");
         }
     }
 
@@ -572,8 +585,7 @@ public class PharmacyUI {
     /**
      * Generic report printer (for pre-formatted bodies).
      */
-    public void displayReport(String title, String body) {
-        System.out.println("\n=== " + title + " ===\n");
+    public void displayReport(String body) {
         if (isBlank(body)) {
             MessageUI.displayEmptyMessage();
         } else {

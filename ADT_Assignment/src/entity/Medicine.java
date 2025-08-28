@@ -1,3 +1,4 @@
+// Author: Chen Kai Jian
 package entity;
 
 import java.io.Serializable;
