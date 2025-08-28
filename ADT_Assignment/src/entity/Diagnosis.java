@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 
 public class Diagnosis implements Serializable {
     
+    private static final long serialVersionUID = 1L;
     private static int counter = 1; // Static counter to generate unique diagnosisId
     private String diagnosisId;
     private String patientId;
