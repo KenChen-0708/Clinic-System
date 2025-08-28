@@ -1,32 +1,32 @@
+// Lee Siu Yee
+
 package boundary;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;    
 import control.MaintainDiagnosis;
 import control.MaintainTreatment;
+import control.MaintainDoctor;
 import entity.Diagnosis;
 import entity.Treatment;
 import entity.TreatmentMedicineList;
-import java.util.Scanner;
-import control.MaintainDoctor;
 import entity.Doctor;
 import entity.Patient;
+import entity.ServingStatusData;
+import java.util.Scanner;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-/**
- * DiagnosisUI - Enhanced User Interface for Diagnosis Management Demonstrates
- * comprehensive ADT usage with DoublyLinkedList operations Clean separation
- * between UI logic and control layer operations
- */
+
 public class DiagnosisUI {
 
     private static final Scanner scanner = new Scanner(System.in);
     private static final MaintainDiagnosis md = new MaintainDiagnosis();
-    private final MaintainTreatment mt = new MaintainTreatment();
+    private static final MaintainTreatment mt = new MaintainTreatment();
 
     // ===== MAIN MENU SYSTEM =====
     public void displayDiagnosisMenu() {
-        DoublyLinkedList<String> menuOptions = createMainMenuOptions();
+        ListInterface<String> menuOptions = createMainMenuOptions();
         int choice;
 
         do {
@@ -40,8 +40,8 @@ public class DiagnosisUI {
         } while (choice != 0); // Back option is now 0
     }
 
-    private DoublyLinkedList<String> createMainMenuOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createMainMenuOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("Create Diagnosis");
         options.add("View Diagnosis");
         options.add("Update Diagnosis");
@@ -89,7 +89,7 @@ public class DiagnosisUI {
         displayCurrentPatientInfo(currentServingPatient, currentConsultingDoctor);
 
         // Get input using ADT operations
-        DoublyLinkedList<String> symptoms = getSymptomsInput();
+        ListInterface<String> symptoms = getSymptomsInput();
         if (symptoms.isEmpty()) {
             System.out.println("Symptoms cannot be empty.");
             return;
@@ -145,7 +145,23 @@ public class DiagnosisUI {
         System.out.println("Doctor Name: " + doctor.getName());
         System.out.println("Doctor Specialization: " + doctor.getSpecialization());
         System.out.println("Remaining patients in serving queue: " + (mt.getServingPatientsCount() - 1));
-        mt.displayServingStatus();
+        displayServingStatus();
+    }
+
+    // ===== SERVING STATUS DISPLAY (UI LAYER) =====
+    public void displayServingStatus() {
+        System.out.println("\n=== CURRENT SERVING STATUS ===");
+        ServingStatusData statusData = MaintainTreatment.getServingStatusData();
+        
+        if (statusData.hasActiveConsultation()) {
+            System.out.println("Currently serving:");
+            System.out.println("  Patient: " + statusData.getCurrentPatient().getId() + " (" + statusData.getCurrentPatient().getName() + ")");
+            System.out.println("  Doctor: " + statusData.getCurrentDoctor().getId() + " (" + statusData.getCurrentDoctor().getName() + ")");
+        } else {
+            System.out.println("No active consultation.");
+        }
+        System.out.println("Waiting: " + statusData.getWaitingPatients() + " patients");
+        System.out.println("===============================\n");
     }
 
     private void createAutomaticTreatment(Patient patient, Doctor doctor) {
@@ -154,7 +170,7 @@ public class DiagnosisUI {
         LocalDate treatmentDate = LocalDate.now();
         System.out.println("Treatment Date: " + treatmentDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
-        DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
+        ListInterface<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
 
         if (askYesNo("Do you want to add medicines to this treatment?")
                 && !md.getAvailableMedicines().isEmpty()) {
@@ -170,11 +186,11 @@ public class DiagnosisUI {
         }
     }
 
-    private DoublyLinkedList<TreatmentMedicineList> getMedicinesFromUser() {
-        DoublyLinkedList<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
+    private ListInterface<TreatmentMedicineList> getMedicinesFromUser() {
+        ListInterface<TreatmentMedicineList> medicines = new DoublyLinkedList<>();
         displayMenuHeader("ADD MEDICINES");
 
-        DoublyLinkedList<String> availableMedicines = md.getAvailableMedicines();
+        ListInterface<String> availableMedicines = md.getAvailableMedicines();
         if (availableMedicines.isEmpty()) {
             System.out.println("No available medicines in the pharmacy.");
             return medicines;
@@ -237,7 +253,7 @@ public class DiagnosisUI {
 
     // ===== VIEW DIAGNOSIS USING ADT OPERATIONS =====
     public void viewDiagnosis() {
-        DoublyLinkedList<String> viewOptions = createViewOptions();
+        ListInterface<String> viewOptions = createViewOptions();
         displayMenuHeader("VIEW DIAGNOSIS");
         displayViewOptions(viewOptions);
 
@@ -247,15 +263,15 @@ public class DiagnosisUI {
         }
     }
 
-    private DoublyLinkedList<String> createViewOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createViewOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("View all diagnoses");
         options.add("View diagnosis by ID");
         options.add("View diagnoses by Patient ID");
         return options;
     }
 
-    private void displayViewOptions(DoublyLinkedList<String> options) {
+    private void displayViewOptions(ListInterface<String> options) {
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
         }
@@ -283,7 +299,7 @@ public class DiagnosisUI {
     }
 
     private void viewAllDiagnoses() {
-        DoublyLinkedList<Diagnosis> diagnoses = md.getAllDiagnoses();
+        ListInterface<Diagnosis> diagnoses = md.getAllDiagnoses();
         displayDiagnosisList(diagnoses, "ALL DIAGNOSES");
     }
 
@@ -308,7 +324,7 @@ public class DiagnosisUI {
             return;
         }
 
-        DoublyLinkedList<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
+        ListInterface<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
         displayDiagnosisList(patientDiagnoses, "DIAGNOSES FOR PATIENT " + patientId);
     }
 
@@ -330,7 +346,7 @@ public class DiagnosisUI {
         System.out.println("Current diagnosis details:");
         System.out.println(existingDiagnosis);
 
-        DoublyLinkedList<String> updateOptions = createUpdateOptions();
+        ListInterface<String> updateOptions = createUpdateOptions();
         displayUpdateOptions(updateOptions);
 
         int choice = getMenuChoice(updateOptions.getNumberOfEntries());
@@ -339,15 +355,15 @@ public class DiagnosisUI {
         }
     }
 
-    private DoublyLinkedList<String> createUpdateOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createUpdateOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("Symptoms");
         options.add("Diagnosis Details");
         options.add("Both");
         return options;
     }
 
-    private void displayUpdateOptions(DoublyLinkedList<String> options) {
+    private void displayUpdateOptions(ListInterface<String> options) {
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
         }
@@ -356,7 +372,7 @@ public class DiagnosisUI {
     }
 
     private void processUpdateChoice(int choice, String diagnosisId) {
-        DoublyLinkedList<String> newSymptoms = null;
+        ListInterface<String> newSymptoms = null;
         String newDiagnosisDetails = null;
 
         if (choice == 1 || choice == 3) {
@@ -385,7 +401,7 @@ public class DiagnosisUI {
 
     // ===== DELETE DIAGNOSIS USING ADT OPERATIONS =====
     public void deleteDiagnosis() {
-        DoublyLinkedList<String> deleteOptions = createDeleteOptions();
+        ListInterface<String> deleteOptions = createDeleteOptions();
         displayMenuHeader("DELETE DIAGNOSIS");
         displayDeleteOptions(deleteOptions);
 
@@ -395,15 +411,15 @@ public class DiagnosisUI {
         }
     }
 
-    private DoublyLinkedList<String> createDeleteOptions() {
-        DoublyLinkedList<String> options = new DoublyLinkedList<>();
+    private ListInterface<String> createDeleteOptions() {
+        ListInterface<String> options = new DoublyLinkedList<>();
         options.add("Delete specific diagnosis by ID");
         options.add("Delete all diagnoses for a patient");
         options.add("Delete all diagnoses");
         return options;
     }
 
-    private void displayDeleteOptions(DoublyLinkedList<String> options) {
+    private void displayDeleteOptions(ListInterface<String> options) {
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
         }
@@ -459,7 +475,7 @@ public class DiagnosisUI {
             return;
         }
 
-        DoublyLinkedList<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
+        ListInterface<Diagnosis> patientDiagnoses = md.findDiagnosesByPatientId(patientId);
         if (patientDiagnoses.isEmpty()) {
             System.out.println("No diagnoses found for patient ID: " + patientId);
             return;
@@ -476,7 +492,7 @@ public class DiagnosisUI {
     }
 
     private void deleteAllDiagnoses() {
-        DoublyLinkedList<Diagnosis> allDiagnoses = md.getAllDiagnoses();
+        ListInterface<Diagnosis> allDiagnoses = md.getAllDiagnoses();
         if (allDiagnoses.isEmpty()) {
             System.out.println("No diagnoses to delete.");
             return;
@@ -499,7 +515,7 @@ public class DiagnosisUI {
     }
 
     // ===== DISPLAY METHODS USING ADT OPERATIONS =====
-    private void displayDiagnosisList(DoublyLinkedList<Diagnosis> diagnoses, String title) {
+    private void displayDiagnosisList(ListInterface<Diagnosis> diagnoses, String title) {
         if (diagnoses.isEmpty()) {
             System.out.println("No diagnoses found.");
             return;
@@ -512,7 +528,7 @@ public class DiagnosisUI {
         System.out.println("Total diagnoses: " + diagnoses.getNumberOfEntries());
     }
 
-    private void displayDiagnosisSummary(DoublyLinkedList<Diagnosis> diagnoses, String title) {
+    private void displayDiagnosisSummary(ListInterface<Diagnosis> diagnoses, String title) {
         System.out.println("\n" + title + ":");
         for (int i = 1; i <= diagnoses.getNumberOfEntries(); i++) {
             Diagnosis diagnosis = diagnoses.getEntry(i);
@@ -521,7 +537,7 @@ public class DiagnosisUI {
     }
 
     // ===== INPUT UTILITY METHODS USING ADT =====
-    private DoublyLinkedList<String> getSymptomsInput() {
+    private ListInterface<String> getSymptomsInput() {
         System.out.print("Enter symptoms: ");
         String symptomInput = scanner.nextLine();
         return md.processSymptoms(symptomInput);
@@ -532,7 +548,7 @@ public class DiagnosisUI {
         return scanner.nextLine();
     }
 
-    private DoublyLinkedList<String> getUpdatedSymptoms() {
+    private ListInterface<String> getUpdatedSymptoms() {
         System.out.print("Enter new symptoms: ");
         String symptomInput = scanner.nextLine();
         return md.isValidInput(symptomInput) ? md.processSymptoms(symptomInput) : null;
@@ -544,7 +560,7 @@ public class DiagnosisUI {
         return md.isValidInput(diagnosisDetails) ? diagnosisDetails : null;
     }
 
-    private String selectFromList(DoublyLinkedList<String> options, String itemType, boolean allowSkip) {
+    private String selectFromList(ListInterface<String> options, String itemType, boolean allowSkip) {
         displayListOptions(itemType.substring(0, 1).toUpperCase() + itemType.substring(1) + " Options", options);
 
         try {
@@ -580,7 +596,7 @@ public class DiagnosisUI {
         System.out.println("==============================");
     }
 
-    private void displayMenuOptions(DoublyLinkedList<String> options) {
+    private void displayMenuOptions(ListInterface<String> options) {
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
         }
@@ -588,7 +604,7 @@ public class DiagnosisUI {
         System.out.print("Enter choice: ");
     }
 
-    private void displayListOptions(String title, DoublyLinkedList<String> options) {
+    private void displayListOptions(String title, ListInterface<String> options) {
         System.out.println(title + ":");
         for (int i = 1; i <= options.getNumberOfEntries(); i++) {
             System.out.println(i + ". " + options.getEntry(i));
@@ -638,14 +654,14 @@ public class DiagnosisUI {
 
     // ===== TREATMENT INTEGRATION METHODS =====
     private boolean createTreatmentWithMedicines(String patientId, String doctorId, String status,
-            LocalDate treatmentDate, DoublyLinkedList<TreatmentMedicineList> medicines) {
+            LocalDate treatmentDate, ListInterface<TreatmentMedicineList> medicines) {
         return medicines.isEmpty()
                 ? mt.createTreatment(patientId, doctorId, status, treatmentDate)
                 : mt.createTreatmentWithMedicines(patientId, doctorId, status, treatmentDate, medicines);
     }
 
     private void displayTreatmentCreationResult(String status, LocalDate treatmentDate,
-            DoublyLinkedList<TreatmentMedicineList> medicines, String patientId, String doctorId) {
+            ListInterface<TreatmentMedicineList> medicines, String patientId, String doctorId) {
         System.out.println("Treatment created automatically!");
         System.out.println("Treatment Status: " + status);
         System.out.println("Treatment Date: " + treatmentDate);
@@ -657,7 +673,7 @@ public class DiagnosisUI {
         }
         System.out.println("(Doctor consultation finished - doctor is now available)");
 
-        DoublyLinkedList<Treatment> patientTreatments = mt.findTreatmentsByPatientAndDoctor(patientId, doctorId);
+        ListInterface<Treatment> patientTreatments = mt.findTreatmentsByPatientAndDoctor(patientId, doctorId);
         if (!patientTreatments.isEmpty()) {
             Treatment latestTreatment = patientTreatments.getEntry(patientTreatments.getNumberOfEntries());
             System.out.println("Created Treatment ID: " + latestTreatment.getTreatmentId());

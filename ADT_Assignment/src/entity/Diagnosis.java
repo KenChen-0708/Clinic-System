@@ -1,21 +1,24 @@
+// Lee Siu Yee
+
 package entity;
 
 import adt.DoublyLinkedList;
+import adt.ListInterface;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 public class Diagnosis implements Serializable {
-
+    
     private static int counter = 1; // Static counter to generate unique diagnosisId
     private String diagnosisId;
     private String patientId;
     private String doctorId;
-    private DoublyLinkedList<String> symptoms;
+    private ListInterface<String> symptoms;
     private String diagnosisDetails;
     private LocalDate diagnosisDate;
 
-    public Diagnosis(String patientId, String doctorId, DoublyLinkedList<String> symptoms, String diagnosisDetails) {
+    public Diagnosis(String patientId, String doctorId, ListInterface<String> symptoms, String diagnosisDetails) {
         // Generate the diagnosisId by formatting the counter with leading zeros
         this.diagnosisId = "S" + String.format("%04d", counter++);
         this.patientId = patientId;
@@ -38,7 +41,7 @@ public class Diagnosis implements Serializable {
         return doctorId;
     }
 
-    public DoublyLinkedList<String> getSymptoms() {
+    public ListInterface<String> getSymptoms() {
         return symptoms;
     }
 
@@ -55,7 +58,7 @@ public class Diagnosis implements Serializable {
     }
 
     // Setters
-    public void setSymptoms(DoublyLinkedList<String> symptoms) {
+    public void setSymptoms(ListInterface<String> symptoms) {
         this.symptoms = symptoms;
     }
 
