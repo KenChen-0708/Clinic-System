@@ -23,19 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.io.IOException;
 
-/**
- * Patient Management Control Layer
- *
- * Handles all patient-related business operations:
- * - Patient registration, updates, and deletion
- * - Queue management for appointments
- * - Patient search and sorting
- * - Appointment booking and management
- * - Report generation
- *
- * Uses efficient data structures for fast operations and maintains
- * thread safety for concurrent access.
- */
+
 public class MaintainPatient {
 
     // Data access objects
@@ -55,8 +43,6 @@ public class MaintainPatient {
     private final MapInterface<String, Patient> patientMap = new HashMap<>();
     private final MapInterface<String, Patient> icMap = new HashMap<>();
     private final MapInterface<String, ListInterface<Patient>> nameMap = new HashMap<>();
-
-    // Queue tracking maps - removed redundant queueMap, use queuePatientMap.containsKey() instead
 
     // Queue search maps for fast queue operations
     private final MapInterface<String, Patient> queuePatientMap = new HashMap<>();
@@ -244,10 +230,7 @@ public class MaintainPatient {
         }
     }
 
-    // Validation methods are in PatientValidationUtil
-
-    // ==================== CORE BUSINESS OPERATIONS ====================
-
+    
     /**
      * Update patient in all data structures atomically
      */
@@ -283,8 +266,11 @@ public class MaintainPatient {
                 // Find patient position and replace
                 Integer replaceIndex = patientIndexMap.get(oldPatient.getId());
                 if (replaceIndex != null) {
-                    patientList.remove(replaceIndex);
-                    patientList.add(replaceIndex, newPatient);
+                    // Use replace() method instead of remove + add to maintain list integrity
+                    boolean replaceSuccess = patientList.replace(replaceIndex, newPatient);
+                    if (!replaceSuccess) {
+                        return false; // Replace failed
+                    }
 
                     // Update index map for new patient
                     patientIndexMap.put(newPatient.getId(), replaceIndex);
@@ -300,6 +286,9 @@ public class MaintainPatient {
 
 
 
+                // Invalidate sort caches when data changes
+                invalidateSortCaches();
+
                 // Save changes to file
                 try {
                     patientDAO.saveToFile(patientList);
@@ -314,8 +303,8 @@ public class MaintainPatient {
                     // Restore list if it was modified
                     Integer restoreIndex = patientIndexMap.get(newPatient.getId());
                     if (restoreIndex != null) {
-                        patientList.remove(restoreIndex);
-                        patientList.add(restoreIndex, oldPatient);
+                        // Use replace() method for rollback as well
+                        patientList.replace(restoreIndex, oldPatient);
                         patientIndexMap.put(oldPatient.getId(), restoreIndex);
                         patientIndexMap.remove(newPatient.getId());
                     }
@@ -398,7 +387,7 @@ public class MaintainPatient {
             patientIndexMap.remove(patient.getId());
             removeFromNameMap(patient);
 
-            // Remove from queue maps if present - with comprehensive null checks
+            // Remove from queue maps if present 
             if (patient.getId() != null) {
                 queuePatientMap.remove(patient.getId());
             }
@@ -409,10 +398,6 @@ public class MaintainPatient {
                 queueIcMap.remove(PatientFormatUtil.cleanICNumber(patient.getIcNumber()));
             }
         }
-
-        // queueMap.remove() replaced by queuePatientMap.remove() below
-
-        // No cache maintenance needed
 
         // Save changes to file
         try {
@@ -488,8 +473,7 @@ public class MaintainPatient {
     }
 
     /**
-     * Check if patient is currently in queue with thread safety (optimized - no redundant queueMap)
-     * Note: This is called from synchronized methods, so synchronization is inherited
+     * Check if patient is currently in queue 
      */
     private boolean isInQueue(Patient patient) {
         return patient != null && patient.getId() != null && queuePatientMap.containsKey(patient.getId());
@@ -504,12 +488,6 @@ public class MaintainPatient {
         queueNameMap.clear();
         queueIcMap.clear();
     }
-
-
-
-
-
-
 
     /**
      * Add patient to queue by ID
@@ -1723,6 +1701,19 @@ public class MaintainPatient {
         return doctor != null;
     }
 
+    /**
+     * Get doctor name by ID for UI display (following ECB pattern)
+     * @param doctorId Doctor ID to get name for
+     * @return Doctor name or "Unknown Doctor" if not found
+     */
+    public String getDoctorNameById(String doctorId) {
+        if (doctorId == null || doctorId.trim().isEmpty()) {
+            return "Unknown Doctor";
+        }
+        Doctor doctor = maintainDoctor.findDoctorById(doctorId);
+        return doctor != null ? doctor.getName() : "Unknown Doctor";
+    }
+
     public boolean isDoctorAvailable(String doctorId) { // Check if doctor is available for appointments
         if (doctorId == null || doctorId.trim().isEmpty()) {
             return false;
@@ -1926,6 +1917,39 @@ public class MaintainPatient {
     }
 
     /**
+     * Get appointment display data with patient and doctor names for UI
+     * Following ECB pattern - Control layer prepares data for Boundary layer
+     * @param appointments List of appointments to format
+     * @return Array of appointment display data [appointmentId, patientId, patientName, doctorId, doctorName, date, time]
+     */
+    public String[][] getAppointmentDisplayData(ListInterface<Appointment> appointments) {
+        if (appointments == null || appointments.isEmpty()) {
+            return new String[0][0];
+        }
+
+        String[][] displayData = new String[appointments.getNumberOfEntries()][7];
+        java.util.Iterator<Appointment> iterator = appointments.iterator();
+        int index = 0;
+
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            Patient patient = findPatientById(appointment.getPatientId());
+            Doctor doctor = maintainDoctor.findDoctorById(appointment.getDoctorId());
+
+            displayData[index][0] = appointment.getAppointmentId();
+            displayData[index][1] = appointment.getPatientId();
+            displayData[index][2] = patient != null ? patient.getName() : "Unknown Patient";
+            displayData[index][3] = appointment.getDoctorId();
+            displayData[index][4] = doctor != null ? doctor.getName() : "Unknown Doctor";
+            displayData[index][5] = appointment.getAppointmentDate().toString();
+            displayData[index][6] = appointment.getAppointmentTime().toString();
+            index++;
+        }
+
+        return displayData;
+    }
+
+    /**
      * Search appointments by patient ID
      * @param patientId Patient ID to search appointments for
      * @return List of appointments for the specified patient
@@ -1984,8 +2008,6 @@ public class MaintainPatient {
             return appointment;
         }
     }
-
-    // Validation methods are in PatientValidationUtil
 
     /**
      * Result class for validation operations

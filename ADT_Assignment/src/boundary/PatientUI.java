@@ -312,10 +312,13 @@ public class PatientUI {
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
+            // Get doctor name from control layer (following ECB pattern)
+            String doctorName = maintainPatient.getDoctorNameById(appointment.getDoctorId());
+
             displayMessage("\n=== APPOINTMENT CONFIRMATION ===");
             displayMessage("Appointment ID: " + appointment.getAppointmentId());
             displayMessage("Patient: " + patient.getName() + " (ID: " + appointment.getPatientId() + ")");
-            displayMessage("Doctor ID: " + appointment.getDoctorId());
+            displayMessage("Doctor: " + doctorName + " (ID: " + appointment.getDoctorId() + ")");
             displayMessage("Date: " + appointment.getAppointmentDate());
             displayMessage("Time: " + appointment.getAppointmentTime());
         }
@@ -392,25 +395,33 @@ public class PatientUI {
         askToContinueOrReturnToMenu();
     }
 
-    // Display list of appointments
+    // Display list of appointments with patient and doctor names (following ECB pattern)
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
-        System.out.println("=".repeat(80));
-        System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
-                "Appointment ID", "Patient ID", "Doctor ID", "Date", "Time");
-        System.out.println("=".repeat(80));
+        // Get formatted appointment data from control layer
+        String[][] appointmentData = maintainPatient.getAppointmentDisplayData(appointments);
 
-        // Display all appointments
-        java.util.Iterator<Appointment> iterator = appointments.iterator();
-        while (iterator.hasNext()) {
-            Appointment appointment = iterator.next();
-            System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
-                    appointment.getAppointmentId(),
-                    appointment.getPatientId(),
-                    appointment.getDoctorId(),
-                    appointment.getAppointmentDate(),
-                    appointment.getAppointmentTime());
+        if (appointmentData.length == 0) {
+            System.out.println("No appointments to display.");
+            return;
         }
-        System.out.println("=".repeat(80));
+
+        System.out.println("=".repeat(120));
+        System.out.printf("%-15s %-12s %-20s %-12s %-20s %-15s %-10s%n",
+                "Appointment ID", "Patient ID", "Patient Name", "Doctor ID", "Doctor Name", "Date", "Time");
+        System.out.println("=".repeat(120));
+
+        // Display appointment data with patient and doctor names
+        for (String[] appointment : appointmentData) {
+            System.out.printf("%-15s %-12s %-20s %-12s %-20s %-15s %-10s%n",
+                    appointment[0], // Appointment ID
+                    appointment[1], // Patient ID
+                    FormatUtil.truncateString(appointment[2], 20), // Patient Name (truncated)
+                    appointment[3], // Doctor ID
+                    FormatUtil.truncateString(appointment[4], 20), // Doctor Name (truncated)
+                    appointment[5], // Date
+                    appointment[6]); // Time
+        }
+        System.out.println("=".repeat(120));
     }
 
     // Handle appointment cancellation
