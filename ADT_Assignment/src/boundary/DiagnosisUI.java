@@ -309,10 +309,7 @@ public class DiagnosisUI {
 
     private void viewAllDiagnoses() {
         ListInterface<Diagnosis> diagnoses = md.getAllDiagnoses();
-        System.out.println("\n==================================");
-        System.out.println("           ALL DIAGNOSES          ");
-        System.out.println("==================================");
-        displayDiagnosisList(diagnoses, "       ALL DIAGNOSES");
+        displayDiagnosisList(diagnoses, "ALL DIAGNOSES");
     }
 
     private void viewDiagnosisById() {
