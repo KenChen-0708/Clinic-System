@@ -232,4 +232,33 @@ public final class ValidationUtil {
 
         return new ValidationResult(true, null);
     }
+
+    /**
+     * Validate time format (HH:mm)
+     * @param timeString Time string to validate
+     * @return true if valid format, false otherwise
+     */
+    public static boolean isValidTimeFormat(String timeString) {
+        if (timeString == null || timeString.length() != 5) {
+            return false;
+        }
+
+        if (timeString.charAt(2) != ':') {
+            return false;
+        }
+
+        try {
+            String[] parts = timeString.split(":");
+            if (parts.length != 2) {
+                return false;
+            }
+
+            int hours = Integer.parseInt(parts[0]);
+            int minutes = Integer.parseInt(parts[1]);
+
+            return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 }

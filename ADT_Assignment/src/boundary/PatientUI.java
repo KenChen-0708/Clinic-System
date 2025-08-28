@@ -26,7 +26,9 @@ public class PatientUI {
         this.maintainPatient = control;
     }
 
-    // Display menu and handle user choices until exit
+    /**
+     * Main application loop - displays menu and processes user choices
+     */
     public void run() {
         int choice;
         do {
@@ -36,7 +38,9 @@ public class PatientUI {
         } while (choice != 0);
     }
 
-    // Process main menu selection
+    /**
+     * Process user's main menu selection
+     */
     private void handleMainMenuChoice(int choice) {
         switch (choice) {
             case 1:
@@ -252,22 +256,22 @@ public class PatientUI {
                 continue;
             }
 
-            // ECB COMPLIANT: Validate doctor exists immediately after input
+            // Validate doctor exists
             if (!maintainPatient.isDoctorValid(doctorId)) {
                 displayMessage("\nDoctor not found. Please enter a valid Doctor ID.");
-                continue; // Ask for doctor ID again
+                continue;
             }
 
-            // ECB COMPLIANT: Check doctor availability before proceeding
+            // Check doctor availability
             if (!maintainPatient.isDoctorAvailable(doctorId)) {
                 displayMessage("Doctor is not available for appointments. Please choose another doctor.");
-                continue; // Ask for doctor ID again
+                continue;
             }
 
-            validDoctor = true; // Doctor is valid and available
+            validDoctor = true;
         }
 
-        // FIXED: Input appointment time with comprehensive validation loop
+        // Input appointment time with validation
         MaintainPatient.AppointmentResult result = null;
         boolean appointmentBooked = false;
 
@@ -287,7 +291,7 @@ public class PatientUI {
             }
 
             // Validate time format first
-            if (!isValidTimeFormat(timeString)) {
+            if (!ValidationUtil.isValidTimeFormat(timeString)) {
                 displayMessage("Invalid time format. Please use HH:mm format (e.g., 14:30).");
                 continue; // Ask for time again
             }
@@ -297,10 +301,10 @@ public class PatientUI {
 
             if (result.isSuccess()) {
                 appointmentBooked = true; // Success - exit loop
-                displayMessage("\n" + result.getMessage());
+                displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
             } else {
                 // Display error and continue loop to ask for new time
-                displayMessage("\n" + result.getMessage());
+                displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
                 displayMessage("Please choose a different time.");
                 // Loop continues to ask for new time
             }
@@ -316,17 +320,17 @@ public class PatientUI {
             displayMessage("Time: " + appointment.getAppointmentTime());
         }
 
-        // FIXED: Ask specifically about booking another appointment
+        // Ask about booking another appointment
         askToBookAnotherAppointment();
     }
 
-    // Display list of doctors - OPTIMIZED with iterator for O(n) performance
+    // Display list of doctors
     private void displayDoctorList(ListInterface<Doctor> doctors) {
         System.out.println("=".repeat(80));
         System.out.printf("%-10s %-25s %-20s %-15s%n", "Doctor ID", "Name", "Specialization", "Availability");
         System.out.println("=".repeat(80));
 
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
+        // Display all available doctors
         java.util.Iterator<Doctor> iterator = doctors.iterator();
         while (iterator.hasNext()) {
             Doctor doctor = iterator.next();
@@ -351,7 +355,7 @@ public class PatientUI {
             return;
         }
 
-        // ENHANCED: Show sorting submenu with input validation
+        // Show sorting submenu with input validation
         displayAppointmentSortingMenu();
 
         int sortChoice = -1;
@@ -388,14 +392,14 @@ public class PatientUI {
         askToContinueOrReturnToMenu();
     }
 
-    // Display list of appointments - OPTIMIZED with iterator for O(n) performance
+    // Display list of appointments
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
         System.out.println("=".repeat(80));
         System.out.printf("%-15s %-12s %-12s %-15s %-10s%n",
                 "Appointment ID", "Patient ID", "Doctor ID", "Date", "Time");
         System.out.println("=".repeat(80));
 
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
+        // Display all appointments
         java.util.Iterator<Appointment> iterator = appointments.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
@@ -433,7 +437,7 @@ public class PatientUI {
         }
 
         if (appointmentId.isEmpty()) {
-            displayMessage("Appointment ID cannot be empty.");
+            displayMessage("\nAppointment ID cannot be empty.");
             askToContinueOrReturnToMenu();
             return;
         }
@@ -441,7 +445,7 @@ public class PatientUI {
         // Cancel appointment
         MaintainPatient.AppointmentResult result = maintainPatient.cancelAppointment(appointmentId);
 
-        displayMessage("\n" + result.getMessage());
+        displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
@@ -508,11 +512,11 @@ public class PatientUI {
             return;
         }
 
-        displayMessage("Current appointments in the system:");
+        displayMessage("\nCurrent appointments in the system:");
         displayAppointmentList(currentAppointments);
 
         // Confirm before clearing
-        System.out.print("Are you sure you want to clear ALL appointments from the system? (y/n): ");
+        System.out.print("\nAre you sure you want to clear ALL appointments from the system? (y/n): ");
         String confirmation = scanner.nextLine().trim().toLowerCase();
 
         if (!confirmation.equals("y") && !confirmation.equals("yes")) {
@@ -524,7 +528,7 @@ public class PatientUI {
         // Clear all appointments
         MaintainPatient.AppointmentResult result = maintainPatient.clearAllAppointments();
 
-        displayMessage("\n" + result.getMessage());
+        displayMessage("\n" + getAppointmentResultMessage(result.getResultCode()));
 
         askToContinueOrReturnToMenu();
     }
@@ -1083,10 +1087,16 @@ public class PatientUI {
 
     // Helper method to display sorted patients by ID
     private void displaySortedPatientsById(boolean ascending, String title) {
-        ListInterface<Patient> sortedData = maintainPatient.handleSortByIdChoice(ascending ? 1 : 2);
-        if (sortedData != null) {
+        ListInterface<Patient> sortedData = ascending ?
+            maintainPatient.sortPatientsByIdAscending() :
+            maintainPatient.sortPatientsByIdDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
             displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
         }
     }
@@ -1115,10 +1125,16 @@ public class PatientUI {
 
     // Helper method to display sorted patients by date
     private void displaySortedPatientsByDate(boolean ascending, String title) {
-        ListInterface<Patient> sortedData = maintainPatient.handleSortByDateChoice(ascending ? 1 : 2);
-        if (sortedData != null) {
+        ListInterface<Patient> sortedData = ascending ?
+            maintainPatient.sortPatientsByDateAscending() :
+            maintainPatient.sortPatientsByDateDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
             displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
         }
     }
@@ -1177,9 +1193,7 @@ public class PatientUI {
     }
 
     /**
-     * Format queue data for table display - UI layer responsibility FIXED: Uses
-     * list instead of array to avoid ClassCastException Maintains FIFO order
-     * with efficient iterator traversal
+     * Format queue data for table display
      */
     private String[][] formatQueueTableData() {
         ListInterface<Patient> queueList = maintainPatient.getQueueList();
@@ -1191,7 +1205,7 @@ public class PatientUI {
 
         String[][] queueData = new String[queueList.getNumberOfEntries()][6];
 
-        // Use efficient iterator for O(n) performance and FIFO order
+        // Display queue in FIFO order
         java.util.Iterator<Patient> iterator = queueList.iterator();
         int index = 0;
         while (iterator.hasNext()) {
@@ -1264,11 +1278,16 @@ public class PatientUI {
 
             if (foundPatients.getNumberOfEntries() > 0) {
                 displayMessage("\nFound " + foundPatients.getNumberOfEntries() + " patient(s) with name '" + name + "':");
-                for (int i = 1; i <= foundPatients.getNumberOfEntries(); i++) {
-                    displayMessage("\n--- Patient " + i + " ---");
-                    Patient p = foundPatients.getEntry(i);
+
+                // Display found patients
+                int patientNumber = 1;
+                java.util.Iterator<Patient> iterator = foundPatients.iterator();
+                while (iterator.hasNext()) {
+                    displayMessage("\n--- Patient " + patientNumber + " ---");
+                    Patient p = iterator.next();
                     int age = maintainPatient.getPatientAge(p.getIcNumber());
                     displayPatient(p, age);
+                    patientNumber++;
                 }
             } else {
                 displayMessage("\nNo patients found with name '" + name + "'.");
@@ -1383,7 +1402,7 @@ public class PatientUI {
         displayMessage("\n=== NEW PATIENT REGISTRATION ===");
         Patient patient = inputRemainingPatientDetails(icNumber);
 
-        // FIXED: Get the registered patient with generated ID
+        // Register the patient
         Patient registeredPatient = maintainPatient.registerNewPatient(patient);
 
         if (registeredPatient != null) {
@@ -1396,12 +1415,12 @@ public class PatientUI {
                 if (queueNum != null) {
                     displayMessage("\nPatient " + registeredPatient.getName() + " has been added to the line-up queue.");
                     displayMessage("Queue Number: " + queueNum);
-                    displayMessage("Total patients in queue: " + maintainPatient.getQueueSize() + "\n");
+                    displayMessage("Total patients in queue: " + maintainPatient.getQueueSize());
                 } else {
-                    displayMessage("\nFailed to add patient to queue. Please try again.\n");
+                    displayMessage("\nFailed to add patient to queue. Please try again.");
                 }
             } else {
-                displayMessage("\nPatient not added to queue.\n");
+                displayMessage("\nPatient not added to queue.");
             }
         } else {
             displayMessage("\nRegistration failed. IC number may already exist.");
@@ -1492,7 +1511,6 @@ public class PatientUI {
 
                     if (removeSuccess) {
                         displayMessage("\nPatient removed successfully.");
-                        displayMessage("Patient also removed from line-up queue if present.");
                     }
                 } else {
                     displayMessage("\nPatient removal cancelled.");
@@ -1900,8 +1918,11 @@ public class PatientUI {
             System.out.println(lineDash);
 
             ListInterface<String> months = monthlyCount.getKeys();
-            for (int i = 1; i <= months.getNumberOfEntries(); i++) {
-                String month = months.getEntry(i);
+
+            // Display monthly statistics
+            java.util.Iterator<String> monthIterator = months.iterator();
+            while (monthIterator.hasNext()) {
+                String month = monthIterator.next();
                 Integer count = monthlyCount.get(month);
                 System.out.printf("%-20s %-20s%n", month, count + " patients");
             }
@@ -1937,9 +1958,7 @@ public class PatientUI {
     }
 
     /**
-     * Display sorting message based on user choice ECB COMPLIANT: Only UI
-     * display logic in boundary layer
-     *
+     * Display sorting message based on user choice
      * @param sortChoice User's sorting choice
      */
     private void displaySortingMessage(int sortChoice) {
@@ -1965,29 +1984,7 @@ public class PatientUI {
      * @param timeString Time string to validate
      * @return true if valid format, false otherwise
      */
-    private boolean isValidTimeFormat(String timeString) {
-        if (timeString == null || timeString.length() != 5) {
-            return false;
-        }
 
-        if (timeString.charAt(2) != ':') {
-            return false;
-        }
-
-        try {
-            String[] parts = timeString.split(":");
-            if (parts.length != 2) {
-                return false;
-            }
-
-            int hours = Integer.parseInt(parts[0]);
-            int minutes = Integer.parseInt(parts[1]);
-
-            return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
 
     /**
      * Display formatted queue information with better layout
@@ -2014,5 +2011,31 @@ public class PatientUI {
         System.out.printf(" IC             : %s%n", formattedIC);
         System.out.printf(" Queue Position : %d%n", queuePosition);
         System.out.println("-------------------------------------");
+    }
+
+    /**
+     * Convert appointment result codes to user-friendly messages
+     */
+    private String getAppointmentResultMessage(MaintainPatient.OperationResult resultCode) {
+        switch (resultCode) {
+            case SUCCESS:
+                return "Operation completed successfully!";
+            case PATIENT_NOT_FOUND:
+                return "Patient not found. Please register the patient first.";
+            case DOCTOR_NOT_FOUND:
+                return "Doctor not found.";
+            case DOCTOR_UNAVAILABLE:
+                return "Doctor is not available for appointments or has a scheduling conflict.";
+            case INVALID_TIME_FORMAT:
+                return "Invalid time format. Please use HH:mm format (e.g., 14:30).";
+            case INVALID_BUSINESS_HOURS:
+                return "Appointment time must be between 09:00 and 17:00.";
+            case APPOINTMENT_NOT_FOUND:
+                return "No appointments found.";
+            case INVALID_INPUT:
+                return "Invalid input provided. Please check your data and try again.";
+            default:
+                return "An error occurred during the operation.";
+        }
     }
 }

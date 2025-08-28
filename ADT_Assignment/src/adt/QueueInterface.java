@@ -32,4 +32,6 @@ public interface QueueInterface<T> {
     T[] toArray();                  // Get queue elements as array in FIFO order
 
     String[] getQueueNumbers();     // Get queue numbers as array in FIFO order
+
+    ListInterface<T> createSnapshot(); // Create read-only snapshot of queue contents
 }

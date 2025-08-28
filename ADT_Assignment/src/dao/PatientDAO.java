@@ -8,11 +8,9 @@ import java.io.*;
 public class PatientDAO {
     private final String FILE_NAME = "patients.dat";
 
-    public void saveToFile(ListInterface<Patient> patientList) {
+    public void saveToFile(ListInterface<Patient> patientList) throws IOException {
         try (ObjectOutputStream oo = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
             oo.writeObject(patientList);
-        } catch (IOException e) {
-            System.out.println("Error saving patient data.");
         }
     }
 
