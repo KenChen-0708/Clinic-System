@@ -138,7 +138,6 @@ public class MaintainDoctor {
         displayAllDoctors();
     }
 
-
     public void sortDoctorsBySpecialization() {
         if (doctorList.isEmpty()) {
             doctorUI.displayMessage("No doctors to sort.");
@@ -149,8 +148,6 @@ public class MaintainDoctor {
         doctorUI.displayMessage("Doctors sorted by specialization.");
         displayAllDoctors();
     }
-
-
 
     public void sortDoctorsById() {
         if (doctorList.isEmpty()) {
@@ -288,8 +285,6 @@ public class MaintainDoctor {
         }
     }
 
-
-
 // =========================
 // Statistics Report
 // =========================
@@ -327,9 +322,13 @@ public class MaintainDoctor {
             for (int i = 1; i <= ts.getNumberOfEntries(); i++) {
                 Treatment t = ts.getEntry(i);
                 total++;
-                if ("Completed".equalsIgnoreCase(t.getStatus())) completed++;
+                if ("Completed".equalsIgnoreCase(t.getStatus())) {
+                    completed++;
+                }
                 String pid = t.getPatientId();
-                if (!uniquePatients.contains(pid)) uniquePatients.add(pid);
+                if (!uniquePatients.contains(pid)) {
+                    uniquePatients.add(pid);
+                }
             }
             totalTreatmentsByDoctor.put(docId, total);
             completedTreatmentsByDoctor.put(docId, completed);
@@ -433,47 +432,10 @@ public class MaintainDoctor {
             }
         }
 
-        String generatedDate = java.time.LocalDateTime.now()
-                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
-
-        double completedPct = totalTreatments > 0
-                ? (completedTreatments * 100.0) / totalTreatments
-                : 0.0;
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n=====================================================================================================================\n");
-        sb.append("                               Tunku Abdul Rahman University Of Management And Technology                              \n");
-        sb.append("=====================================================================================================================\n");
-        sb.append(String.format(" Report Generated On: %s\n", generatedDate));
-        sb.append("=====================================================================================================================\n");
-        sb.append("                                                   🧾 Doctor Workload Report                                           \n");
-        sb.append("=====================================================================================================================\n");
-
-        // Doctor summary table (same columns as statistics for familiarity)
-        sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
-                "ID", "Name", "Specialization", "Schedule", "Availability"));
-        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
         Doctor doc = doctorMap.get(doctorId);
-        String name = (doc != null ? doc.getName() : "-");
-        String spec = (doc != null && doc.getSpecialization() != null) ? doc.getSpecialization() : "Not specified";
-        String sched = (doc != null && doc.getSchedule() != null) ? doc.getSchedule() : "Not set";
-        String avail = (doc != null && doc.getAvailability() != null) ? doc.getAvailability() : "Not set";
-        sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
-                doctorId, name, spec, sched, avail));
 
-        sb.append("=====================================================================================================================\n");
-        sb.append("\n Workload Summary:\n");
-        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
-        sb.append(String.format(" %-22s | %-10s | %-10s\n", "Metric", "Value", "Percent"));
-        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
-        sb.append(String.format(" %-22s | %-10d | %-10s\n", "Total Treatments", totalTreatments, "N/A"));
-        sb.append(String.format(" %-22s | %-10d | %9.1f%%\n", "Completed", completedTreatments, completedPct));
-        sb.append(String.format(" %-22s | %-10d | %-10s\n", "Unique Patients", uniquePatients.getNumberOfEntries(), "N/A"));
-        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
-        sb.append(" This report is confidential and intended for TAR UMT Medical Department use only.\n");
-        sb.append("=====================================================================================================================\n");
-
-        doctorUI.displayMessage(sb.toString());
+        // ✅ delegate formatting & printing to UI
+        doctorUI.displayDoctorWorkload(doc, doctorId, totalTreatments, completedTreatments, uniquePatients.getNumberOfEntries());
     }
 
     // =========================
@@ -528,7 +490,10 @@ public class MaintainDoctor {
             specialization = scanner.nextLine().trim();
             boolean valid = false;
             for (String s : SPECIALIZATIONS) {
-                if (s.equals(specialization)) { valid = true; break; }
+                if (s.equals(specialization)) {
+                    valid = true;
+                    break;
+                }
             }
             if (specialization.isEmpty()) {
                 doctorUI.displayMessage("❌ Specialization cannot be empty.");
@@ -578,7 +543,10 @@ public class MaintainDoctor {
             availability = scanner.nextLine().trim();
             boolean valid = false;
             for (String s : options) {
-                if (s.equals(availability)) { valid = true; break; }
+                if (s.equals(availability)) {
+                    valid = true;
+                    break;
+                }
             }
             if (availability.isEmpty()) {
                 doctorUI.displayMessage("❌ Availability cannot be empty.");
@@ -656,6 +624,5 @@ public class MaintainDoctor {
         }
         return doctorMap.get(doctorId.trim());
     }
-    
-    
+
 }
