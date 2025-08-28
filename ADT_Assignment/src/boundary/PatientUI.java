@@ -26,7 +26,9 @@ public class PatientUI {
         this.maintainPatient = control;
     }
 
-    // Display menu and handle user choices until exit
+    /**
+     * Main application loop - displays menu and processes user choices
+     */
     public void run() {
         int choice;
         do {
@@ -36,7 +38,9 @@ public class PatientUI {
         } while (choice != 0);
     }
 
-    // Process main menu selection
+    /**
+     * Process user's main menu selection
+     */
     private void handleMainMenuChoice(int choice) {
         switch (choice) {
             case 1:
@@ -326,7 +330,7 @@ public class PatientUI {
         System.out.printf("%-10s %-25s %-20s %-15s%n", "Doctor ID", "Name", "Specialization", "Availability");
         System.out.println("=".repeat(80));
 
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
+        // Display all available doctors
         java.util.Iterator<Doctor> iterator = doctors.iterator();
         while (iterator.hasNext()) {
             Doctor doctor = iterator.next();
@@ -395,7 +399,7 @@ public class PatientUI {
                 "Appointment ID", "Patient ID", "Doctor ID", "Date", "Time");
         System.out.println("=".repeat(80));
 
-        // Use iterator for efficient O(n) traversal instead of O(n²) getEntry() calls
+        // Display all appointments
         java.util.Iterator<Appointment> iterator = appointments.iterator();
         while (iterator.hasNext()) {
             Appointment appointment = iterator.next();
@@ -1201,7 +1205,7 @@ public class PatientUI {
 
         String[][] queueData = new String[queueList.getNumberOfEntries()][6];
 
-        // Use efficient iterator for O(n) performance and FIFO order
+        // Display queue in FIFO order
         java.util.Iterator<Patient> iterator = queueList.iterator();
         int index = 0;
         while (iterator.hasNext()) {
@@ -1275,7 +1279,7 @@ public class PatientUI {
             if (foundPatients.getNumberOfEntries() > 0) {
                 displayMessage("\nFound " + foundPatients.getNumberOfEntries() + " patient(s) with name '" + name + "':");
 
-                // Use efficient iterator instead of O(n²) getEntry() calls
+                // Display found patients
                 int patientNumber = 1;
                 java.util.Iterator<Patient> iterator = foundPatients.iterator();
                 while (iterator.hasNext()) {
@@ -1915,7 +1919,7 @@ public class PatientUI {
 
             ListInterface<String> months = monthlyCount.getKeys();
 
-            // Use efficient iterator instead of O(n²) getEntry() calls
+            // Display monthly statistics
             java.util.Iterator<String> monthIterator = months.iterator();
             while (monthIterator.hasNext()) {
                 String month = monthIterator.next();
@@ -2011,7 +2015,6 @@ public class PatientUI {
 
     /**
      * Convert appointment result codes to user-friendly messages
-     * ECB COMPLIANT: UI messages handled in boundary layer
      */
     private String getAppointmentResultMessage(MaintainPatient.OperationResult resultCode) {
         switch (resultCode) {
