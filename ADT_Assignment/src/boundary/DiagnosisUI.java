@@ -537,7 +537,7 @@ public class DiagnosisUI {
         }
 
         System.out.println("\n==================================");
-        System.out.println("           " + title + "           ");
+        System.out.println("    " + title + "           ");
         System.out.println("==================================");
         for (int i = 1; i <= diagnoses.getNumberOfEntries(); i++) {
             System.out.println(diagnoses.getEntry(i));
@@ -672,9 +672,6 @@ public class DiagnosisUI {
 
     private void displayTreatmentCreationResult(String status, LocalDate treatmentDate,
             ListInterface<TreatmentMedicineList> medicines, String patientId, String doctorId) {
-        System.out.println("Treatment created automatically!");
-        System.out.println("Treatment Status: " + status);
-        System.out.println("Treatment Date: " + treatmentDate);
 
         if (status.equals("Completed")) {
             System.out.println("\n(Treatment marked as completed - no medicines required)");
