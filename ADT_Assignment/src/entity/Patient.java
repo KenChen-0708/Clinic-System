@@ -101,4 +101,80 @@ public class Patient implements Serializable {
     public int hashCode() {
         return icNumber != null ? icNumber.hashCode() : 0;
     }
+
+    /**
+     * Calculate age from IC number (business logic belongs in entity)
+     * @return calculated age in years
+     */
+    public int calculateAge() {
+        if (icNumber == null || icNumber.length() < 6) {
+            return 0;
+        }
+        
+        try {
+            // Extract birth year from IC (first 6 digits: YYMMDD)
+            String birthYearStr = icNumber.substring(0, 2);
+            int birthYear = Integer.parseInt(birthYearStr);
+            
+            // Determine century (assume 00-29 = 2000s, 30-99 = 1900s)
+            int fullBirthYear = (birthYear <= 29) ? (2000 + birthYear) : (1900 + birthYear);
+            
+            // Calculate age
+            int currentYear = java.time.LocalDate.now().getYear();
+            return currentYear - fullBirthYear;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Format phone number for storage (business logic belongs in entity)
+     * @param phone raw phone input
+     * @return formatted phone number
+     */
+    public static String formatPhoneForStorage(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return phone;
+        }
+        
+        // Remove all non-digit characters
+        String cleaned = phone.replaceAll("[^0-9]", "");
+        
+        // Keep Malaysian phone numbers in their original format
+        if (cleaned.startsWith("01") && (cleaned.length() == 10 || cleaned.length() == 11)) {
+            // Malaysian format: 01XXXXXXXX or 01XXXXXXXXX - keep as-is
+            return cleaned;
+        } else if (cleaned.startsWith("60") && cleaned.length() == 11) {
+            // International format: 60XXXXXXXXX - keep as-is
+            return cleaned;
+        } else if (cleaned.startsWith("0") && cleaned.length() == 10) {
+            // Local format: 0XXXXXXXXX - keep as-is (don't convert to 60...)
+            return cleaned;
+        } else if (cleaned.length() == 9) {
+            // Local format without leading 0: XXXXXXXXX - keep as-is
+            return cleaned;
+        }
+        
+        return cleaned;
+    }
+
+    /**
+     * Normalize gender input (business logic belongs in entity)
+     * @param gender raw gender input
+     * @return normalized gender (M/F)
+     */
+    public static String normalizeGender(String gender) {
+        if (gender == null || gender.trim().isEmpty()) {
+            return null;
+        }
+        
+        String normalized = gender.trim().toLowerCase();
+        if (normalized.equals("m") || normalized.equals("male")) {
+            return "M";
+        } else if (normalized.equals("f") || normalized.equals("female")) {
+            return "F";
+        }
+        
+        return null;
+    }
 }

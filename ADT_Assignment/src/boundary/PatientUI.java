@@ -159,7 +159,7 @@ public class PatientUI {
     // Display appointment menu options
     public int displayAppointmentMenu() {
         System.out.println("\n===============================");
-        System.out.println("      APPOINTMENT MENU         ");
+        System.out.println("  APPOINTMENT MANAGEMENT MENU         ");
         System.out.println("===============================");
         System.out.println("1. Book Appointment");
         System.out.println("2. View Today's Appointments");
@@ -228,7 +228,7 @@ public class PatientUI {
 
         // Display patient details for confirmation
         displayMessage("\n=== PATIENT DETAILS ===");
-        int age = maintainPatient.getPatientAge(patient.getIcNumber());
+        int age = patient.calculateAge();
         displayPatient(patient, age);
 
         // Show available doctors
@@ -315,7 +315,7 @@ public class PatientUI {
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
-            // Get doctor name from control layer (following ECB pattern)
+            // Get doctor name from control layer
             String doctorName = maintainPatient.getDoctorNameById(appointment.getDoctorId());
 
             displayMessage("\n=== APPOINTMENT CONFIRMATION ===");
@@ -398,12 +398,9 @@ public class PatientUI {
         askToContinueOrReturnToMenu();
     }
 
-    // Display list of appointments with patient and doctor names (following ECB pattern)
+    // Display list of appointments with patient and doctor names
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
-        // Get formatted appointment data from control layer
-        String[][] appointmentData = maintainPatient.getAppointmentDisplayData(appointments);
-
-        if (appointmentData.length == 0) {
+        if (appointments == null || appointments.isEmpty()) {
             System.out.println("No appointments to display.");
             return;
         }
@@ -413,16 +410,23 @@ public class PatientUI {
                 "Appointment ID", "Patient ID", "Patient Name", "Doctor ID", "Doctor Name", "Date", "Time");
         System.out.println("=".repeat(120));
 
-        // Display appointment data with patient and doctor names
-        for (String[] appointment : appointmentData) {
+        // Format data in boundary layer
+        java.util.Iterator<Appointment> iterator = appointments.iterator();
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            
+            // Get patient and doctor details from control layer
+            Patient patient = maintainPatient.findPatientById(appointment.getPatientId());
+            String doctorName = maintainPatient.getDoctorNameById(appointment.getDoctorId());
+            
             System.out.printf("%-15s %-12s %-20s %-12s %-20s %-15s %-10s%n",
-                    appointment[0], // Appointment ID
-                    appointment[1], // Patient ID
-                    FormatUtil.truncateString(appointment[2], 20), // Patient Name (truncated)
-                    appointment[3], // Doctor ID
-                    FormatUtil.truncateString(appointment[4], 20), // Doctor Name (truncated)
-                    appointment[5], // Date
-                    appointment[6]); // Time
+                    appointment.getAppointmentId(),
+                    appointment.getPatientId(),
+                    FormatUtil.truncateString(patient != null ? patient.getName() : "Unknown", 20),
+                    appointment.getDoctorId(),
+                    FormatUtil.truncateString(doctorName != null ? doctorName : "Unknown", 20),
+                    appointment.getAppointmentDate().toString(),
+                    appointment.getAppointmentTime().toString());
         }
         System.out.println("=".repeat(120));
     }
@@ -602,11 +606,11 @@ public class PatientUI {
         entity.Patient y = report.getYoungestPatient();
         entity.Patient o = report.getOldestPatient();
         if (y != null) {
-            int yAge = maintainPatient.getPatientAge(y.getIcNumber());
+            int yAge = y.calculateAge();
             System.out.printf("%-35s : %-20s (ID: %s, Age %d)%n", "Youngest Patient", y.getName(), y.getId(), yAge);
         }
         if (o != null) {
-            int oAge = maintainPatient.getPatientAge(o.getIcNumber());
+            int oAge = o.calculateAge();
             System.out.printf("%-35s : %-20s (ID: %s, Age %d)%n", "Oldest Patient", o.getName(), o.getId(), oAge);
         }
 
@@ -900,7 +904,7 @@ public class PatientUI {
             System.out.print("Enter Phone     : ");
             phone = scanner.nextLine().trim();
 
-            // Validate phone number
+            // Validate phone number using utility validation
             ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phone);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
@@ -909,8 +913,8 @@ public class PatientUI {
             }
         } while (true);
 
-        // Format phone number for storage using control layer
-        return maintainPatient.formatPhoneForStorage(phone);
+        // Return raw phone number - control layer handles formatting
+        return phone;
     }
 
     private String inputGender() {
@@ -922,8 +926,8 @@ public class PatientUI {
             if (gender.isEmpty()) {
                 System.out.println("\nGender cannot be empty. Please try again.\n");
             } else {
-                // Normalize gender input using control layer
-                String normalizedGender = maintainPatient.normalizeGender(gender);
+                // Normalize gender input using entity layer
+                String normalizedGender = Patient.normalizeGender(gender);
                 if (normalizedGender != null) {
                     return normalizedGender;
                 } else {
@@ -1119,7 +1123,7 @@ public class PatientUI {
         if (genderInput.isEmpty()) {
             gender = currentPatient.getGender();
         } else {
-            String normalizedGender = maintainPatient.normalizeGender(genderInput);
+            String normalizedGender = Patient.normalizeGender(genderInput);
             while (normalizedGender == null) {
                 System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
                 System.out.print("Gender [" + currentPatient.getGender() + "]: ");
@@ -1128,7 +1132,7 @@ public class PatientUI {
                     normalizedGender = currentPatient.getGender();
                     break;
                 } else {
-                    normalizedGender = maintainPatient.normalizeGender(genderInput);
+                    normalizedGender = Patient.normalizeGender(genderInput);
                 }
             }
             gender = normalizedGender;
@@ -1165,6 +1169,7 @@ public class PatientUI {
         if (phoneInput.isEmpty()) {
             phone = currentPatient.getPhone();
         } else {
+            // Validate phone number using utility validation
             while (true) {
                 ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phoneInput);
                 if (!result.isValid()) {
@@ -1179,8 +1184,8 @@ public class PatientUI {
                     break;
                 }
             }
-            // Format phone number using control layer
-            phone = maintainPatient.formatPhoneForStorage(phoneInput);
+            // Return raw phone number - control layer handles formatting
+            phone = phoneInput;
         }
 
         // Return updated patient entity
@@ -1461,9 +1466,9 @@ public class PatientUI {
 
     // Display patients grouped by gender
     private void displayPatientsByGender() {
-        Object[][] genderGroups = maintainPatient.getPatientsByGenderGrouped();
+        MapInterface<String, ListInterface<Patient>> genderGroups = maintainPatient.getPatientsByGender();
 
-        if (genderGroups.length == 0) {
+        if (genderGroups.isEmpty()) {
             displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
             return;
@@ -1471,18 +1476,20 @@ public class PatientUI {
 
         displayMessage("\n=== PATIENTS GROUPED BY GENDER ===");
 
-        for (Object[] group : genderGroups) {
-            String gender = (String) group[0];
-            Integer count = (Integer) group[1];
-            // ECB FIX: Handle raw patient data in Boundary layer
-            ListInterface<entity.Patient> patients = (ListInterface<entity.Patient>) group[2];
+        ListInterface<String> genderKeys = genderGroups.getKeys();
+        java.util.Iterator<String> genderIterator = genderKeys.iterator();
+        
+        while (genderIterator.hasNext()) {
+            String gender = genderIterator.next();
+            ListInterface<Patient> patients = genderGroups.get(gender);
+            int count = patients.getNumberOfEntries();
 
             displayMessage("\n" + "=".repeat(80));
             displayMessage("GENDER: " + gender.toUpperCase() + " (Total: " + count + " patients)");
             displayMessage("=".repeat(80));
 
-            if (patients != null && patients.getNumberOfEntries() > 0) {
-                // ECB FIX: Format data in Boundary layer where it belongs
+            if (count > 0) {
+                // Format data in boundary layer
                 String[][] patientData = formatPatientTableData(patients);
                 displayPatientsTableWithData(patientData, "Patients - " + gender);
             } else {
@@ -1517,9 +1524,7 @@ public class PatientUI {
         }
     }
 
-    /**
-     * Format patient data for table display - UI layer responsibility
-     */
+    /** Format patient data for table display */
     private String[][] formatPatientTableData(ListInterface<Patient> patients) {
         if (patients == null || patients.isEmpty()) {
             return new String[0][0];
@@ -1532,7 +1537,7 @@ public class PatientUI {
         while (iterator.hasNext()) {
             Patient p = iterator.next();
             if (p != null) {
-                int age = maintainPatient.getPatientAge(p.getIcNumber());
+                int age = p.calculateAge();
                 patientData[index][0] = p.getId();
                 patientData[index][1] = p.getName();
                 patientData[index][2] = p.getGender();
@@ -1564,7 +1569,7 @@ public class PatientUI {
         int index = 0;
         while (iterator.hasNext()) {
             Patient p = iterator.next();
-            int age = maintainPatient.getPatientAge(p.getIcNumber());
+            int age = p.calculateAge();
 
             queueData[index][0] = queueNumbers[index] != null ? queueNumbers[index] : String.format("%04d", index + 1);
             queueData[index][1] = p.getId();
@@ -1603,7 +1608,7 @@ public class PatientUI {
             Patient patient = maintainPatient.findPatientById(id);
 
             if (patient != null) {
-                int age = maintainPatient.getPatientAge(patient.getIcNumber());
+                int age = patient.calculateAge();
                 displayPatient(patient, age);
             } else {
                 displayMessage("\nPatient with ID '" + id + "' not found.");
@@ -1639,7 +1644,7 @@ public class PatientUI {
                 while (iterator.hasNext()) {
                     displayMessage("\n--- Patient " + patientNumber + " ---");
                     Patient p = iterator.next();
-                    int age = maintainPatient.getPatientAge(p.getIcNumber());
+                    int age = p.calculateAge();
                     displayPatient(p, age);
                     patientNumber++;
                 }
@@ -1674,7 +1679,7 @@ public class PatientUI {
             Patient patient = maintainPatient.findPatientByIC(ic);
 
             if (patient != null) {
-                int age = maintainPatient.getPatientAge(patient.getIcNumber());
+                int age = patient.calculateAge();
                 displayPatient(patient, age);
             } else {
                 // Format IC for display in error message
@@ -1725,7 +1730,7 @@ public class PatientUI {
     private void handleExistingPatientRegistration(Patient existingPatient) {
         // Show existing patient details
         displayMessage("\n=== PATIENT ALREADY EXISTS ===");
-        int age = maintainPatient.getPatientAge(existingPatient.getIcNumber());
+        int age = existingPatient.calculateAge();
         displayPatient(existingPatient, age);
 
         // Ask if they want to add existing patient to queue
@@ -1800,7 +1805,7 @@ public class PatientUI {
 
             if (patient != null) {
                 displayMessage("Current patient details:");
-                int age = maintainPatient.getPatientAge(patient.getIcNumber());
+                int age = patient.calculateAge();
                 displayPatient(patient, age);
 
                 Patient updatedPatient = inputUpdatedPatientDetails(patient);
@@ -1844,11 +1849,11 @@ public class PatientUI {
 
             if (patientToRemove != null) {
                 // Show patient details and ask for confirmation
-                displayMessage("Patient to be removed:");
-                int age = maintainPatient.getPatientAge(patientToRemove.getIcNumber());
+                displayMessage("\nPatient to be removed:");
+                int age = patientToRemove.calculateAge();
                 displayPatient(patientToRemove, age);
 
-                // ENHANCED: Check and display queue information with better formatting
+                // Show queue information if patient is in queue
                 if (maintainPatient.isPatientInQueue(patientToRemove)) {
                     String queueNum = maintainPatient.getPatientQueueNumber(patientToRemove);
                     int queuePosition = maintainPatient.getPatientQueuePosition(patientToRemove);
@@ -1967,7 +1972,7 @@ public class PatientUI {
                     continueServing = false;
                 }
             } else {
-                // ENHANCED: Provide specific error messages for better user experience
+                // Provide specific error messages for better user experience
                 if ("QUEUE_EMPTY".equals(result.getStatusCode())) {
                     displayMessage("\nNo patients in the queue.");
                 } else if ("NO_AVAILABLE_DOCTOR".equals(result.getStatusCode())) {

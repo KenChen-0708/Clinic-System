@@ -88,21 +88,15 @@ public class PatientSummaryReport {
         return best;
     }
 
-    // ECB FIX: Business logic moved to Entity layer
-    /**
-     * Classify age into business-defined groups
-     * Entity layer handles business rules
-     */
+    // Business logic is handled in the entity layer
+    /** Classify age into business-defined groups */
     public static String classifyAgeGroup(int age) {
         if (age <= 12) return "Children (0-12)";
         if (age <= 59) return "Adults (13-59)";
         return "Seniors (60+)";
     }
 
-    /**
-     * Create age bucket for histogram display
-     * Entity layer handles data categorization rules
-     */
+    /** Create age bucket for histogram display */
     public static String createAgeBucket(int age) {
         if (age < 0) return "Unknown";
         int start = (age / 10) * 10 + (age % 10 == 0 ? 0 : 1);
