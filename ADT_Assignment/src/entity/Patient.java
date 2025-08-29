@@ -433,6 +433,34 @@ public class Patient implements Serializable {
         return name.toLowerCase().trim();
     }
 
+    // ===== ID GENERATION METHODS (ECB Pattern - Entity handles its own ID logic) =====
+
+    /**
+     * Extract number from patient ID
+     * @param id patient ID to parse
+     * @return extracted number or 0 if invalid
+     */
+    public static int extractNumberFromPatientId(String id) {
+        if (id == null || !id.startsWith("P")) {
+            return 0;
+        }
+
+        try {
+            return Integer.parseInt(id.substring(1));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Generate next patient ID from number
+     * @param maxExistingNumber highest existing patient number
+     * @return formatted patient ID
+     */
+    public static String generateNextPatientId(int maxExistingNumber) {
+        return String.format("P%04d", maxExistingNumber + 1);
+    }
+
     // ===== INNER CLASS FOR VALIDATION RESULTS =====
 
     /**

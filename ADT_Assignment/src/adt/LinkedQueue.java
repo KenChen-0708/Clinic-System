@@ -127,6 +127,43 @@ public class LinkedQueue<T> implements QueueInterface<T> {
     }
 
     @Override
+    public boolean remove(T data) {
+        if (isEmpty() || data == null) {
+            return false;
+        }
+
+        // Special case: removing the front node
+        if (front.data.equals(data)) {
+            front = front.next;
+            if (front == null) { // Queue became empty
+                rear = null;
+            }
+            size--;
+            return true;
+        }
+
+        // Search for the node to remove
+        Node<T> current = front;
+        while (current.next != null) {
+            if (current.next.data.equals(data)) {
+                Node<T> nodeToRemove = current.next;
+                current.next = nodeToRemove.next;
+
+                // Special case: removing the rear node
+                if (nodeToRemove == rear) {
+                    rear = current;
+                }
+
+                size--;
+                return true;
+            }
+            current = current.next;
+        }
+
+        return false; // Data not found
+    }
+
+    @Override
     public String getQueueNumber(T data) {
         Node<T> current = front;
         while (current != null) {

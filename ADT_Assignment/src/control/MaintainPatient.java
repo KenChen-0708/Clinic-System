@@ -19,6 +19,8 @@ import entity.QueueStatusData;
 import entity.SearchResult;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.io.IOException;
 
 
@@ -38,24 +40,24 @@ public class MaintainPatient {
     private final QueueInterface<Patient> patientQueue = new LinkedQueue<>();
 
     // Maps for efficient lookup
-    private final MapInterface<String, Patient> patientMap = new HashMap<>();
-    private final MapInterface<String, Patient> icMap = new HashMap<>();
-    private final MapInterface<String, ListInterface<Patient>> nameMap = new HashMap<>();
+    private final MapInterface<String, Patient> patientMap = new HashMap<>(); // Fast lookup by patient ID
+    private final MapInterface<String, Patient> icMap = new HashMap<>(); // Fast lookup by cleaned IC number
+    private final MapInterface<String, ListInterface<Patient>> nameMap = new HashMap<>(); // Map name key to list of patients
 
     // Maps for queue lookups
-    private final MapInterface<String, Patient> queuePatientMap = new HashMap<>();
-    private final MapInterface<String, String> queueNameMap = new HashMap<>();
-    private final MapInterface<String, String> queueIcMap = new HashMap<>();
+    private final MapInterface<String, Patient> queuePatientMap = new HashMap<>(); // Track who is in queue by patient ID
+    private final MapInterface<String, String> queueNameMap = new HashMap<>(); // Map name key to queued patient ID
+    private final MapInterface<String, String> queueIcMap = new HashMap<>(); // Map cleaned IC to queued patient ID
 
     // List index map
-    private final MapInterface<String, Integer> patientIndexMap = new HashMap<>();
+    private final MapInterface<String, Integer> patientIndexMap = new HashMap<>(); // Track list index for fast updates
 
-    // Sorted list caches
-    private ListInterface<Patient> cachedSortedById = null;
-    private ListInterface<Patient> cachedSortedByName = null;
-    private ListInterface<Patient> cachedSortedByAge = null;
-    private ListInterface<Patient> cachedSortedByDate = null;
-    private boolean sortCachesDirty = true;
+    // Sorted lists kept for reuse (avoid re-sorting every time)
+    private ListInterface<Patient> cachedSortedById = null; // Patients sorted by ID
+    private ListInterface<Patient> cachedSortedByName = null; // Patients sorted by name
+    private ListInterface<Patient> cachedSortedByAge = null; // Patients sorted by age
+    private ListInterface<Patient> cachedSortedByDate = null; // Patients sorted by registration date
+    private boolean sortCachesDirty = true; 
 
     /** Operation result codes */
     public enum OperationResult {
@@ -361,15 +363,21 @@ public class MaintainPatient {
             patientIndexMap.remove(patient.getId());
             removeFromNameMap(patient);
 
-            // Remove from queue maps if present
-            if (patient.getId() != null) {
-                queuePatientMap.remove(patient.getId());
-            }
-            if (patient.getName() != null && !patient.getName().trim().isEmpty()) {
-                queueNameMap.remove(patient.getName().toLowerCase().trim());
-            }
-            if (patient.getIcNumber() != null && !patient.getIcNumber().trim().isEmpty()) {
-                queueIcMap.remove(Patient.cleanICNumber(patient.getIcNumber()));
+            // Remove from queue and queue maps if present
+            if (isInQueue(patient)) {
+                // Remove from actual queue
+                patientQueue.remove(patient);
+
+                // Remove from queue maps
+                if (patient.getId() != null) {
+                    queuePatientMap.remove(patient.getId());
+                }
+                if (patient.getName() != null && !patient.getName().trim().isEmpty()) {
+                    queueNameMap.remove(patient.getName().toLowerCase().trim());
+                }
+                if (patient.getIcNumber() != null && !patient.getIcNumber().trim().isEmpty()) {
+                    queueIcMap.remove(Patient.cleanICNumber(patient.getIcNumber()));
+                }
             }
         }
 
@@ -627,32 +635,16 @@ public class MaintainPatient {
         while (iterator.hasNext()) {
             String id = iterator.next().getId();
             if (id != null && id.startsWith("P")) {
-                int num = extractNumberFromPatientId(id);
+                int num = Patient.extractNumberFromPatientId(id);
                 if (num > max) {
                     max = num;
                 }
             }
         }
-        return generateNextPatientIdFromNumber(max);
+        return Patient.generateNextPatientId(max);
     }
 
-    /** Extract number from patient ID - Control layer helper method */
-    private int extractNumberFromPatientId(String id) {
-        if (id == null || !id.startsWith("P")) {
-            return 0;
-        }
 
-        try {
-            return Integer.parseInt(id.substring(1));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    /** Generate next patient ID from number - Control layer helper method */
-    private String generateNextPatientIdFromNumber(int maxExistingNumber) {
-        return String.format("P%04d", maxExistingNumber + 1);
-    }
 
     /** Process patient registration - ECB compliant method for boundary class */
     public void processPatientRegistration(String icNumber, boundary.PatientUI ui) {
@@ -1144,8 +1136,8 @@ public class MaintainPatient {
             return false;
         }
 
-        // Validate updated patient data
-        PatientValidationUtil.ValidationResult validation = PatientValidationUtil.validatePatientForRegistration(updatedPatient);
+        // Validate updated patient data using entity validation
+        Patient.ValidationResult validation = updatedPatient.validateForRegistration();
         if (!validation.isValid()) {
             throw new IllegalArgumentException("Patient update failed: " + validation.getErrorMessage());
         }
@@ -1549,9 +1541,11 @@ public class MaintainPatient {
         int maleCount = 0, femaleCount = 0;
         java.util.Iterator<Patient> genderIterator = sortedList.iterator();
         while (genderIterator.hasNext()) {
-            if (genderIterator.next().getGender().equalsIgnoreCase("Male")) {
+            String gender = genderIterator.next().getGender();
+            // Fix gender comparison - check for normalized gender values
+            if (gender.equals("M") || gender.equalsIgnoreCase("male")) {
                 maleCount++;
-            } else {
+            } else if (gender.equals("F") || gender.equalsIgnoreCase("female")) {
                 femaleCount++;
             }
         }

@@ -16,6 +16,8 @@ public interface QueueInterface<T> {
 
     boolean contains(T data);   // Check if a patient is in queue
 
+    boolean remove(T data);     // Remove specific patient from queue (regardless of position)
+
     void enqueueWithNumber(T data); // Add to rear with auto-generated queue number
 
     void enqueueWithExistingNumber(T data, String existingQueueNumber); // Add with existing queue number (for restoration)

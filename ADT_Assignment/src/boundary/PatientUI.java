@@ -10,16 +10,7 @@ import utility.FormatUtil;
 
 import java.util.Scanner;
 
-/**
- * Patient Management User Interface - Following ECB Pattern
- *
- * Responsibilities:
- * - Pure boundary class for user interaction
- * - Collect user input and display output
- * - Delegate all business logic to control classes
- * - No formatting logic (entities handle their own formatting)
- * - No validation logic (entities handle their own validation)
- */
+
 public class PatientUI {
 
     private final Scanner scanner = new Scanner(System.in);
@@ -240,7 +231,7 @@ public class PatientUI {
         // Show available doctors
         ListInterface<Doctor> availableDoctors = maintainPatient.getAvailableDoctors();
         if (availableDoctors.isEmpty()) {
-            displayMessage("No doctors are currently available for appointments.");
+            displayMessage("\nNo doctors are currently available for appointments.");
             askToContinueOrReturnToMenu();
             return;
         }
@@ -299,8 +290,8 @@ public class PatientUI {
                 continue; // Ask for time again
             }
 
-            // Validate time format first
-            if (!ValidationUtil.isValidTimeFormat(timeString)) {
+            // Basic time format check (boundary layer can do simple format validation)
+            if (!timeString.matches("\\d{2}:\\d{2}")) {
                 displayMessage("Invalid time format. Please use HH:mm format (e.g., 14:30).");
                 continue; // Ask for time again
             }
@@ -569,7 +560,7 @@ public class PatientUI {
         }
     }
 
-    // Handle Patient Summary Report (ECB: boundary consumes report built by control)
+    // Handle Patient Summary Report 
     private void handlePatientSummaryReport() {
         if (!maintainPatient.hasPatients()) {
             displayMessage("\nNo patients registered yet.");
@@ -635,10 +626,11 @@ public class PatientUI {
             Integer c = genders.get(g);
             int v = (c == null ? 0 : c);
             System.out.printf("%-20s %-10d%n", g, v);
-            if (g.equalsIgnoreCase("male")) {
+            // check for normalized gender values
+            if (g.equals("M") || g.equalsIgnoreCase("male")) {
                 male = v;
             }
-            if (g.equalsIgnoreCase("female")) {
+            if (g.equals("F") || g.equalsIgnoreCase("female")) {
                 female = v;
             }
         }
@@ -804,17 +796,34 @@ public class PatientUI {
         System.out.println("-------------------------------");
     }
 
-    // Get menu choice from user with validation
+    // Get menu choice from user with validation (boundary can validate input format)
     public int getMenuChoice() {
         System.out.print("Enter your choice: ");
         while (!scanner.hasNextInt()) {
-            System.out.println("\nPlease enter a valid number.\n");
+            System.out.println("\nPlease enter a valid whole number.\n");
             scanner.next(); // discard invalid input
             System.out.print("Enter your choice: ");
         }
         int choice = scanner.nextInt();
         scanner.nextLine(); // flush newline
         return choice;
+    }
+
+    // Helper method for numeric input validation 
+    private int readIntInRangeLoop(int min, int max, String errorMessage) {
+        int value;
+        while (true) {
+            try {
+                value = Integer.parseInt(scanner.nextLine().trim());
+                if (value >= min && value <= max) {
+                    return value;
+                } else {
+                    System.out.print(errorMessage);
+                }
+            } catch (NumberFormatException e) {
+                System.out.print("Please enter a valid whole number: ");
+            }
+        }
     }
 
     // Collect all patient details from user input - Pure boundary method
@@ -842,12 +851,11 @@ public class PatientUI {
                 return "0"; // Exit signal
             }
 
-            // Validate IC number
-            ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icNumber);
-            if (!result.isValid()) {
-                System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
+            // Basic format validation in boundary layer for user experience
+            if (!Patient.isValidICFormat(icNumber)) {
+                System.out.println("\nInvalid IC format. Please use 12 digits (XXXXXX-XX-XXXX format).\n");
             } else {
-                break; // Valid input
+                break;
             }
         } while (true);
 
@@ -868,28 +876,82 @@ public class PatientUI {
         return new entity.Patient(name, icNumber, phone, gender);
     }
 
-    // Get patient name - Pure boundary method (no validation)
+    // Get patient name with basic validation (boundary can validate input format)
     private String inputName() {
-        System.out.print("Enter Name      : ");
-        return scanner.nextLine().trim();
+        String name;
+        do {
+            System.out.print("Enter Name      : ");
+            name = scanner.nextLine().trim();
+
+            // Basic format validation in boundary layer for user experience
+            if (name.isEmpty()) {
+                System.out.println("\nName cannot be empty. Please try again.\n");
+            } else if (name.length() < 2) {
+                System.out.println("\nName must be at least 2 characters. Please try again.\n");
+            } else if (name.matches(".*\\d.*")) {
+                System.out.println("\nName cannot contain numbers. Please try again.\n");
+            } else if (!name.matches("[a-zA-Z\\s]+")) {
+                System.out.println("\nName can only contain letters and spaces. Please try again.\n");
+            } else {
+                break;
+            }
+        } while (true);
+
+        return name;
     }
 
-    // Get IC number - Pure boundary method (no validation)
+    // Get IC number with basic format validation (boundary can validate input format)
     private String inputIC() {
-        System.out.print("Enter IC Number (12 digits): ");
-        return scanner.nextLine().trim();
+        String icNumber;
+        do {
+            System.out.print("Enter IC Number (12 digits): ");
+            icNumber = scanner.nextLine().trim();
+
+            // Basic format validation in boundary layer for user experience
+            if (!Patient.isValidICFormat(icNumber)) {
+                System.out.println("\nInvalid IC format. Please use 12 digits (XXXXXX-XX-XXXX format).\n");
+            } else {
+                break;
+            }
+        } while (true);
+
+        return icNumber;
     }
 
-    // Get phone number - Pure boundary method (no validation)
+    // Get phone number with basic format validation (boundary can validate input format)
     private String inputPhone() {
-        System.out.print("Enter Phone     : ");
-        return scanner.nextLine().trim();
+        String phone;
+        do {
+            System.out.print("Enter Phone     : ");
+            phone = scanner.nextLine().trim();
+
+            // Basic format validation in boundary layer for user experience
+            if (!Patient.isValidPhoneFormat(phone)) {
+                System.out.println("\nInvalid phone format. Please enter a valid Malaysian phone number.\n");
+            } else {
+                break;
+            }
+        } while (true);
+
+        return phone;
     }
 
-    // Get gender - Pure boundary method (no validation)
+    // Get gender with basic format validation (boundary can validate input format)
     private String inputGender() {
-        System.out.print("Enter Gender (M/F): ");
-        return scanner.nextLine().trim();
+        String gender;
+        do {
+            System.out.print("Enter Gender (M/F): ");
+            gender = scanner.nextLine().trim();
+
+            // Basic format validation in boundary layer for user experience
+            if (!Patient.isValidGender(gender)) {
+                System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
+            } else {
+                break;
+            }
+        } while (true);
+
+        return gender;
     }
 
     public String inputPatientId() {
@@ -1054,17 +1116,19 @@ public class PatientUI {
         if (nameInput.isEmpty()) {
             name = currentPatient.getName();
         } else {
-            while (true) {
-                ValidationUtil.ValidationResult result = ValidationUtil.validateName(nameInput);
-                if (!result.isValid()) {
-                    System.out.println("\n" + result.getErrorMessage() + "\n");
-                    System.out.print("Name [" + currentPatient.getName() + "]: ");
-                    nameInput = scanner.nextLine().trim();
-                    if (nameInput.isEmpty()) {
-                        nameInput = currentPatient.getName();
-                        break;
-                    }
-                } else {
+            // Validate name input in boundary layer for user experience
+            while (nameInput.length() < 2 || nameInput.matches(".*\\d.*") || !nameInput.matches("[a-zA-Z\\s]+")) {
+                if (nameInput.length() < 2) {
+                    System.out.println("\nName must be at least 2 characters. Please try again.\n");
+                } else if (nameInput.matches(".*\\d.*")) {
+                    System.out.println("\nName cannot contain numbers. Please try again.\n");
+                } else if (!nameInput.matches("[a-zA-Z\\s]+")) {
+                    System.out.println("\nName can only contain letters and spaces. Please try again.\n");
+                }
+                System.out.print("Name [" + currentPatient.getName() + "]: ");
+                nameInput = scanner.nextLine().trim();
+                if (nameInput.isEmpty()) {
+                    nameInput = currentPatient.getName();
                     break;
                 }
             }
@@ -1094,23 +1158,19 @@ public class PatientUI {
         }
 
         // IC Number update with validation
-        System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
+        System.out.print("IC Number [" + currentPatient.formatICForDisplay() + "] (12 digits): ");
         String icInput = scanner.nextLine().trim();
         String icNumber;
         if (icInput.isEmpty()) {
             icNumber = currentPatient.getIcNumber();
         } else {
-            while (true) {
-                ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icInput);
-                if (!result.isValid()) {
-                    System.out.println("\n" + result.getErrorMessage() + "\n");
-                    System.out.print("IC Number [" + utility.FormatUtil.formatICForDisplay(currentPatient.getIcNumber()) + "] (12 digits): ");
-                    icInput = scanner.nextLine().trim();
-                    if (icInput.isEmpty()) {
-                        icInput = currentPatient.getIcNumber();
-                        break;
-                    }
-                } else {
+            // Validate IC input in boundary layer for user experience
+            while (!Patient.isValidICFormat(icInput)) {
+                System.out.println("\nInvalid IC format. Please use 12 digits (XXXXXX-XX-XXXX format).\n");
+                System.out.print("IC Number [" + currentPatient.formatICForDisplay() + "] (12 digits): ");
+                icInput = scanner.nextLine().trim();
+                if (icInput.isEmpty()) {
+                    icInput = currentPatient.getIcNumber();
                     break;
                 }
             }
@@ -1124,22 +1184,16 @@ public class PatientUI {
         if (phoneInput.isEmpty()) {
             phone = currentPatient.getPhone();
         } else {
-            // Validate phone number using utility validation
-            while (true) {
-                ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phoneInput);
-                if (!result.isValid()) {
-                    System.out.println("\n" + result.getErrorMessage() + "\n");
-                    System.out.print("Phone [" + currentPatient.getPhone() + "]: ");
-                    phoneInput = scanner.nextLine().trim();
-                    if (phoneInput.isEmpty()) {
-                        phoneInput = currentPatient.getPhone();
-                        break;
-                    }
-                } else {
+            // Validate phone input in boundary layer for user experience
+            while (!Patient.isValidPhoneFormat(phoneInput)) {
+                System.out.println("\nInvalid phone format. Please enter a valid Malaysian phone number.\n");
+                System.out.print("Phone [" + currentPatient.getPhone() + "]: ");
+                phoneInput = scanner.nextLine().trim();
+                if (phoneInput.isEmpty()) {
+                    phoneInput = currentPatient.getPhone();
                     break;
                 }
             }
-            // Return raw phone number - control layer handles formatting
             phone = phoneInput;
         }
 
@@ -2155,7 +2209,7 @@ public class PatientUI {
         System.out.println(separator);
 
         // Overall Statistics Section
-        System.out.println("\n OVERALL TREATMENT STATISTICS");
+        System.out.println("\nOVERALL TREATMENT STATISTICS");
         System.out.println(separator);
         System.out.printf("%-35s : %d%n", "Total Registered Patients", data.getTotalPatients());
         System.out.printf("%-35s : %d%n", "Total Treatments Given", data.getTotalTreatments());
@@ -2165,7 +2219,7 @@ public class PatientUI {
         System.out.println(separator);
 
         // Detailed Breakdown Section
-        System.out.println("\n DETAILED PATIENT TREATMENT BREAKDOWN (Sorted by ID)");
+        System.out.println("\nDETAILED PATIENT TREATMENT BREAKDOWN (Sorted by ID)");
         System.out.println(separator);
         System.out.printf("%-10s %-25s %-10s %-6s %-12s%n", "ID", "Name", "Gender", "Age", "Treatments");
         System.out.println(separator);
