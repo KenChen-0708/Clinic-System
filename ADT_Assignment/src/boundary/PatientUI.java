@@ -7,12 +7,18 @@ import entity.Appointment;
 import adt.*;
 import utility.MessageUI;
 import utility.FormatUtil;
-import utility.ValidationUtil;
 
 import java.util.Scanner;
 
 /**
- * Patient Management User Interface
+ * Patient Management User Interface - Following ECB Pattern
+ *
+ * Responsibilities:
+ * - Pure boundary class for user interaction
+ * - Collect user input and display output
+ * - Delegate all business logic to control classes
+ * - No formatting logic (entities handle their own formatting)
+ * - No validation logic (entities handle their own validation)
  */
 public class PatientUI {
 
@@ -811,10 +817,10 @@ public class PatientUI {
         return choice;
     }
 
-    // Collect all patient details from user input
+    // Collect all patient details from user input - Pure boundary method
     public Patient inputPatientDetails() {
         String name = inputName();
-        String icNumber = inputValidIC();
+        String icNumber = inputIC();
         String phone = inputPhone();
         String gender = inputGender();
         System.out.println();
@@ -862,79 +868,28 @@ public class PatientUI {
         return new entity.Patient(name, icNumber, phone, gender);
     }
 
-    // Get patient name with validation
+    // Get patient name - Pure boundary method (no validation)
     private String inputName() {
-        String name;
-        do {
-            System.out.print("Enter Name      : ");
-            name = scanner.nextLine().trim();
-
-            ValidationUtil.ValidationResult result = ValidationUtil.validateName(name);
-            if (!result.isValid()) {
-                System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
-            } else {
-                break;
-            }
-        } while (true);
-        return name;
+        System.out.print("Enter Name      : ");
+        return scanner.nextLine().trim();
     }
 
-    // Get IC number with validation
-    private String inputValidIC() {
-        String icNumber;
-        do {
-            System.out.print("Enter IC Number (12 digits): ");
-            icNumber = scanner.nextLine().trim();
-
-            ValidationUtil.ValidationResult result = ValidationUtil.validateIC(icNumber);
-            if (!result.isValid()) {
-                System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
-            } else {
-                break;
-            }
-        } while (true);
-
-        // Return IC without dashes for storage
-        return icNumber.replaceAll("-", "");
+    // Get IC number - Pure boundary method (no validation)
+    private String inputIC() {
+        System.out.print("Enter IC Number (12 digits): ");
+        return scanner.nextLine().trim();
     }
 
+    // Get phone number - Pure boundary method (no validation)
     private String inputPhone() {
-        String phone;
-        do {
-            System.out.print("Enter Phone     : ");
-            phone = scanner.nextLine().trim();
-
-            // Validate phone number using utility validation
-            ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phone);
-            if (!result.isValid()) {
-                System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
-            } else {
-                break; // Valid input
-            }
-        } while (true);
-
-        // Return raw phone number - control layer handles formatting
-        return phone;
+        System.out.print("Enter Phone     : ");
+        return scanner.nextLine().trim();
     }
 
+    // Get gender - Pure boundary method (no validation)
     private String inputGender() {
-        String gender;
-        do {
-            System.out.print("Enter Gender (M/F): ");
-            gender = scanner.nextLine().trim();
-
-            if (gender.isEmpty()) {
-                System.out.println("\nGender cannot be empty. Please try again.\n");
-            } else {
-                // Normalize gender input using entity layer
-                String normalizedGender = Patient.normalizeGender(gender);
-                if (normalizedGender != null) {
-                    return normalizedGender;
-                } else {
-                    System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
-                }
-            }
-        } while (true);
+        System.out.print("Enter Gender (M/F): ");
+        return scanner.nextLine().trim();
     }
 
     public String inputPatientId() {
@@ -1695,7 +1650,7 @@ public class PatientUI {
     // ================================
     // REGISTRATION HANDLERS
     // ================================
-    // Handle patient registration process
+    // Handle patient registration process - Pure boundary method
     public void handlePatientRegistration() {
         boolean continueRegistering = true;
 
@@ -1708,14 +1663,11 @@ public class PatientUI {
                 break;
             }
 
-            Patient existingPatient = maintainPatient.checkExistingPatient(icNumber);
-
-            if (existingPatient != null) {
-                // Handle existing patient scenario
-                handleExistingPatientRegistration(existingPatient);
-            } else {
-                // Handle new patient registration
-                handleNewPatientRegistration(icNumber);
+            // Delegate to control class for business logic
+            try {
+                maintainPatient.processPatientRegistration(icNumber, this);
+            } catch (Exception e) {
+                displayMessage("\nRegistration failed: " + e.getMessage());
             }
 
             continueRegistering = askToContinueOperation("register another patient");
