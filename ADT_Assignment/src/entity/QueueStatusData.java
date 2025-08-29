@@ -1,3 +1,5 @@
+// Ronaldo Loh Yu Fei
+
 package entity;
 
 /** Simple snapshot of patient queue status */

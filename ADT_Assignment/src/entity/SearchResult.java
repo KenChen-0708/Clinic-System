@@ -1,3 +1,5 @@
+// Ronaldo Loh Yu Fei
+
 package entity;
 
 /** Result of searching for a patient in the queue */
