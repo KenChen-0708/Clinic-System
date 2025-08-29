@@ -17,9 +17,6 @@ import entity.Appointment;
 import entity.PatientSummaryReport;
 import entity.QueueStatusData;
 import entity.SearchResult;
-import utility.ValidationUtil;
-import utility.PatientValidationUtil;
-import utility.PatientFormatUtil;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -43,24 +40,24 @@ public class MaintainPatient {
     private final QueueInterface<Patient> patientQueue = new LinkedQueue<>();
 
     // Maps for efficient lookup
-    private final MapInterface<String, Patient> patientMap = new HashMap<>();
-    private final MapInterface<String, Patient> icMap = new HashMap<>();
-    private final MapInterface<String, ListInterface<Patient>> nameMap = new HashMap<>();
+    private final MapInterface<String, Patient> patientMap = new HashMap<>(); // Fast lookup by patient ID
+    private final MapInterface<String, Patient> icMap = new HashMap<>(); // Fast lookup by cleaned IC number
+    private final MapInterface<String, ListInterface<Patient>> nameMap = new HashMap<>(); // Map name key to list of patients
 
     // Maps for queue lookups
-    private final MapInterface<String, Patient> queuePatientMap = new HashMap<>();
-    private final MapInterface<String, String> queueNameMap = new HashMap<>();
-    private final MapInterface<String, String> queueIcMap = new HashMap<>();
+    private final MapInterface<String, Patient> queuePatientMap = new HashMap<>(); // Track who is in queue by patient ID
+    private final MapInterface<String, String> queueNameMap = new HashMap<>(); // Map name key to queued patient ID
+    private final MapInterface<String, String> queueIcMap = new HashMap<>(); // Map cleaned IC to queued patient ID
 
     // List index map
-    private final MapInterface<String, Integer> patientIndexMap = new HashMap<>();
+    private final MapInterface<String, Integer> patientIndexMap = new HashMap<>(); // Track list index for fast updates
 
-    // Sorted list caches
-    private ListInterface<Patient> cachedSortedById = null;
-    private ListInterface<Patient> cachedSortedByName = null;
-    private ListInterface<Patient> cachedSortedByAge = null;
-    private ListInterface<Patient> cachedSortedByDate = null;
-    private boolean sortCachesDirty = true;
+    // Sorted lists kept for reuse (avoid re-sorting every time)
+    private ListInterface<Patient> cachedSortedById = null; // Patients sorted by ID
+    private ListInterface<Patient> cachedSortedByName = null; // Patients sorted by name
+    private ListInterface<Patient> cachedSortedByAge = null; // Patients sorted by age
+    private ListInterface<Patient> cachedSortedByDate = null; // Patients sorted by registration date
+    private boolean sortCachesDirty = true; 
 
     /** Operation result codes */
     public enum OperationResult {
@@ -156,12 +153,12 @@ public class MaintainPatient {
     private void updateMapsForPatientChange(Patient oldPatient, Patient newPatient) {
         // Remove old entries
         patientMap.remove(oldPatient.getId());
-        icMap.remove(PatientFormatUtil.cleanICNumber(oldPatient.getIcNumber()));
+        icMap.remove(Patient.cleanICNumber(oldPatient.getIcNumber()));
         removeFromNameMap(oldPatient);
 
         // Add new entries
         patientMap.put(newPatient.getId(), newPatient);
-        icMap.put(PatientFormatUtil.cleanICNumber(newPatient.getIcNumber()), newPatient);
+        icMap.put(Patient.cleanICNumber(newPatient.getIcNumber()), newPatient);
         addToNameMap(newPatient);
     }
 
@@ -194,9 +191,9 @@ public class MaintainPatient {
             java.util.Iterator<Patient> iterator = patientList.iterator();
             while (iterator.hasNext()) {
                 Patient patient = iterator.next();
-                if (PatientValidationUtil.isValidPatientForMapping(patient)) {
+                if (patient.isValidForMapping()) {
                     patientMap.put(patient.getId(), patient);
-                    icMap.put(PatientFormatUtil.cleanICNumber(patient.getIcNumber()), patient);
+                    icMap.put(Patient.cleanICNumber(patient.getIcNumber()), patient);
                     patientIndexMap.put(patient.getId(), index); // Track list index
 
                     // Add to name map
@@ -225,8 +222,8 @@ public class MaintainPatient {
         }
 
         // Check if IC changed (using cleaned values)
-        String oldCleanIc = PatientFormatUtil.cleanICNumber(oldPatient.getIcNumber());
-        String newCleanIc = PatientFormatUtil.cleanICNumber(newPatient.getIcNumber());
+        String oldCleanIc = Patient.cleanICNumber(oldPatient.getIcNumber());
+        String newCleanIc = Patient.cleanICNumber(newPatient.getIcNumber());
         if (!oldCleanIc.equals(newCleanIc)) {
             Patient existingPatient = icMap.get(newCleanIc);
             if (existingPatient != null && !existingPatient.getId().equals(oldPatient.getId())) {
@@ -318,7 +315,7 @@ public class MaintainPatient {
 
                     // Update lookup maps with new patient
                     patientMap.put(patient.getId(), patient);
-                    icMap.put(PatientFormatUtil.cleanICNumber(patient.getIcNumber()), patient);
+                    icMap.put(Patient.cleanICNumber(patient.getIcNumber()), patient);
                     patientIndexMap.put(patient.getId(), newIndex);
                     addToNameMap(patient);
 
@@ -335,7 +332,7 @@ public class MaintainPatient {
                     // Roll back: remove from list and maps
                     patientList.remove(patientList.getNumberOfEntries());
                     patientMap.remove(patient.getId());
-                    icMap.remove(PatientFormatUtil.cleanICNumber(patient.getIcNumber()));
+                    icMap.remove(Patient.cleanICNumber(patient.getIcNumber()));
                     patientIndexMap.remove(patient.getId());
                     removeFromNameMap(patient);
                     throw new IllegalStateException("Failed to add patient: " + e.getMessage(), e);
@@ -362,19 +359,25 @@ public class MaintainPatient {
 
             // Remove patient from lookup maps
             patientMap.remove(patient.getId());
-            icMap.remove(PatientFormatUtil.cleanICNumber(patient.getIcNumber()));
+            icMap.remove(Patient.cleanICNumber(patient.getIcNumber()));
             patientIndexMap.remove(patient.getId());
             removeFromNameMap(patient);
 
-            // Remove from queue maps if present
-            if (patient.getId() != null) {
-                queuePatientMap.remove(patient.getId());
-            }
-            if (patient.getName() != null && !patient.getName().trim().isEmpty()) {
-                queueNameMap.remove(patient.getName().toLowerCase().trim());
-            }
-            if (patient.getIcNumber() != null && !patient.getIcNumber().trim().isEmpty()) {
-                queueIcMap.remove(PatientFormatUtil.cleanICNumber(patient.getIcNumber()));
+            // Remove from queue and queue maps if present
+            if (isInQueue(patient)) {
+                // Remove from actual queue
+                patientQueue.remove(patient);
+
+                // Remove from queue maps
+                if (patient.getId() != null) {
+                    queuePatientMap.remove(patient.getId());
+                }
+                if (patient.getName() != null && !patient.getName().trim().isEmpty()) {
+                    queueNameMap.remove(patient.getName().toLowerCase().trim());
+                }
+                if (patient.getIcNumber() != null && !patient.getIcNumber().trim().isEmpty()) {
+                    queueIcMap.remove(Patient.cleanICNumber(patient.getIcNumber()));
+                }
             }
         }
 
@@ -396,7 +399,7 @@ public class MaintainPatient {
                 // Add patient to queue maps
                 queuePatientMap.put(patient.getId(), patient);
                 queueNameMap.put(patient.getName().toLowerCase().trim(), patient.getId());
-                queueIcMap.put(PatientFormatUtil.cleanICNumber(patient.getIcNumber()), patient.getId());
+                queueIcMap.put(Patient.cleanICNumber(patient.getIcNumber()), patient.getId());
             }
         }
     }
@@ -414,7 +417,7 @@ public class MaintainPatient {
                     queueNameMap.put(patient.getName().toLowerCase().trim(), patient.getId());
                 }
                 if (patient.getIcNumber() != null) {
-                    queueIcMap.put(PatientFormatUtil.cleanICNumber(patient.getIcNumber()), patient.getId());
+                    queueIcMap.put(Patient.cleanICNumber(patient.getIcNumber()), patient.getId());
                 }
             }
         }
@@ -434,7 +437,7 @@ public class MaintainPatient {
                         queueNameMap.remove(patient.getName().toLowerCase().trim());
                     }
                     if (patient.getIcNumber() != null && !patient.getIcNumber().trim().isEmpty()) {
-                        queueIcMap.remove(PatientFormatUtil.cleanICNumber(patient.getIcNumber()));
+                        queueIcMap.remove(Patient.cleanICNumber(patient.getIcNumber()));
                     }
                 }
                 return patient;
@@ -632,13 +635,68 @@ public class MaintainPatient {
         while (iterator.hasNext()) {
             String id = iterator.next().getId();
             if (id != null && id.startsWith("P")) {
-                int num = PatientFormatUtil.extractNumberFromPatientId(id);
+                int num = Patient.extractNumberFromPatientId(id);
                 if (num > max) {
                     max = num;
                 }
             }
         }
-        return PatientFormatUtil.generateNextPatientId(max);
+        return Patient.generateNextPatientId(max);
+    }
+
+
+
+    /** Process patient registration - ECB compliant method for boundary class */
+    public void processPatientRegistration(String icNumber, boundary.PatientUI ui) {
+        Patient existingPatient = checkExistingPatient(icNumber);
+
+        if (existingPatient != null) {
+            // Handle existing patient scenario
+            ui.displayMessage("\n=== PATIENT ALREADY EXISTS ===");
+            int age = existingPatient.calculateAge();
+            ui.displayPatient(existingPatient, age);
+
+            // Ask if they want to add existing patient to queue
+            boolean addToQueue = ui.askToAddExistingPatientToQueue(existingPatient.getName());
+            if (addToQueue) {
+                if (!isPatientInQueue(existingPatient)) {
+                    String queueNum = addPatientToQueue(existingPatient);
+                    if (queueNum != null) {
+                        ui.displayMessage("\nExisting patient " + existingPatient.getName() + " has been added to the line-up queue.");
+                        ui.displayMessage("Queue Number: " + queueNum);
+                        ui.displayMessage("Total patients in queue: " + getQueueSize());
+                    }
+                } else {
+                    ui.displayMessage("\nPatient is already in the queue.");
+                }
+            } else {
+                ui.displayMessage("\nPatient not added to queue.");
+            }
+        } else {
+            // Handle new patient registration
+            ui.displayMessage("\n=== NEW PATIENT REGISTRATION ===");
+            Patient patient = ui.inputRemainingPatientDetails(icNumber);
+
+            // Register the patient
+            Patient registeredPatient = registerNewPatient(patient);
+
+            if (registeredPatient != null) {
+                ui.displayMessage("\nPatient registered successfully!");
+
+                // Add patient to queue option
+                boolean joinQueue = ui.askToJoinQueue();
+                if (joinQueue) {
+                    String queueNum = addPatientToQueue(registeredPatient);
+                    if (queueNum != null) {
+                        ui.displayMessage("\nPatient " + registeredPatient.getName() + " has been added to the line-up queue.");
+                        ui.displayMessage("Queue Number: " + queueNum);
+                        ui.displayMessage("Total patients in queue: " + getQueueSize());
+                    }
+                } else {
+                    ui.displayMessage("\nPatient not added to queue.");
+                }
+            }
+        }
     }
 
     /** Remove patient from queue and update maps */
@@ -992,7 +1050,7 @@ public class MaintainPatient {
             return null;
         }
 
-        return icMap.get(PatientFormatUtil.cleanICNumber(ic));
+        return icMap.get(Patient.cleanICNumber(ic));
     }
 
 
@@ -1004,15 +1062,15 @@ public class MaintainPatient {
         if (icNumber == null || icNumber.trim().isEmpty()) {
             return null;
         }
-        return icMap.get(PatientFormatUtil.cleanICNumber(icNumber));
+        return icMap.get(Patient.cleanICNumber(icNumber));
     }
 
     // ==================== PATIENT REGISTRATION SERVICES ====================
 
-    /** Register new patient (validates and assigns ID) */
+    /** Register new patient - ECB compliant (delegates to entity for validation) */
     public Patient registerNewPatient(Patient patient) {
-        // Validate patient data
-        PatientValidationUtil.ValidationResult validation = PatientValidationUtil.validatePatientForRegistration(patient);
+        // Delegate validation to entity
+        Patient.ValidationResult validation = patient.validateForRegistration();
         if (!validation.isValid()) {
             throw new IllegalArgumentException("Patient registration failed: " + validation.getErrorMessage());
         }
@@ -1023,13 +1081,15 @@ public class MaintainPatient {
         }
 
         try {
-            // Format phone number after validation
+            // Let entity handle its own formatting and normalization
             String formattedPhone = Patient.formatPhoneForStorage(patient.getPhone());
-            
+            String normalizedGender = Patient.normalizeGender(patient.getGender());
+
             // Generate ID and create with today's date
             String newId = generateNextPatientId();
-            Patient patientWithId = new Patient(newId, patient.getName().trim(), patient.getIcNumber().trim(),
-                                              formattedPhone, patient.getGender(), java.time.LocalDate.now());
+            Patient patientWithId = new Patient(newId, patient.getName().trim(),
+                                              Patient.cleanICNumber(patient.getIcNumber()),
+                                              formattedPhone, normalizedGender, java.time.LocalDate.now());
 
             // Add to all data structures
             addToAllDataStructures(patientWithId);
@@ -1076,8 +1136,8 @@ public class MaintainPatient {
             return false;
         }
 
-        // Validate updated patient data
-        PatientValidationUtil.ValidationResult validation = PatientValidationUtil.validatePatientForRegistration(updatedPatient);
+        // Validate updated patient data using entity validation
+        Patient.ValidationResult validation = updatedPatient.validateForRegistration();
         if (!validation.isValid()) {
             throw new IllegalArgumentException("Patient update failed: " + validation.getErrorMessage());
         }
@@ -1311,7 +1371,7 @@ public class MaintainPatient {
             return null;
         }
 
-        String cleanIC = PatientFormatUtil.cleanICNumber(ic);
+        String cleanIC = Patient.cleanICNumber(ic);
         String patientId = queueIcMap.get(cleanIC);
         return patientId != null ? queuePatientMap.get(patientId) : null;
     }
@@ -1481,9 +1541,11 @@ public class MaintainPatient {
         int maleCount = 0, femaleCount = 0;
         java.util.Iterator<Patient> genderIterator = sortedList.iterator();
         while (genderIterator.hasNext()) {
-            if (genderIterator.next().getGender().equalsIgnoreCase("Male")) {
+            String gender = genderIterator.next().getGender();
+            // Fix gender comparison - check for normalized gender values
+            if (gender.equals("M") || gender.equalsIgnoreCase("male")) {
                 maleCount++;
-            } else {
+            } else if (gender.equals("F") || gender.equalsIgnoreCase("female")) {
                 femaleCount++;
             }
         }
