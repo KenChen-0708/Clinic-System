@@ -1,5 +1,4 @@
 // Lee Siu Yee
-
 package boundary;
 
 import adt.DoublyLinkedList;
@@ -494,6 +493,8 @@ public class TreatmentUI {
             System.out.println("Operation cancelled.");
             return;
         }
+
+        displayMedicineOptions();
 
         ListInterface<TreatmentMedicineList> newMedicines = createMedicineList();
         if (newMedicines.isEmpty()) {

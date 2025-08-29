@@ -84,15 +84,29 @@ public class DoctorUI {
             System.out.println("4. View All Doctors");
             System.out.println("0. Back");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
-                case 1: maintainDoctor.addDoctor(); break;
-                case 2: maintainDoctor.updateDoctorDetails(); break;
-                case 3: maintainDoctor.removeDoctor(); break;
-                case 4: maintainDoctor.displayAllDoctors(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.addDoctor();
+                    break;
+                case 2:
+                    maintainDoctor.updateDoctorDetails();
+                    break;
+                case 3:
+                    maintainDoctor.removeDoctor();
+                    break;
+                case 4:
+                    maintainDoctor.displayAllDoctors();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
@@ -106,14 +120,26 @@ public class DoctorUI {
             System.out.println("3. By Specialization");
             System.out.println("0. Back");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
-                case 1: maintainDoctor.searchDoctorById(); break;
-                case 2: maintainDoctor.searchDoctorByName(); break;
-                case 3: maintainDoctor.searchDoctorBySpecialization(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.searchDoctorById();
+                    break;
+                case 2:
+                    maintainDoctor.searchDoctorByName();
+                    break;
+                case 3:
+                    maintainDoctor.searchDoctorBySpecialization();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
@@ -127,20 +153,33 @@ public class DoctorUI {
             System.out.println("3. By Specialization");
             System.out.println("0. Back");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
                 case 1: {
                     System.out.print("(A=Ascending, D=Descending): ");
                     String opt = scanner.nextLine().trim();
-                    if (opt.equalsIgnoreCase("D")) maintainDoctor.sortDoctorsByIdDescending();
-                    else maintainDoctor.sortDoctorsById();
+                    if (opt.equalsIgnoreCase("D")) {
+                        maintainDoctor.sortDoctorsByIdDescending();
+                    } else {
+                        maintainDoctor.sortDoctorsById();
+                    }
                     break;
                 }
-                case 2: maintainDoctor.sortDoctorsByName(); break;
-                case 3: maintainDoctor.sortDoctorsBySpecialization(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 2:
+                    maintainDoctor.sortDoctorsByName();
+                    break;
+                case 3:
+                    maintainDoctor.sortDoctorsBySpecialization();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
@@ -154,14 +193,26 @@ public class DoctorUI {
             System.out.println("3. View All Schedules");
             System.out.println("0. Back");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
-                case 1: maintainDoctor.setDoctorSchedule(); break;
-                case 2: maintainDoctor.displayDoctorSchedule(); break;
-                case 3: maintainDoctor.displayAllSchedules(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.setDoctorSchedule();
+                    break;
+                case 2:
+                    maintainDoctor.displayDoctorSchedule();
+                    break;
+                case 3:
+                    maintainDoctor.displayAllSchedules();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
@@ -175,14 +226,26 @@ public class DoctorUI {
             System.out.println("3. View All Availability");
             System.out.println("0. Back");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
-                case 1: maintainDoctor.setDoctorAvailability(); break;
-                case 2: maintainDoctor.displayDoctorAvailability(); break;
-                case 3: maintainDoctor.displayAllAvailability(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.setDoctorAvailability();
+                    break;
+                case 2:
+                    maintainDoctor.displayDoctorAvailability();
+                    break;
+                case 3:
+                    maintainDoctor.displayAllAvailability();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
@@ -190,20 +253,36 @@ public class DoctorUI {
     private void runGroupMenu() {
         int c;
         do {
-            System.out.println("\n--- Group Doctors ---");
-            System.out.println("1. By Specialization");
-            System.out.println("2. By Availability");
-            System.out.println("3. By Schedule");
-            System.out.println("0. Back");
+            System.out.println("=== Group Doctors Menu ===");
+            System.out.println("1. Group by Specialization");
+            System.out.println("2. Group by Availability");
+            System.out.println("3. Group by Schedule");
+            System.out.println("4. Group by Alphabet");
+            System.out.println("0. Back to Main Menu");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
-                case 1: maintainDoctor.displayGroupBySpecialization(); break;
-                case 2: maintainDoctor.displayGroupByAvailability(); break;
-                case 3: maintainDoctor.displayGroupBySchedule(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.displayGroupBySpecialization();
+                    break;
+                case 2:
+                    maintainDoctor.displayGroupByAvailability();
+                    break;
+                case 3:
+                    maintainDoctor.displayGroupBySchedule();
+                    break;
+                case 4:
+                    maintainDoctor.displayGroupByAlphabet();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
@@ -216,19 +295,28 @@ public class DoctorUI {
             System.out.println("2. Doctor Workload");
             System.out.println("0. Back");
             System.out.print("Enter choice: ");
-            while (!scanner.hasNextInt()) { System.out.print("Enter a number: "); scanner.next(); }
-            c = scanner.nextInt(); scanner.nextLine();
+            while (!scanner.hasNextInt()) {
+                System.out.print("Enter a number: ");
+                scanner.next();
+            }
+            c = scanner.nextInt();
+            scanner.nextLine();
             switch (c) {
-                case 1: maintainDoctor.displayStatistics(); break;
-                case 2: maintainDoctor.displayDoctorWorkload(); break;
-                case 0: break;
-                default: MessageUI.displayInvalidChoiceMessage();
+                case 1:
+                    maintainDoctor.displayStatistics();
+                    break;
+                case 2:
+                    maintainDoctor.displayDoctorWorkload();
+                    break;
+                case 0:
+                    break;
+                default:
+                    MessageUI.displayInvalidChoiceMessage();
             }
         } while (c != 0);
     }
 
     // (All input methods moved to MaintainDoctor)
-
     // =========================
     // Display Methods
     // =========================
@@ -421,6 +509,89 @@ public class DoctorUI {
                         (d.getSchedule() != null ? d.getSchedule() : "Not set"),
                         (d.getAvailability() != null ? d.getAvailability() : "Not set")));
                 i++;
+            }
+        }
+
+        sb.append("\n=====================================================================================================================\n");
+        displayMessage(sb.toString());
+    }
+
+    public void displayDoctorWorkload(Doctor doc, String doctorId, int totalTreatments, int completedTreatments, int uniquePatients) {
+        String generatedDate = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
+
+        double completedPct = totalTreatments > 0
+                ? (completedTreatments * 100.0) / totalTreatments
+                : 0.0;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n=====================================================================================================================\n");
+        sb.append("                               Tunku Abdul Rahman University Of Management And Technology                              \n");
+        sb.append("=====================================================================================================================\n");
+        sb.append(String.format(" Report Generated On: %s\n", generatedDate));
+        sb.append("=====================================================================================================================\n");
+        sb.append("                                                   🧾 Doctor Workload Report                                           \n");
+        sb.append("=====================================================================================================================\n");
+
+        // Doctor summary table
+        sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                "ID", "Name", "Specialization", "Schedule", "Availability"));
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+
+        String name = (doc != null ? doc.getName() : "-");
+        String spec = (doc != null && doc.getSpecialization() != null) ? doc.getSpecialization() : "Not specified";
+        String sched = (doc != null && doc.getSchedule() != null) ? doc.getSchedule() : "Not set";
+        String avail = (doc != null && doc.getAvailability() != null) ? doc.getAvailability() : "Not set";
+
+        sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                doctorId, name, spec, sched, avail));
+
+        sb.append("=====================================================================================================================\n");
+        sb.append("\n Workload Summary:\n");
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(String.format(" %-22s | %-10s | %-10s\n", "Metric", "Value", "Percent"));
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(String.format(" %-22s | %-10d | %-10s\n", "Total Treatments", totalTreatments, "N/A"));
+        sb.append(String.format(" %-22s | %-10d | %9.1f%%\n", "Completed", completedTreatments, completedPct));
+        sb.append(String.format(" %-22s | %-10d | %-10s\n", "Unique Patients", uniquePatients, "N/A"));
+        sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(" This report is confidential and intended for TAR UMT Medical Department use only.\n");
+        sb.append("=====================================================================================================================\n");
+
+        displayMessage(sb.toString());
+    }
+
+    public void displayGroupedDoctorsByAlphabet(
+            MapInterface<String, ListInterface<Doctor>> grouped,
+            DoctorDAO doctorDAO) {
+
+        StringBuilder sb = new StringBuilder();
+
+        String generatedDate = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss"));
+        String header = String.format("%-80s %s", "Doctors Grouped by Alphabet", "Generated: " + generatedDate);
+
+        sb.append("\n=====================================================================================================================\n");
+        sb.append(String.format(" %-100s\n", header));
+        sb.append("=====================================================================================================================\n");
+
+        for (String key : doctorDAO.getIterable(grouped.getKeys())) {
+            ListInterface<Doctor> list = grouped.get(key);
+            int groupCount = (list != null) ? list.getNumberOfEntries() : 0;
+
+            sb.append(String.format("\n[%s]  (%,d)\n", key, groupCount));
+            sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+            sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                    "ID", "Name", "Specialization", "Schedule", "Availability"));
+            sb.append("---------------------------------------------------------------------------------------------------------------------\n");
+
+            for (Doctor d : doctorDAO.getIterable(list)) {
+                sb.append(String.format(" %-8s | %-20s | %-20s | %-25s | %-15s\n",
+                        d.getId(),
+                        d.getName(),
+                        (d.getSpecialization() != null ? d.getSpecialization() : "Not specified"),
+                        (d.getSchedule() != null ? d.getSchedule() : "Not set"),
+                        (d.getAvailability() != null ? d.getAvailability() : "Not set")));
             }
         }
 

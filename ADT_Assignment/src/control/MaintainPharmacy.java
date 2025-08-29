@@ -670,14 +670,8 @@ public class MaintainPharmacy implements Serializable {
             }
 
             pharmacyUI.displayTable(title, headers, rows);
-            pharmacyUI.displayMessage("Grand total tablets prescribed: \n" + grandTotal);
+            pharmacyUI.displayMessage("Grand total tablets prescribed: " + grandTotal + "\n");
         }
-
-        // Ask for confirmation before dispensing
-        pharmacyUI.displayMessage("1. Dispense all medicines");
-        pharmacyUI.displayMessage("0. Discard");
-        pharmacyUI.displayMessage("--------------------------------");
-        System.out.print("Enter your choice: ");
 
         // Ask for confirmation before dispensing
         int confirmDispense = pharmacyUI.confirmDispenseAll();

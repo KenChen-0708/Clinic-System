@@ -510,8 +510,6 @@ public class MaintainPatient {
                         maintainTreatment.addServingPatientDoctorPair(nextPatient, availableDoctor);
                     }
 
-                    maintainDoctor.setDoctorAvailability(availableDoctor.getId(), "Available");
-
                     return new QueueOperationResult(true, OperationResult.PATIENT_SERVED, nextPatient, queueNum, patientQueue.size());
                 } else {
                     // Failed to set doctor on duty - put patient back in queue
