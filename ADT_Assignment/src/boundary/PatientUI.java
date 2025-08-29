@@ -130,9 +130,12 @@ public class PatientUI {
             choice = displayReportsMenu();
             switch (choice) {
                 case 1:
-                    handlePatientTreatmentReport();
+                    handlePatientSummaryReport();
                     break;
                 case 2:
+                    handlePatientTreatmentReport();
+                    break;
+                case 3:
                     handleRegistrationTimelineReport();
                     break;
                 case 0:
@@ -156,7 +159,7 @@ public class PatientUI {
     // Display appointment menu options
     public int displayAppointmentMenu() {
         System.out.println("\n===============================");
-        System.out.println("      APPOINTMENT MENU         ");
+        System.out.println("  APPOINTMENT MANAGEMENT MENU         ");
         System.out.println("===============================");
         System.out.println("1. Book Appointment");
         System.out.println("2. View Today's Appointments");
@@ -225,7 +228,7 @@ public class PatientUI {
 
         // Display patient details for confirmation
         displayMessage("\n=== PATIENT DETAILS ===");
-        int age = maintainPatient.getPatientAge(patient.getIcNumber());
+        int age = patient.calculateAge();
         displayPatient(patient, age);
 
         // Show available doctors
@@ -312,7 +315,7 @@ public class PatientUI {
 
         if (result.isSuccess() && result.getAppointment() != null) {
             Appointment appointment = result.getAppointment();
-            // Get doctor name from control layer (following ECB pattern)
+            // Get doctor name from control layer
             String doctorName = maintainPatient.getDoctorNameById(appointment.getDoctorId());
 
             displayMessage("\n=== APPOINTMENT CONFIRMATION ===");
@@ -395,12 +398,9 @@ public class PatientUI {
         askToContinueOrReturnToMenu();
     }
 
-    // Display list of appointments with patient and doctor names (following ECB pattern)
+    // Display list of appointments with patient and doctor names
     private void displayAppointmentList(ListInterface<Appointment> appointments) {
-        // Get formatted appointment data from control layer
-        String[][] appointmentData = maintainPatient.getAppointmentDisplayData(appointments);
-
-        if (appointmentData.length == 0) {
+        if (appointments == null || appointments.isEmpty()) {
             System.out.println("No appointments to display.");
             return;
         }
@@ -410,23 +410,30 @@ public class PatientUI {
                 "Appointment ID", "Patient ID", "Patient Name", "Doctor ID", "Doctor Name", "Date", "Time");
         System.out.println("=".repeat(120));
 
-        // Display appointment data with patient and doctor names
-        for (String[] appointment : appointmentData) {
+        // Format data in boundary layer
+        java.util.Iterator<Appointment> iterator = appointments.iterator();
+        while (iterator.hasNext()) {
+            Appointment appointment = iterator.next();
+            
+            // Get patient and doctor details from control layer
+            Patient patient = maintainPatient.findPatientById(appointment.getPatientId());
+            String doctorName = maintainPatient.getDoctorNameById(appointment.getDoctorId());
+            
             System.out.printf("%-15s %-12s %-20s %-12s %-20s %-15s %-10s%n",
-                    appointment[0], // Appointment ID
-                    appointment[1], // Patient ID
-                    FormatUtil.truncateString(appointment[2], 20), // Patient Name (truncated)
-                    appointment[3], // Doctor ID
-                    FormatUtil.truncateString(appointment[4], 20), // Doctor Name (truncated)
-                    appointment[5], // Date
-                    appointment[6]); // Time
+                    appointment.getAppointmentId(),
+                    appointment.getPatientId(),
+                    FormatUtil.truncateString(patient != null ? patient.getName() : "Unknown", 20),
+                    appointment.getDoctorId(),
+                    FormatUtil.truncateString(doctorName != null ? doctorName : "Unknown", 20),
+                    appointment.getAppointmentDate().toString(),
+                    appointment.getAppointmentTime().toString());
         }
         System.out.println("=".repeat(120));
     }
 
     // Handle appointment cancellation
     private void handleCancelAppointment() {
-        
+
         // Show all appointments
         ListInterface<Appointment> allAppointments = maintainPatient.getAllAppointments();
 
@@ -473,7 +480,7 @@ public class PatientUI {
 
     // Handle searching appointments by patient ID
     private void handleSearchAppointmentsByPatientId() {
-        
+
         String patientId;
         do {
             System.out.print("\nEnter Patient ID to search appointments (or 0 to return to menu): ");
@@ -514,7 +521,7 @@ public class PatientUI {
 
     // Handle clearing all appointments
     private void handleClearAllAppointments() {
-        
+
         // Show current appointments before clearing
         ListInterface<Appointment> currentAppointments = maintainPatient.getAllAppointments();
         if (currentAppointments.isEmpty()) {
@@ -556,6 +563,202 @@ public class PatientUI {
         }
     }
 
+    // Handle Patient Summary Report (ECB: boundary consumes report built by control)
+    private void handlePatientSummaryReport() {
+        if (!maintainPatient.hasPatients()) {
+            displayMessage("\nNo patients registered yet.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        entity.PatientSummaryReport report = maintainPatient.generatePatientSummaryReport();
+        displayPatientSummaryReport(report);
+        askToContinueOrReturnToMenu();
+    }
+
+// Display Patient Summary Report with improved formatting and histograms
+    private void displayPatientSummaryReport(entity.PatientSummaryReport report) {
+        final int width = 100;
+        String lineEq = "=".repeat(width);
+        String lineDash = "-".repeat(width);
+
+        // HEADER
+        System.out.println();
+        System.out.println(lineEq);
+        System.out.printf("%" + (width / 2 + 28) + "s%n", "TUNKU ABDUL RAHMAN UNIVERSITY OF MANAGEMENT AND TECHNOLOGY");
+        System.out.printf("%" + (width / 2 + 12) + "s%n", "CLINIC MANAGEMENT SYSTEM");
+        System.out.println(lineEq);
+        System.out.printf("%" + (width / 2 + 10) + "s%n", "PATIENT SUMMARY REPORT");
+        System.out.println(lineEq);
+
+        // Generated time
+        String timestamp = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM dd yyyy, hh:mm a"));
+        System.out.println("Generated at: " + timestamp);
+        System.out.println(lineDash);
+
+        // OVERALL PATIENT STATISTICS
+        System.out.println("\nOVERALL PATIENT STATISTICS");
+        System.out.println(lineDash);
+        System.out.printf("%-35s : %d%n", "Total Registered Patients", report.getTotalPatients());
+        System.out.printf("%-35s : %d%n", "Average Age", Math.round(report.getAverageAge()));
+
+        entity.Patient y = report.getYoungestPatient();
+        entity.Patient o = report.getOldestPatient();
+        if (y != null) {
+            int yAge = y.calculateAge();
+            System.out.printf("%-35s : %-20s (ID: %s, Age %d)%n", "Youngest Patient", y.getName(), y.getId(), yAge);
+        }
+        if (o != null) {
+            int oAge = o.calculateAge();
+            System.out.printf("%-35s : %-20s (ID: %s, Age %d)%n", "Oldest Patient", o.getName(), o.getId(), oAge);
+        }
+
+        // GENDER DISTRIBUTION
+        System.out.println("\nGENDER DISTRIBUTION");
+        System.out.println(lineDash);
+        System.out.printf("%-20s %-10s%n", "Gender", "Count");
+        System.out.println(lineDash);
+
+        var genders = report.getGenderDistribution();
+        var genderKeys = genders.getKeys();
+        int male = 0, female = 0;
+        java.util.Iterator<String> gIt = genderKeys.iterator();
+        while (gIt.hasNext()) {
+            String g = gIt.next();
+            Integer c = genders.get(g);
+            int v = (c == null ? 0 : c);
+            System.out.printf("%-20s %-10d%n", g, v);
+            if (g.equalsIgnoreCase("male")) {
+                male = v;
+            }
+            if (g.equalsIgnoreCase("female")) {
+                female = v;
+            }
+        }
+        System.out.println(lineDash);
+        System.out.printf("%s : %d Male / %d Female%n", "Gender Ratio", male, female);
+
+        System.out.println("\nHistogram (Gender):");
+        gIt = genderKeys.iterator();
+        while (gIt.hasNext()) {
+            String g = gIt.next();
+            int v = genders.get(g);
+            System.out.printf("%-20s %s%n", g, "#".repeat(Math.max(1, v)));
+        }
+
+        // AGE GROUP DISTRIBUTION
+        System.out.println("\nAGE GROUP DISTRIBUTION");
+        System.out.println(lineDash);
+        System.out.printf("%-25s %-10s%n", "Age Group", "Count");
+        System.out.println(lineDash);
+        var ageGroups = report.getAgeGroupDistribution();
+        var ageGroupKeys = ageGroups.getKeys();
+        java.util.Iterator<String> agIt = ageGroupKeys.iterator();
+        while (agIt.hasNext()) {
+            String k = agIt.next();
+            System.out.printf("%-25s %-10d%n", k, ageGroups.get(k));
+        }
+
+        System.out.println("\nHistogram (Age Groups):");
+        agIt = ageGroupKeys.iterator();
+        while (agIt.hasNext()) {
+            String k = agIt.next();
+            int v = ageGroups.get(k);
+            System.out.printf("%-25s %s%n", k, "#".repeat(Math.max(1, v)));
+        }
+
+        // AGE BUCKET DISTRIBUTION (placed right after Age Groups)
+        System.out.println("\nAGE BUCKET DISTRIBUTION");
+        System.out.println(lineDash);
+        System.out.printf("%-10s %-10s%n", "Bucket", "Count");
+        System.out.println(lineDash);
+        var ageBuckets = report.getAgeDistribution();
+        var bucketKeys = ageBuckets.getKeys();
+        java.util.Iterator<String> bIt = bucketKeys.iterator();
+        while (bIt.hasNext()) {
+            String bucket = bIt.next();
+            System.out.printf("%-10s %-10d%n", bucket, ageBuckets.get(bucket));
+        }
+
+        System.out.println("\nHistogram (Age Buckets):");
+        bIt = bucketKeys.iterator();
+        while (bIt.hasNext()) {
+            String bucket = bIt.next();
+            int v = ageBuckets.get(bucket);
+            System.out.printf("%-10s %s%n", bucket, "#".repeat(Math.max(1, v)));
+        }
+
+        // REGISTRATION BY YEAR
+        System.out.println("\nREGISTRATION BY YEAR");
+        System.out.println(lineDash);
+        System.out.printf("%-10s %-10s%n", "Year", "Count");
+        System.out.println(lineDash);
+        var yearly = report.getYearlyRegistrations();
+        var yearKeys = yearly.getKeys();
+        java.util.Iterator<Integer> yIt = yearKeys.iterator();
+        while (yIt.hasNext()) {
+            Integer year = yIt.next();
+            System.out.printf("%-10d %-10d%n", year, yearly.get(year));
+        }
+
+        System.out.println("\nHistogram (Registrations by Year):");
+        yIt = yearKeys.iterator();
+        while (yIt.hasNext()) {
+            Integer year = yIt.next();
+            int v = yearly.get(year);
+            System.out.printf("%-10d %s%n", year, "#".repeat(Math.max(1, v)));
+        }
+
+        // MONTHLY REGISTRATION COUNT
+        System.out.println("\nMONTHLY REGISTRATION COUNT");
+        System.out.println(lineDash);
+        System.out.printf("%-10s %-10s%n", "Month", "Count");
+        System.out.println(lineDash);
+        var monthly = report.getMonthlyRegistrations();
+        var monthKeys = monthly.getKeys();
+        java.util.Iterator<String> mIt = monthKeys.iterator();
+        while (mIt.hasNext()) {
+            String month = mIt.next();
+            System.out.printf("%-10s %-10d%n", month, monthly.get(month));
+        }
+
+        System.out.println("\nHistogram (Monthly Registrations):");
+        mIt = monthKeys.iterator();
+        while (mIt.hasNext()) {
+            String month = mIt.next();
+            int v = monthly.get(month);
+            System.out.printf("%-10s %s%n", month, "#".repeat(Math.max(1, v)));
+        }
+
+        // MOST COMMON GENDER PER YEAR
+        System.out.println("\nMOST COMMON GENDER PER YEAR");
+        System.out.println(lineDash);
+        System.out.printf("%-10s %-10s%n", "Year", "Gender");
+        System.out.println(lineDash);
+        var gByYear = report.getGenderByYear();
+        var gYearKeys = gByYear.getKeys();
+        java.util.Iterator<String> gyIt = gYearKeys.iterator();
+        while (gyIt.hasNext()) {
+            String year = gyIt.next();
+            String common = report.getMostCommonGenderForYear(year);
+            if (common != null) {
+                System.out.printf("%-10s %-10s%n", year, common);
+            }
+        }
+
+        // PATIENT GROWTH
+        System.out.println("\nPATIENT GROWTH");
+        System.out.println(lineDash);
+        int currentYear = java.time.LocalDate.now().getYear();
+        int growthAbs = report.getYearlyGrowthAbsolute(currentYear);
+        double growthPct = report.getYearlyGrowthPercent(currentYear);
+        System.out.printf("%-35s : %+d%n", "Change (" + (currentYear - 1) + " to " + currentYear + ")", growthAbs);
+        System.out.printf("%-35s : %d%%%n", "Percent Growth", Math.round(growthPct));
+
+        System.out.println(lineEq);
+    }
+
     // Generate and display registration timeline report
     private void handleRegistrationTimelineReport() {
         MaintainPatient.RegistrationTimelineData data = maintainPatient.generateRegistrationTimelineReport();
@@ -574,8 +777,9 @@ public class PatientUI {
     // Display reports menu
     private int displayReportsMenu() {
         System.out.println("\n=== PATIENT REPORTS ===");
-        System.out.println("1. Patient Treatment Statistics Report");
-        System.out.println("2. Registration Timeline Report");
+        System.out.println("1. Patient Summary Report");
+        System.out.println("2. Patient Treatment Statistics Report");
+        System.out.println("3. Registration Timeline Report");
         System.out.println("0. Back to Main Menu");
         System.out.println("========================");
         return getMenuChoice();
@@ -700,7 +904,7 @@ public class PatientUI {
             System.out.print("Enter Phone     : ");
             phone = scanner.nextLine().trim();
 
-            // Validate phone number
+            // Validate phone number using utility validation
             ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phone);
             if (!result.isValid()) {
                 System.out.println("\n" + result.getErrorMessage() + " Please try again.\n");
@@ -709,8 +913,8 @@ public class PatientUI {
             }
         } while (true);
 
-        // Format phone number for storage using control layer
-        return maintainPatient.formatPhoneForStorage(phone);
+        // Return raw phone number - control layer handles formatting
+        return phone;
     }
 
     private String inputGender() {
@@ -722,8 +926,8 @@ public class PatientUI {
             if (gender.isEmpty()) {
                 System.out.println("\nGender cannot be empty. Please try again.\n");
             } else {
-                // Normalize gender input using control layer
-                String normalizedGender = maintainPatient.normalizeGender(gender);
+                // Normalize gender input using entity layer
+                String normalizedGender = Patient.normalizeGender(gender);
                 if (normalizedGender != null) {
                     return normalizedGender;
                 } else {
@@ -919,7 +1123,7 @@ public class PatientUI {
         if (genderInput.isEmpty()) {
             gender = currentPatient.getGender();
         } else {
-            String normalizedGender = maintainPatient.normalizeGender(genderInput);
+            String normalizedGender = Patient.normalizeGender(genderInput);
             while (normalizedGender == null) {
                 System.out.println("\nInvalid gender. Please enter M/Male or F/Female.\n");
                 System.out.print("Gender [" + currentPatient.getGender() + "]: ");
@@ -928,7 +1132,7 @@ public class PatientUI {
                     normalizedGender = currentPatient.getGender();
                     break;
                 } else {
-                    normalizedGender = maintainPatient.normalizeGender(genderInput);
+                    normalizedGender = Patient.normalizeGender(genderInput);
                 }
             }
             gender = normalizedGender;
@@ -965,6 +1169,7 @@ public class PatientUI {
         if (phoneInput.isEmpty()) {
             phone = currentPatient.getPhone();
         } else {
+            // Validate phone number using utility validation
             while (true) {
                 ValidationUtil.ValidationResult result = ValidationUtil.validatePhone(phoneInput);
                 if (!result.isValid()) {
@@ -979,8 +1184,8 @@ public class PatientUI {
                     break;
                 }
             }
-            // Format phone number using control layer
-            phone = maintainPatient.formatPhoneForStorage(phoneInput);
+            // Return raw phone number - control layer handles formatting
+            phone = phoneInput;
         }
 
         // Return updated patient entity
@@ -993,6 +1198,7 @@ public class PatientUI {
         System.out.println("2. Sort by Name");
         System.out.println("3. Sort by Age");
         System.out.println("4. Sort by Registration Date");
+        System.out.println("5. Group by Gender");
         System.out.println("0. Return to Main Menu");
         System.out.println("==========================");
         return getMenuChoice();
@@ -1013,6 +1219,34 @@ public class PatientUI {
     }
 
     /**
+     * Display submenu for Name sorting options
+     *
+     * @return user's choice for sorting order
+     */
+    public int displaySortByNameMenu() {
+        System.out.println("\n=== SORT BY NAME ===");
+        System.out.println("1. Ascending Order (A-Z)");
+        System.out.println("2. Descending Order (Z-A)");
+        System.out.println("0. Back to View Menu");
+        System.out.println("==========================");
+        return getMenuChoice();
+    }
+
+    /**
+     * Display submenu for Age sorting options
+     *
+     * @return user's choice for sorting order
+     */
+    public int displaySortByAgeMenu() {
+        System.out.println("\n=== SORT BY AGE ===");
+        System.out.println("1. Ascending Order (Youngest First)");
+        System.out.println("2. Descending Order (Oldest First)");
+        System.out.println("0. Back to View Menu");
+        System.out.println("==================================");
+        return getMenuChoice();
+    }
+
+    /**
      * Display submenu for Registration Date sorting options
      *
      * @return user's choice for sorting order
@@ -1022,7 +1256,7 @@ public class PatientUI {
         System.out.println("1. Ascending Order (Oldest First)");
         System.out.println("2. Descending Order (Newest First)");
         System.out.println("0. Back to View Menu");
-        System.out.println("==================================");
+        System.out.println("==========================");
         return getMenuChoice();
     }
 
@@ -1034,16 +1268,20 @@ public class PatientUI {
                 handleSortByIdSubmenu();
                 break;
             case 2:
-                // Name sorting (ascending only)
-                displaySortedPatients("name", true, "Sorted by Name (A-Z)");
+                // Name sorting with submenu
+                handleSortByNameSubmenu();
                 break;
             case 3:
-                // Age sorting (ascending only)
-                displaySortedPatients("age", true, "Sorted by Age (Youngest First)");
+                // Age sorting with submenu
+                handleSortByAgeSubmenu();
                 break;
             case 4:
                 // Registration Date sorting with submenu
                 handleSortByDateSubmenu();
+                break;
+            case 5:
+                // Group by Gender
+                displayPatientsByGender();
                 break;
             case 0:
                 // Return handled by calling method
@@ -1096,11 +1334,87 @@ public class PatientUI {
         }
     }
 
+    // Handle Name sorting submenu
+    private void handleSortByNameSubmenu() {
+        boolean continueNameSorting = true;
+        while (continueNameSorting) {
+            int choice = displaySortByNameMenu();
+
+            switch (choice) {
+                case 1:
+                    displaySortedPatientsByName(true, "Sorted by Name (A-Z)");
+                    break;
+                case 2:
+                    displaySortedPatientsByName(false, "Sorted by Name (Z-A)");
+                    break;
+                case 0:
+                    continueNameSorting = false;
+                    break;
+                default:
+                    displayMessage("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    // Handle Age sorting submenu
+    private void handleSortByAgeSubmenu() {
+        boolean continueAgeSorting = true;
+        while (continueAgeSorting) {
+            int choice = displaySortByAgeMenu();
+
+            switch (choice) {
+                case 1:
+                    displaySortedPatientsByAge(true, "Sorted by Age (Youngest First)");
+                    break;
+                case 2:
+                    displaySortedPatientsByAge(false, "Sorted by Age (Oldest First)");
+                    break;
+                case 0:
+                    continueAgeSorting = false;
+                    break;
+                default:
+                    displayMessage("Invalid choice. Please try again.");
+            }
+        }
+    }
+
     // Helper method to display sorted patients by ID
     private void displaySortedPatientsById(boolean ascending, String title) {
-        ListInterface<Patient> sortedData = ascending ?
-            maintainPatient.sortPatientsByIdAscending() :
-            maintainPatient.sortPatientsByIdDescending();
+        ListInterface<Patient> sortedData = ascending
+                ? maintainPatient.sortPatientsByIdAscending()
+                : maintainPatient.sortPatientsByIdDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
+            String[][] tableData = formatPatientTableData(sortedData);
+            displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
+            askToContinueOrReturnToMenu();
+        }
+    }
+
+    // Helper method to display sorted patients by Name
+    private void displaySortedPatientsByName(boolean ascending, String title) {
+        ListInterface<Patient> sortedData = ascending
+                ? maintainPatient.getSortedPatientsByName()
+                : maintainPatient.getSortedPatientsByNameDescending();
+
+        if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
+            String[][] tableData = formatPatientTableData(sortedData);
+            displayPatientsTableWithData(tableData, title);
+            askToContinueOrReturnToMenu();
+        } else {
+            displayMessage("No patients found to display.");
+            askToContinueOrReturnToMenu();
+        }
+    }
+
+    // Helper method to display sorted patients by Age
+    private void displaySortedPatientsByAge(boolean ascending, String title) {
+        ListInterface<Patient> sortedData = ascending
+                ? maintainPatient.getSortedPatientsByAge()
+                : maintainPatient.getSortedPatientsByAgeDescending();
 
         if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
@@ -1136,9 +1450,9 @@ public class PatientUI {
 
     // Helper method to display sorted patients by date
     private void displaySortedPatientsByDate(boolean ascending, String title) {
-        ListInterface<Patient> sortedData = ascending ?
-            maintainPatient.sortPatientsByDateAscending() :
-            maintainPatient.sortPatientsByDateDescending();
+        ListInterface<Patient> sortedData = ascending
+                ? maintainPatient.sortPatientsByDateAscending()
+                : maintainPatient.sortPatientsByDateDescending();
 
         if (sortedData != null && sortedData.getNumberOfEntries() > 0) {
             String[][] tableData = formatPatientTableData(sortedData);
@@ -1148,6 +1462,42 @@ public class PatientUI {
             displayMessage("No patients found to display.");
             askToContinueOrReturnToMenu();
         }
+    }
+
+    // Display patients grouped by gender
+    private void displayPatientsByGender() {
+        MapInterface<String, ListInterface<Patient>> genderGroups = maintainPatient.getPatientsByGender();
+
+        if (genderGroups.isEmpty()) {
+            displayMessage("No patients found to display.");
+            askToContinueOrReturnToMenu();
+            return;
+        }
+
+        displayMessage("\n=== PATIENTS GROUPED BY GENDER ===");
+
+        ListInterface<String> genderKeys = genderGroups.getKeys();
+        java.util.Iterator<String> genderIterator = genderKeys.iterator();
+        
+        while (genderIterator.hasNext()) {
+            String gender = genderIterator.next();
+            ListInterface<Patient> patients = genderGroups.get(gender);
+            int count = patients.getNumberOfEntries();
+
+            displayMessage("\n" + "=".repeat(80));
+            displayMessage("GENDER: " + gender.toUpperCase() + " (Total: " + count + " patients)");
+            displayMessage("=".repeat(80));
+
+            if (count > 0) {
+                // Format data in boundary layer
+                String[][] patientData = formatPatientTableData(patients);
+                displayPatientsTableWithData(patientData, "Patients - " + gender);
+            } else {
+                displayMessage("No patients in this gender group.");
+            }
+        }
+
+        askToContinueOrReturnToMenu();
     }
 
     /**
@@ -1174,9 +1524,7 @@ public class PatientUI {
         }
     }
 
-    /**
-     * Format patient data for table display - UI layer responsibility
-     */
+    /** Format patient data for table display */
     private String[][] formatPatientTableData(ListInterface<Patient> patients) {
         if (patients == null || patients.isEmpty()) {
             return new String[0][0];
@@ -1189,7 +1537,7 @@ public class PatientUI {
         while (iterator.hasNext()) {
             Patient p = iterator.next();
             if (p != null) {
-                int age = maintainPatient.getPatientAge(p.getIcNumber());
+                int age = p.calculateAge();
                 patientData[index][0] = p.getId();
                 patientData[index][1] = p.getName();
                 patientData[index][2] = p.getGender();
@@ -1221,7 +1569,7 @@ public class PatientUI {
         int index = 0;
         while (iterator.hasNext()) {
             Patient p = iterator.next();
-            int age = maintainPatient.getPatientAge(p.getIcNumber());
+            int age = p.calculateAge();
 
             queueData[index][0] = queueNumbers[index] != null ? queueNumbers[index] : String.format("%04d", index + 1);
             queueData[index][1] = p.getId();
@@ -1260,7 +1608,7 @@ public class PatientUI {
             Patient patient = maintainPatient.findPatientById(id);
 
             if (patient != null) {
-                int age = maintainPatient.getPatientAge(patient.getIcNumber());
+                int age = patient.calculateAge();
                 displayPatient(patient, age);
             } else {
                 displayMessage("\nPatient with ID '" + id + "' not found.");
@@ -1296,7 +1644,7 @@ public class PatientUI {
                 while (iterator.hasNext()) {
                     displayMessage("\n--- Patient " + patientNumber + " ---");
                     Patient p = iterator.next();
-                    int age = maintainPatient.getPatientAge(p.getIcNumber());
+                    int age = p.calculateAge();
                     displayPatient(p, age);
                     patientNumber++;
                 }
@@ -1331,7 +1679,7 @@ public class PatientUI {
             Patient patient = maintainPatient.findPatientByIC(ic);
 
             if (patient != null) {
-                int age = maintainPatient.getPatientAge(patient.getIcNumber());
+                int age = patient.calculateAge();
                 displayPatient(patient, age);
             } else {
                 // Format IC for display in error message
@@ -1382,7 +1730,7 @@ public class PatientUI {
     private void handleExistingPatientRegistration(Patient existingPatient) {
         // Show existing patient details
         displayMessage("\n=== PATIENT ALREADY EXISTS ===");
-        int age = maintainPatient.getPatientAge(existingPatient.getIcNumber());
+        int age = existingPatient.calculateAge();
         displayPatient(existingPatient, age);
 
         // Ask if they want to add existing patient to queue
@@ -1457,7 +1805,7 @@ public class PatientUI {
 
             if (patient != null) {
                 displayMessage("Current patient details:");
-                int age = maintainPatient.getPatientAge(patient.getIcNumber());
+                int age = patient.calculateAge();
                 displayPatient(patient, age);
 
                 Patient updatedPatient = inputUpdatedPatientDetails(patient);
@@ -1501,11 +1849,11 @@ public class PatientUI {
 
             if (patientToRemove != null) {
                 // Show patient details and ask for confirmation
-                displayMessage("Patient to be removed:");
-                int age = maintainPatient.getPatientAge(patientToRemove.getIcNumber());
+                displayMessage("\nPatient to be removed:");
+                int age = patientToRemove.calculateAge();
                 displayPatient(patientToRemove, age);
 
-                // ENHANCED: Check and display queue information with better formatting
+                // Show queue information if patient is in queue
                 if (maintainPatient.isPatientInQueue(patientToRemove)) {
                     String queueNum = maintainPatient.getPatientQueueNumber(patientToRemove);
                     int queuePosition = maintainPatient.getPatientQueuePosition(patientToRemove);
@@ -1624,7 +1972,7 @@ public class PatientUI {
                     continueServing = false;
                 }
             } else {
-                // ENHANCED: Provide specific error messages for better user experience
+                // Provide specific error messages for better user experience
                 if ("QUEUE_EMPTY".equals(result.getStatusCode())) {
                     displayMessage("\nNo patients in the queue.");
                 } else if ("NO_AVAILABLE_DOCTOR".equals(result.getStatusCode())) {
@@ -1652,7 +2000,7 @@ public class PatientUI {
      * Handle view current queue
      */
     private void handleViewCurrentQueue() {
-        MaintainPatient.QueueStatusData queueStatus = maintainPatient.getCurrentQueueStatus();
+        entity.QueueStatusData queueStatus = maintainPatient.getCurrentQueueStatus();
 
         if (queueStatus.isEmpty()) {
             displayMessage("\nNo patients in the queue.");
@@ -1728,7 +2076,7 @@ public class PatientUI {
                 break;
             }
 
-            MaintainPatient.SearchResult result = maintainPatient.searchPatientInQueueByName(name);
+            entity.SearchResult result = maintainPatient.searchPatientInQueueByName(name);
 
             if (result.isFound()) {
                 displayFormattedQueueInfo(result.getQueueNumber(), result.getPatient().getName(),
@@ -1756,7 +2104,7 @@ public class PatientUI {
                 break;
             }
 
-            MaintainPatient.SearchResult result = maintainPatient.searchPatientInQueueByIC(ic);
+            entity.SearchResult result = maintainPatient.searchPatientInQueueByIC(ic);
 
             if (result.isFound()) {
                 displayFormattedQueueInfo(result.getQueueNumber(), result.getPatient().getName(),
@@ -1834,14 +2182,25 @@ public class PatientUI {
     }
 
     // Display patient treatment report with clear formatting
-    // Display patient treatment report with clear formatting
     public void displayPatientTreatmentReport(MaintainPatient.PatientTreatmentData data) {
         String line = "=".repeat(90);
         String separator = "-".repeat(90);
 
+        // Top header
         System.out.println("\n" + line);
+        System.out.printf("%70s%n", "TUNKU ABDUL RAHMAN UNIVERSITY OF MANAGEMENT AND TECHNOLOGY");
+        System.out.printf("%54s%n", "CLINIC MANAGEMENT SYSTEM");
+        System.out.println(line);
+
+// Report title
         System.out.printf("%60s%n", "PATIENT TREATMENT STATISTICS REPORT");
         System.out.println(line);
+
+// Generated time
+        String generatedTime = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM d yyyy, hh:mm a"));
+        System.out.printf("Generated at: %s%n", generatedTime);
+        System.out.println(separator);
 
         // Overall Statistics Section
         System.out.println("\n OVERALL TREATMENT STATISTICS");
@@ -1886,8 +2245,18 @@ public class PatientUI {
 
         System.out.println();
         System.out.println(lineEq);
+        System.out.printf("%70s%n", "TUNKU ABDUL RAHMAN UNIVERSITY OF MANAGEMENT AND TECHNOLOGY");
+        System.out.printf("%54s%n", "CLINIC MANAGEMENT SYSTEM");
+        System.out.println(lineEq);
+
         System.out.printf("%57s%n", "REGISTRATION TIMELINE REPORT");
         System.out.println(lineEq);
+
+// Generated time
+        String generatedTime = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM d yyyy, hh:mm a"));
+        System.out.printf("Generated at: %s%n", generatedTime);
+        System.out.println(lineDash);
 
         // REGISTRATION STATISTICS
         System.out.println("\nREGISTRATION STATISTICS");
@@ -1970,6 +2339,7 @@ public class PatientUI {
 
     /**
      * Display sorting message based on user choice
+     *
      * @param sortChoice User's sorting choice
      */
     private void displaySortingMessage(int sortChoice) {
@@ -1995,8 +2365,6 @@ public class PatientUI {
      * @param timeString Time string to validate
      * @return true if valid format, false otherwise
      */
-
-
     /**
      * Display formatted queue information with better layout
      *
