@@ -14,6 +14,7 @@ import dao.AppointmentDAO;
 import entity.Doctor;
 import entity.Patient;
 import entity.Appointment;
+import entity.PatientSummaryReport;
 import utility.ValidationUtil;
 import utility.PatientValidationUtil;
 import utility.PatientFormatUtil;
@@ -811,40 +812,127 @@ public class MaintainPatient {
 
             groupedData[index][0] = gender; // Gender name
             groupedData[index][1] = patients.getNumberOfEntries(); // Count
-            groupedData[index][2] = formatPatientDataForDisplay(patients); // Patient data
+            groupedData[index][2] = patients; // ECB FIX: Pass raw data, let Boundary format
             index++;
         }
 
         return groupedData;
     }
 
+    // ECB FIX: UI formatting methods moved to Boundary layer (PatientUI)
+
     /**
-     * Helper method to format patient data for display
-     * @param patients List of patients to format
-     * @return Formatted patient data array
+     * ADVANCED FEATURE: Generate comprehensive patient summary report
+     * Demonstrates sophisticated ADT usage with multi-dimensional analysis
+     * Uses nested HashMaps, statistical calculations, and trend analysis
+     * @return PatientSummaryReport object containing all analytics
      */
-    private String[][] formatPatientDataForDisplay(ListInterface<Patient> patients) {
-        if (patients == null || patients.isEmpty()) {
-            return new String[0][0];
+    // Summary caching
+    private boolean summaryCacheDirty = true;
+    private PatientSummaryReport cachedSummaryReport = null;
+
+    /** Ensure summary cache is built */
+    private void buildSummaryIfNeeded() {
+        if (!summaryCacheDirty && cachedSummaryReport != null) return;
+        cachedSummaryReport = generatePatientSummaryReportInternal();
+        summaryCacheDirty = false;
+    }
+
+    /** Public API: Generate (or return cached) comprehensive patient summary report */
+    public PatientSummaryReport generatePatientSummaryReport() {
+        buildSummaryIfNeeded();
+        return cachedSummaryReport;
+    }
+
+    /** Internal builder: single-pass, ADT-centric analytics */
+    private PatientSummaryReport generatePatientSummaryReportInternal() {
+        if (patientList == null || patientList.isEmpty()) {
+            return new PatientSummaryReport(); // Empty report
         }
 
-        String[][] patientData = new String[patients.getNumberOfEntries()][7];
-        java.util.Iterator<Patient> iterator = patients.iterator();
-        int index = 0;
+        // Initialize complex data structures for multi-dimensional analysis
+        MapInterface<String, Integer> genderDistribution = new HashMap<>();
+        MapInterface<String, Integer> ageGroupDistribution = new HashMap<>();
+        MapInterface<Integer, Integer> yearlyRegistrations = new HashMap<>();
+        MapInterface<String, Integer> monthlyRegistrations = new HashMap<>();
+        MapInterface<String, MapInterface<String, Integer>> genderByYear = new HashMap<>();
+        MapInterface<String, Integer> ageDistribution = new HashMap<>();
 
+        // Statistical tracking variables
+        int totalPatients = 0;
+        int totalAge = 0;
+        int minAge = Integer.MAX_VALUE;
+        int maxAge = Integer.MIN_VALUE;
+        Patient youngestPatient = null;
+        Patient oldestPatient = null;
+
+        // Single pass data processing
+        java.util.Iterator<Patient> iterator = patientList.iterator();
         while (iterator.hasNext()) {
             Patient patient = iterator.next();
-            patientData[index][0] = patient.getId();
-            patientData[index][1] = patient.getName();
-            patientData[index][2] = patient.getGender();
-            patientData[index][3] = String.valueOf(PatientFormatUtil.calculateAgeFromIC(patient.getIcNumber()));
-            patientData[index][4] = patient.getIcNumber();
-            patientData[index][5] = patient.getPhone();
-            patientData[index][6] = patient.getRegistrationDate().toString();
-            index++;
+            if (patient == null) continue;
+
+            totalPatients++;
+            int age = PatientFormatUtil.calculateAgeFromIC(patient.getIcNumber());
+            totalAge += age;
+
+            // Track youngest and oldest patients
+            if (age < minAge) {
+                minAge = age;
+                youngestPatient = patient;
+            }
+            if (age > maxAge) {
+                maxAge = age;
+                oldestPatient = patient;
+            }
+
+            // Gender distribution
+            String gender = patient.getGender();
+            genderDistribution.put(gender, genderDistribution.get(gender) == null ? 1 : genderDistribution.get(gender) + 1);
+
+            // Age group classification - ECB FIX: delegate to Entity layer
+            String ageGroup = PatientSummaryReport.classifyAgeGroup(age);
+            ageGroupDistribution.put(ageGroup, ageGroupDistribution.get(ageGroup) == null ? 1 : ageGroupDistribution.get(ageGroup) + 1);
+
+            // Registration patterns
+            int year = patient.getRegistrationDate().getYear();
+            String month = patient.getRegistrationDate().getYear() + "-" +
+                          String.format("%02d", patient.getRegistrationDate().getMonthValue());
+
+            yearlyRegistrations.put(year, yearlyRegistrations.get(year) == null ? 1 : yearlyRegistrations.get(year) + 1);
+            monthlyRegistrations.put(month, monthlyRegistrations.get(month) == null ? 1 : monthlyRegistrations.get(month) + 1);
+
+            // Gender distribution by year
+            String yearStr = String.valueOf(year);
+            MapInterface<String, Integer> yearGenderMap = genderByYear.get(yearStr);
+            if (yearGenderMap == null) {
+                yearGenderMap = new HashMap<>();
+                genderByYear.put(yearStr, yearGenderMap);
+            }
+            yearGenderMap.put(gender, yearGenderMap.get(gender) == null ? 1 : yearGenderMap.get(gender) + 1);
+
+            // Age buckets for histogram - ECB FIX: delegate to Entity layer
+            String ageBucket = PatientSummaryReport.createAgeBucket(age);
+            ageDistribution.put(ageBucket, ageDistribution.get(ageBucket) == null ? 1 : ageDistribution.get(ageBucket) + 1);
         }
 
-        return patientData;
+        // Statistical calculations
+        double averageAge = totalPatients > 0 ? (double) totalAge / totalPatients : 0.0;
+
+        // Build report
+        PatientSummaryReport report = new PatientSummaryReport();
+        report.setTotalPatients(totalPatients);
+        report.setAverageAge(averageAge);
+        report.setYoungestPatient(youngestPatient);
+        report.setOldestPatient(oldestPatient);
+        report.getGenderDistribution().putAll(genderDistribution);
+        report.getAgeGroupDistribution().putAll(ageGroupDistribution);
+        report.getYearlyRegistrations().putAll(yearlyRegistrations);
+        report.getMonthlyRegistrations().putAll(monthlyRegistrations);
+        report.getGenderByYear().putAll(genderByYear);
+        report.getAgeDistribution().putAll(ageDistribution);
+
+        return report;
     }
 
 
@@ -1160,6 +1248,8 @@ public class MaintainPatient {
     }
 
     /** Create a copy of the patient list */
+    // ECB FIX: Business logic methods moved to PatientSummaryReport entity
+
     private ListInterface<Patient> createPatientListCopy() {
         ListInterface<Patient> copyList = new DoublyLinkedList<>();
 
@@ -1188,6 +1278,9 @@ public class MaintainPatient {
         cachedSortedByName = null;
         cachedSortedByAge = null;
         cachedSortedByDate = null;
+        // Also invalidate summary cache
+        summaryCacheDirty = true;
+        cachedSummaryReport = null;
     }
 
     /** Build all sort caches (if dirty) */
