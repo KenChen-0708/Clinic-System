@@ -1,3 +1,5 @@
+//Ronaldo Loh Yu Fei
+
 package control;
 
 import adt.DoublyLinkedList;
@@ -646,7 +648,7 @@ public class MaintainPatient {
 
 
 
-    /** Process patient registration - ECB compliant method for boundary class */
+    /** Process patient registration */
     public void processPatientRegistration(String icNumber, boundary.PatientUI ui) {
         Patient existingPatient = checkExistingPatient(icNumber);
 
@@ -1053,10 +1055,6 @@ public class MaintainPatient {
         return icMap.get(Patient.cleanICNumber(ic));
     }
 
-
-
-    // Removed entity utility proxies to follow ECB
-
     /** Check if IC number already exists */
     public Patient checkExistingPatient(String icNumber) {
         if (icNumber == null || icNumber.trim().isEmpty()) {
@@ -1067,7 +1065,7 @@ public class MaintainPatient {
 
     // ==================== PATIENT REGISTRATION SERVICES ====================
 
-    /** Register new patient - ECB compliant (delegates to entity for validation) */
+    /** Register new patient */
     public Patient registerNewPatient(Patient patient) {
         // Delegate validation to entity
         Patient.ValidationResult validation = patient.validateForRegistration();
@@ -1542,7 +1540,7 @@ public class MaintainPatient {
         java.util.Iterator<Patient> genderIterator = sortedList.iterator();
         while (genderIterator.hasNext()) {
             String gender = genderIterator.next().getGender();
-            // Fix gender comparison - check for normalized gender values
+            // check for normalized gender values
             if (gender.equals("M") || gender.equalsIgnoreCase("male")) {
                 maleCount++;
             } else if (gender.equals("F") || gender.equalsIgnoreCase("female")) {
