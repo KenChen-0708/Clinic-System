@@ -2000,7 +2000,7 @@ public class PatientUI {
      * Handle view current queue
      */
     private void handleViewCurrentQueue() {
-        MaintainPatient.QueueStatusData queueStatus = maintainPatient.getCurrentQueueStatus();
+        entity.QueueStatusData queueStatus = maintainPatient.getCurrentQueueStatus();
 
         if (queueStatus.isEmpty()) {
             displayMessage("\nNo patients in the queue.");
@@ -2076,7 +2076,7 @@ public class PatientUI {
                 break;
             }
 
-            MaintainPatient.SearchResult result = maintainPatient.searchPatientInQueueByName(name);
+            entity.SearchResult result = maintainPatient.searchPatientInQueueByName(name);
 
             if (result.isFound()) {
                 displayFormattedQueueInfo(result.getQueueNumber(), result.getPatient().getName(),
@@ -2104,7 +2104,7 @@ public class PatientUI {
                 break;
             }
 
-            MaintainPatient.SearchResult result = maintainPatient.searchPatientInQueueByIC(ic);
+            entity.SearchResult result = maintainPatient.searchPatientInQueueByIC(ic);
 
             if (result.isFound()) {
                 displayFormattedQueueInfo(result.getQueueNumber(), result.getPatient().getName(),

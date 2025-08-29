@@ -15,6 +15,8 @@ import entity.Doctor;
 import entity.Patient;
 import entity.Appointment;
 import entity.PatientSummaryReport;
+import entity.QueueStatusData;
+import entity.SearchResult;
 import utility.ValidationUtil;
 import utility.PatientValidationUtil;
 import utility.PatientFormatUtil;
@@ -538,23 +540,7 @@ public class MaintainPatient {
         return new QueueStatusData(patientQueue.size(), nextPatient, queueNum);
     }
 
-    /** Queue status data */
-    public static class QueueStatusData {
-        private final int totalWaiting;
-        private final Patient nextPatient;
-        private final String nextQueueNumber;
-
-        public QueueStatusData(int totalWaiting, Patient nextPatient, String nextQueueNumber) {
-            this.totalWaiting = totalWaiting;
-            this.nextPatient = nextPatient;
-            this.nextQueueNumber = nextQueueNumber;
-        }
-
-        public int getTotalWaiting() { return totalWaiting; }
-        public Patient getNextPatient() { return nextPatient; }
-        public String getNextQueueNumber() { return nextQueueNumber; }
-        public boolean isEmpty() { return totalWaiting == 0; }
-    }
+    // QueueStatusData moved to entity
 
     /** Search patient in queue by name */
     public SearchResult searchPatientInQueueByName(String name) {
@@ -939,25 +925,7 @@ public class MaintainPatient {
         }
     }
 
-    /** Search result */
-    public static class SearchResult {
-        private final boolean found;
-        private final Patient patient;
-        private final String queueNumber;
-        private final int queuePosition;
-
-        public SearchResult(boolean found, Patient patient, String queueNumber, int queuePosition) {
-            this.found = found;
-            this.patient = patient;
-            this.queueNumber = queueNumber;
-            this.queuePosition = queuePosition;
-        }
-
-        public boolean isFound() { return found; }
-        public Patient getPatient() { return patient; }
-        public String getQueueNumber() { return queueNumber; }
-        public int getQueuePosition() { return queuePosition; }
-    }
+    // SearchResult moved to entity
 
 
 
@@ -1029,21 +997,7 @@ public class MaintainPatient {
 
 
 
-    /** Get patient age using entity logic */
-    public int getPatientAge(String icNumber) {
-        Patient patient = icMap.get(icNumber);
-        return patient != null ? patient.calculateAge() : 0;
-    }
-
-    /** Format phone number for storage using entity logic */
-    public String formatPhoneForStorage(String phone) {
-        return Patient.formatPhoneForStorage(phone);
-    }
-
-    /** Normalize gender input using entity logic */
-    public String normalizeGender(String gender) {
-        return Patient.normalizeGender(gender);
-    }
+    // Removed entity utility proxies to follow ECB
 
     /** Check if IC number already exists */
     public Patient checkExistingPatient(String icNumber) {
