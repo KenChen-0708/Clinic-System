@@ -47,9 +47,9 @@ public class HashMap<K, V> implements MapInterface<K, V> {
     }
 
     @Override
-    public V put(K key, V value) {
+    public V put(K key, V value) { //add a new key value pair
     int index = hash(key);
-    Entry<K, V> current = buckets[index];
+    Entry<K, V> current = buckets[index]; //get head of chain in that bucket
 
     // 1) Check if key exists → update value
     while (current != null) {
@@ -62,7 +62,7 @@ public class HashMap<K, V> implements MapInterface<K, V> {
         current = current.next;
     }
 
-    // 2) Ensure capacity before adding new key
+    // 2) Ensure capacity before adding new key (if key doesnt exist)
     if (size + 1 > capacity * LOAD_FACTOR) {
         resize();
         index = hash(key); // Recompute index after resize
@@ -79,11 +79,11 @@ public class HashMap<K, V> implements MapInterface<K, V> {
 
 
     @Override
-    public V get(K key) {
-        int index = hash(key);
-        Entry<K, V> current = buckets[index];
+    public V get(K key) { 
+        int index = hash(key); //find bucket index
+        Entry<K, V> current = buckets[index]; // get head of bucket
 
-        while (current != null) {
+        while (current != null) { 
             if ((key == null && current.key == null) ||
                 (key != null && key.equals(current.key))) {
                 return current.value;
@@ -96,7 +96,7 @@ public class HashMap<K, V> implements MapInterface<K, V> {
     @Override
     public V remove(K key) {
         int index = hash(key);
-        Entry<K, V> current = buckets[index];
+        Entry<K, V> current = buckets[index]; // get head of bucket
         Entry<K, V> previous = null;
 
         while (current != null) {
@@ -119,8 +119,8 @@ public class HashMap<K, V> implements MapInterface<K, V> {
 
     @Override
     public boolean containsKey(K key) {
-        int index = hash(key);
-        Entry<K, V> current = buckets[index];
+        int index = hash(key); //find index
+        Entry<K, V> current = buckets[index]; //get head
         while (current != null) {
             if ((key == null && current.key == null) ||
                 (key != null && key.equals(current.key))) {
@@ -132,15 +132,15 @@ public class HashMap<K, V> implements MapInterface<K, V> {
     }
 
     @Override
-    public boolean containsValue(V value) {
+    public boolean containsValue(V value) { //check if contains value
         for (int i = 0; i < capacity; i++) {
-            Entry<K, V> current = buckets[i];
+            Entry<K, V> current = buckets[i]; //get head for each bucket
             while (current != null) {
                 if ((value == null && current.value == null) ||
                     (value != null && value.equals(current.value))) {
                     return true;
                 }
-                current = current.next;
+                current = current.next; //move foward
             }
         }
         return false;

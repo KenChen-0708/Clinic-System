@@ -275,7 +275,7 @@ public class MaintainDoctor {
         doctorUI.displayDoctorList(output.toString());
     }
 
-    //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+    //available doctor only can serve the patient and when serving the patient the doctor is unavailable
     public Doctor findAvailableDoctor() {
         for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
             Doctor doc = doctorList.getEntry(i);
@@ -287,7 +287,7 @@ public class MaintainDoctor {
         return null; // No available doctors
     }
 
-    //Siuyee new changes - available doctor only can serve the patient and when serving the patient the doctor is unavailable
+    //available doctor only can serve the patient and when serving the patient the doctor is unavailable
     public void updateDoctorInList(Doctor updatedDoctor) {
         for (int i = 1; i <= doctorList.getNumberOfEntries(); i++) {
             Doctor doc = doctorList.getEntry(i);
@@ -605,12 +605,12 @@ public class MaintainDoctor {
 
     private void searchDoctors(java.util.function.Predicate<Doctor> filter) {
         StringBuilder output = new StringBuilder();
-        for (Doctor d : doctorDAO.getIterable(doctorList)) {
-            if (filter.test(d)) {
-                output.append(d).append("\n");
+        for (Doctor d : doctorDAO.getIterable(doctorList)) { //iterate over doctors using Dao Iterable Wrapper
+            if (filter.test(d)) { //if doctor matches
+                output.append(d).append("\n"); 
             }
         }
-        if (output.length() > 0) {
+        if (output.length() > 0) { //if any results found
             doctorUI.displayDoctorList(output.toString());
         } else {
             doctorUI.displayMessage("No doctors match the criteria given.");
@@ -634,7 +634,7 @@ public class MaintainDoctor {
         return String.format("D%04d", maxNumeric + 1);
     }
 
-    //Ronaldo Loh Yu Fei 
+
     /**
      * Get all available doctors for appointment booking
      *
